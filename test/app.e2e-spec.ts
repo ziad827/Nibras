@@ -23,6 +23,10 @@ describe('AppController (e2e)', () => {
       .expect('Hello World!');
   });
 
+  it('/api/ping (GET)', () => {
+    return request(app.getHttpServer()).get('/api/ping').expect(200);
+  });
+
   afterEach(async () => {
     await app.close();
   });
