@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { configuration } from '@config/configuration';
 import { validationSchema } from '@config/validation';
+import { DatabaseModule } from '@database/database.module';
+import { RedisModule } from '@database/redis.module';
+import { HealthModule } from '@modules/health/health.module';
 
 @Module({
   imports: [
@@ -18,8 +19,9 @@ import { validationSchema } from '@config/validation';
       },
       envFilePath: ['.env'],
     }),
+    DatabaseModule,
+    RedisModule,
+    HealthModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}
