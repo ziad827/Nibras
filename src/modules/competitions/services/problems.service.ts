@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { CompPlatform } from '../enums/competition.enums';
 import { Problem } from '../schemas/problem.schema';
+import type { CreateProblemDto } from '../dto/competitions.dto';
 import { ProblemBookmark } from '../schemas/problem-bookmark.schema';
 import { UserProblemProgress } from '../schemas/user-problem-progress.schema';
 
@@ -83,6 +85,31 @@ export class ProblemsService {
     if (query.solved === 'false') items = items.filter((i) => !i.solved);
 
     return { items, total };
+  }
+
+  async createInternalProblem(dto: CreateProblemDto) {
+    const slug = `internal-${Date.now()}`;
+    const problem = await this.problemModel.create({
+      platform: CompPlatform.Internal,
+      platformProblemId: slug,
+      title: dto.title,
+      description: dto.description,
+      difficulty: dto.difficulty ?? 0,
+      tags: dto.tags ?? [],
+      source: dto.source ?? 'nibras',
+      externalId: slug,
+      constraints: dto.constraints,
+      testCases: dto.testCases ?? [],
+      sampleIO: dto.sampleIO ?? [],
+    });
+
+    return {
+      id: problem._id.toString(),
+      title: problem.title,
+      host: problem.platform,
+      difficulty: problem.difficulty,
+      tags: problem.tags,
+    };
   }
 
   async setBookmark(userId: string, problemId: string, on?: boolean) {

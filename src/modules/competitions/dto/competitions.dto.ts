@@ -10,7 +10,34 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ValidateNested } from 'class-validator';
 import { ScoringMode } from '../enums/competition.enums';
+
+export class TestCaseDto {
+  @ApiProperty()
+  @IsString()
+  input!: string;
+
+  @ApiProperty()
+  @IsString()
+  expectedOutput!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isSample?: boolean;
+}
+
+export class SampleIODto {
+  @ApiProperty()
+  @IsString()
+  input!: string;
+
+  @ApiProperty()
+  @IsString()
+  output!: string;
+}
 
 export class ToggleDto {
   @ApiPropertyOptional()
@@ -129,6 +156,53 @@ export class SubmitSolutionDto {
   @ApiProperty()
   @IsString()
   code!: string;
+}
+
+export class CreateProblemDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  title!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  difficulty?: number;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  constraints?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  source?: string;
+
+  @ApiPropertyOptional({ type: [TestCaseDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TestCaseDto)
+  testCases?: TestCaseDto[];
+
+  @ApiPropertyOptional({ type: [SampleIODto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SampleIODto)
+  sampleIO?: SampleIODto[];
 }
 
 export class CreateTeamDto {
