@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 import {
   AccountVerificationStatus,
   CompPlatform,
@@ -39,6 +39,9 @@ export class LinkedAccount {
 
   @Prop()
   lastSyncAt?: Date;
+
+  @Prop({ type: MongooseSchema.Types.Mixed })
+  platformMetadata?: Record<string, unknown>;
 }
 
 export const LinkedAccountSchema = SchemaFactory.createForClass(LinkedAccount);

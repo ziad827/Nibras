@@ -76,6 +76,7 @@ export class AccountStatsSyncJob {
           platformRating: stats.rating,
           platformMaxRating: peakRating > 0 ? peakRating : undefined,
           lastSyncAt: new Date(),
+          ...(stats.metadata ? { platformMetadata: stats.metadata } : {}),
         },
       },
     );

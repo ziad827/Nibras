@@ -38,6 +38,7 @@ export class LinkedAccountsService {
       maxRating: a.platformMaxRating,
       lastSyncAt: a.lastSyncAt?.toISOString() ?? null,
       linkedAt: (a as { createdAt?: Date }).createdAt?.toISOString(),
+      metadata: a.platformMetadata ?? null,
     }));
   }
 

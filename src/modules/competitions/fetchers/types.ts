@@ -29,6 +29,7 @@ export type RawUserStats = {
     delta: number;
   }>;
   solvedProblemIds: string[];
+  metadata?: Record<string, unknown>;
 };
 
 export type PlatformFetcher = {
