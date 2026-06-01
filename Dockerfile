@@ -3,6 +3,7 @@
 # ---------- Stage 1: deps (full deps for dev + build) ----------
 FROM node:20-alpine AS deps
 WORKDIR /app
+ENV REDISMS_DISABLE_POSTINSTALL=true
 COPY package.json package-lock.json ./
 RUN npm ci
 
