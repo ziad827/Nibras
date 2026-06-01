@@ -29,11 +29,15 @@ import {
   UpdateContestDto,
 } from '../dto/competitions.dto';
 import { ContestsService } from '../services/contests.service';
+import { LinkedAccountsService } from '../services/linked-accounts.service';
 
 @ApiTags('contests')
 @Controller('contests')
 export class ContestsController {
-  constructor(private readonly contestsService: ContestsService) {}
+  constructor(
+    private readonly contestsService: ContestsService,
+    private readonly linkedAccountsService: LinkedAccountsService,
+  ) {}
 
   @Get()
   @UseGuards(OptionalSessionGuard)
@@ -69,6 +73,15 @@ export class ContestsController {
     @Query('host') host?: string,
   ) {
     return this.contestsService.getHistory(user.id, host);
+  }
+
+  @Get('accounts')
+  @UseGuards(SessionAuthGuard)
+  @ApiBearerAuth('session')
+  @ApiCookieAuth('nibras_web_session')
+  @ApiOperation({ summary: 'List linked competition accounts (alias)' })
+  accounts(@CurrentUser() user: AuthenticatedUser) {
+    return this.linkedAccountsService.listForUser(user.id);
   }
 
   @Post('user-contests/:contestId/reminder')
