@@ -8,6 +8,33 @@ import {
 
 export type ContestDocument = HydratedDocument<Contest>;
 
+@Schema({ _id: false })
+export class ContestSummaryReport {
+  @Prop({ required: true })
+  generatedAt!: Date;
+
+  @Prop({ default: 0 })
+  participantCount!: number;
+
+  @Prop({ type: Object, default: {} })
+  solvesByProblem!: Record<string, number>;
+
+  @Prop({ type: [Object], default: [] })
+  topStandings!: Array<{
+    rank: number;
+    userId?: string;
+    teamId?: string;
+    solved: number;
+    score: number;
+  }>;
+
+  @Prop({ type: [Object], default: [] })
+  eloChanges!: Array<{ userId: string; delta: number; ratingAfter: number }>;
+
+  @Prop({ type: [Object], default: [] })
+  badgesAwarded!: Array<{ userId: string; badge: string; auraDelta: number }>;
+}
+
 @Schema({ timestamps: true, collection: 'contests' })
 export class Contest {
   @Prop({ required: true, enum: CompPlatform, type: String })
@@ -60,6 +87,9 @@ export class Contest {
 
   @Prop()
   archivedAt?: Date;
+
+  @Prop({ type: ContestSummaryReport })
+  summaryReport?: ContestSummaryReport;
 }
 
 export const ContestSchema = SchemaFactory.createForClass(Contest);
