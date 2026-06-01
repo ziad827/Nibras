@@ -1,29 +1,35 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import { createE2eApp } from './setup-e2e-app';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+interface PingResponse {
+  status: string;
+  info: {
+    mongo: { status: string };
+    redis: { status: string };
+  };
+}
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+describe('Health (e2e)', () => {
+  let app: INestApplication;
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  beforeAll(async () => {
+    app = await createE2eApp();
   });
 
-  it('/ (GET)', () => {
+  afterAll(async () => {
+    await app?.close();
+  });
+
+  it('GET /api/ping returns mongo and redis status', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/api/ping')
       .expect(200)
-      .expect('Hello World!');
-  });
-
-  afterEach(async () => {
-    await app.close();
+      .expect((res) => {
+        const body = res.body as PingResponse;
+        expect(body.status).toBe('ok');
+        expect(body.info.mongo.status).toBe('up');
+        expect(body.info.redis.status).toBe('up');
+      });
   });
 });
