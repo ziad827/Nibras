@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCookieAuth,
@@ -10,6 +18,7 @@ import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { RolesGuard, SessionAuthGuard } from '@common/guards/auth.guards';
 import type { AuthenticatedUser } from '@modules/auth/types/authenticated-user.type';
 import { UpdateProfileDto, UserProfileResponseDto } from './dto/users.dto';
+import { RatingsService } from '@modules/competitions/services/ratings.service';
 import { UsersService } from './users.service';
 
 @ApiTags('users')
@@ -17,7 +26,10 @@ import { UsersService } from './users.service';
 @ApiCookieAuth('nibras_web_session')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly ratingsService: RatingsService,
+  ) {}
 
   @Get('me')
   @UseGuards(SessionAuthGuard)
@@ -34,6 +46,16 @@ export class UsersController {
     @Body() dto: UpdateProfileDto,
   ): Promise<UserProfileResponseDto> {
     return this.usersService.updateProfile(user.id, dto);
+  }
+
+  @Get(':id/rating-history')
+  @UseGuards(SessionAuthGuard)
+  @ApiOperation({ summary: 'Rating progression for a user' })
+  getRatingHistory(
+    @Param('id') id: string,
+    @Query('platform') platform?: string,
+  ) {
+    return this.ratingsService.getRatingHistory(id, platform);
   }
 
   @Get(':id')

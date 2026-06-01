@@ -15,6 +15,16 @@ const DEFAULT_PERMISSIONS = [
     action: 'admin',
     description: 'Admin course management',
   },
+  {
+    resource: 'contests',
+    action: 'read',
+    description: 'View contests and rankings',
+  },
+  {
+    resource: 'contests',
+    action: 'write',
+    description: 'Create and manage internal contests',
+  },
 ];
 
 const DEFAULT_ROLES: Array<{
@@ -37,22 +47,35 @@ const DEFAULT_ROLES: Array<{
       'courses:read',
       'courses:write',
       'courses:admin',
+      'contests:read',
+      'contests:write',
     ],
   },
   {
     name: 'instructor',
     description: 'Course instructor',
-    permissions: ['users:read', 'courses:read', 'courses:write'],
+    permissions: [
+      'users:read',
+      'courses:read',
+      'courses:write',
+      'contests:read',
+      'contests:write',
+    ],
   },
   {
     name: 'ta',
     description: 'Teaching assistant',
-    permissions: ['users:read', 'courses:read', 'courses:write'],
+    permissions: [
+      'users:read',
+      'courses:read',
+      'courses:write',
+      'contests:read',
+    ],
   },
   {
     name: 'student',
     description: 'Student',
-    permissions: ['users:read', 'courses:read'],
+    permissions: ['users:read', 'courses:read', 'contests:read'],
   },
 ];
 
