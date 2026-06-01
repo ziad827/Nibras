@@ -32,4 +32,10 @@ describe('Competitions (e2e)', () => {
   it('GET /api/ranking requires auth', () => {
     return request(app.getHttpServer()).get('/api/ranking').expect(401);
   });
+
+  it('GET /api/contests/accounts requires auth', () => {
+    return request(app.getHttpServer())
+      .get('/api/contests/accounts')
+      .expect(401);
+  });
 });

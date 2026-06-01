@@ -13,10 +13,11 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Roles } from '@common/decorators/auth.decorators';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
-import { SessionAuthGuard } from '@common/guards/auth.guards';
+import { RolesGuard, SessionAuthGuard } from '@common/guards/auth.guards';
 import type { AuthenticatedUser } from '@modules/auth/types/authenticated-user.type';
-import { ToggleDto } from '../dto/competitions.dto';
+import { CreateProblemDto, ToggleDto } from '../dto/competitions.dto';
 import { ProblemsService } from '../services/problems.service';
 
 @ApiTags('problems')
@@ -26,6 +27,14 @@ import { ProblemsService } from '../services/problems.service';
 @UseGuards(SessionAuthGuard)
 export class ProblemsController {
   constructor(private readonly problemsService: ProblemsService) {}
+
+  @Post()
+  @UseGuards(RolesGuard)
+  @Roles('instructor', 'admin', 'super-admin')
+  @ApiOperation({ summary: 'Create internal practice problem' })
+  create(@Body() dto: CreateProblemDto) {
+    return this.problemsService.createInternalProblem(dto);
+  }
 
   @Get()
   @ApiOperation({ summary: 'List practice problems' })

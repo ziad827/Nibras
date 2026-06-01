@@ -20,6 +20,8 @@ import { StandingsService } from './standings.service';
 
 export type ListContestsQuery = {
   upcoming?: string;
+  active?: string;
+  past?: string;
   host?: string;
   from?: string;
   to?: string;
@@ -42,10 +44,17 @@ export class ContestsService {
 
   async listContests(query: ListContestsQuery, userId?: string) {
     const filter: Record<string, unknown> = { archivedAt: { $exists: false } };
-    const hasDateFilter = query.upcoming || query.from || query.to;
+    const now = new Date();
+    const hasDateFilter =
+      query.upcoming || query.active || query.past || query.from || query.to;
 
     if (query.upcoming === 'true') {
-      filter.startsAt = { $gte: new Date() };
+      filter.startsAt = { $gte: now };
+    } else if (query.active === 'true') {
+      filter.startsAt = { $lte: now };
+      filter.endsAt = { $gte: now };
+    } else if (query.past === 'true') {
+      filter.endsAt = { $lt: now };
     }
     if (query.host) {
       filter.platform = query.host;
@@ -368,7 +377,12 @@ export class ContestsService {
 
     const standings = await this.standingsService.getStandings(contestId);
     const detail = this.toContestDetail(contest);
-    return { ...detail, standings };
+    return {
+      ...detail,
+      standings: standings.individual,
+      teamStandings: standings.team,
+      summaryReport: contest.summaryReport,
+    };
   }
 
   private toContestDetail(contest: Contest & { _id: Types.ObjectId }) {

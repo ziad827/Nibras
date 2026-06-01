@@ -46,6 +46,7 @@ import { StandingsService } from './services/standings.service';
 import { SubmissionsService } from './services/submissions.service';
 import { JudgeService } from './services/judge.service';
 import { RatingsService } from './services/ratings.service';
+import { PostContestService } from './services/post-contest.service';
 import { TeamsService } from './services/teams.service';
 import { ContestSyncJob } from './jobs/contest-sync.job';
 import { ProblemSyncJob } from './jobs/problem-sync.job';
@@ -99,6 +100,7 @@ import { OptionalSessionGuard } from '@common/guards/optional-session.guard';
     SubmissionsService,
     JudgeService,
     RatingsService,
+    PostContestService,
     TeamsService,
     ContestSyncJob,
     ProblemSyncJob,

@@ -1,4 +1,12 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCookieAuth,
@@ -22,6 +30,15 @@ export class ContestActionsController {
     private readonly submissionsService: SubmissionsService,
     private readonly teamsService: TeamsService,
   ) {}
+
+  @Get(':id/submissions')
+  @ApiOperation({ summary: 'List contest submissions' })
+  listSubmissions(
+    @Param('id') contestId: string,
+    @Query() query: Record<string, string>,
+  ) {
+    return this.submissionsService.listContestSubmissions(contestId, query);
+  }
 
   @Post(':id/submissions')
   @ApiOperation({ summary: 'Submit solution during contest' })

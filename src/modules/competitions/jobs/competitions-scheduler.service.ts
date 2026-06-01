@@ -7,7 +7,7 @@ import { ProblemSyncJob } from './problem-sync.job';
 import { AccountStatsSyncJob } from './account-stats-sync.job';
 import { ContestReminderJob } from './contest-reminder.job';
 import { RankingService } from '../services/ranking.service';
-import { RatingsService } from '../services/ratings.service';
+import { PostContestService } from '../services/post-contest.service';
 
 @Injectable()
 export class CompetitionsSchedulerService {
@@ -21,7 +21,7 @@ export class CompetitionsSchedulerService {
     private readonly accountStatsSync: AccountStatsSyncJob,
     private readonly contestReminder: ContestReminderJob,
     private readonly rankingService: RankingService,
-    private readonly ratingsService: RatingsService,
+    private readonly postContestService: PostContestService,
   ) {
     this.cfg = config.getOrThrow<CompetitionsConfig>('competitions');
   }
@@ -64,6 +64,6 @@ export class CompetitionsSchedulerService {
   @Cron(process.env.POST_CONTEST_CRON ?? '*/10 * * * *')
   async handlePostContest(): Promise<void> {
     if (!this.enabled()) return;
-    await this.ratingsService.finalizeEndedContests();
+    await this.postContestService.processEndedContests();
   }
 }

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { CompPlatform, ContestStatus } from '../enums/competition.enums';
+import { CompPlatform } from '../enums/competition.enums';
 import { Contest } from '../schemas/contest.schema';
 import {
   UserRating,
@@ -70,7 +70,7 @@ export class RatingsService {
     if (!contest || contest.platform !== CompPlatform.Internal) return;
 
     const standings = await this.standingsService.recomputeStandings(contestId);
-    const participants = standings.filter((s) => s.userId);
+    const participants = standings.individual.filter((s) => s.userId);
     if (participants.length < 2) return;
 
     const ratings: number[] = [];
@@ -109,24 +109,6 @@ export class RatingsService {
             lastUpdated: doc.lastUpdated,
           },
         },
-      );
-    }
-  }
-
-  async finalizeEndedContests(): Promise<void> {
-    const ended = await this.contestModel
-      .find({
-        platform: CompPlatform.Internal,
-        endsAt: { $lt: new Date() },
-        status: { $nin: [ContestStatus.Archived, ContestStatus.Ended] },
-      })
-      .exec();
-
-    for (const c of ended) {
-      await this.applyEloForContest(c._id.toString());
-      await this.contestModel.updateOne(
-        { _id: c._id },
-        { $set: { status: ContestStatus.Ended } },
       );
     }
   }
