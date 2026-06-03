@@ -1,0 +1,11 @@
+meta {
+  name: My Leaderboard Ranks
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/leaderboards/me
+  body: none
+  auth: bearer
+}

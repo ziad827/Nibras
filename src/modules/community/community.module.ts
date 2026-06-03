@@ -3,11 +3,14 @@ import {
   OnApplicationBootstrap,
   Optional,
   Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ModuleRef } from '@nestjs/core';
 import { HttpModule } from '@nestjs/axios';
 import { AuthModule } from '@modules/auth/auth.module';
+import { GamificationModule } from '@modules/gamification/gamification.module';
+import { ActivityEventService } from '@modules/gamification/services/activity-event.service';
 import { Thread, ThreadSchema } from './schemas/thread.schema';
 import { Post, PostSchema } from './schemas/post.schema';
 import { Question, QuestionSchema } from './schemas/question.schema';
@@ -28,10 +31,7 @@ import { VoteService } from './services/vote.service';
 import { FlagService } from './services/flag.service';
 import { ChatbotService } from './services/chatbot.service';
 import { CourseService } from './services/course.service';
-import {
-  NoopActivityEventService,
-  NoopNotificationService,
-} from './services/noop-services';
+import { NoopNotificationService } from './services/noop-services';
 import { CommunityGateway } from './gateways/community.gateway';
 import { ThreadController } from './controllers/thread.controller';
 import { PostController } from './controllers/post.controller';
@@ -54,6 +54,7 @@ import type {
 
 @Module({
   imports: [
+    forwardRef(() => GamificationModule),
     AuthModule,
     MongooseModule.forFeature([
       { name: Thread.name, schema: ThreadSchema },
@@ -89,7 +90,7 @@ import type {
     CourseService,
     CommunityGateway,
     { provide: REALTIME_EVENTS, useExisting: CommunityGateway },
-    { provide: ACTIVITY_EVENT_SERVICE, useClass: NoopActivityEventService },
+    { provide: ACTIVITY_EVENT_SERVICE, useClass: ActivityEventService },
     { provide: NOTIFICATION_SERVICE, useClass: NoopNotificationService },
   ],
   exports: [

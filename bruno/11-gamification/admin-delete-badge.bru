@@ -1,0 +1,11 @@
+meta {
+  name: Delete Badge (Admin)
+  type: http
+  seq: 10
+}
+
+delete {
+  url: {{baseUrl}}/admin/badges/REPLACE_WITH_BADGE_ID
+  body: none
+  auth: bearer
+}
