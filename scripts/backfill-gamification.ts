@@ -109,7 +109,7 @@ async function main(): Promise<void> {
     const questions = await questionModel
       .find({ isDeleted: { $ne: true } })
       .select('_id author course createdAt')
-      .lean<Array<Question & { createdAt: Date }>>();
+      .lean<Array<Question & { _id: Types.ObjectId; createdAt: Date }>>();
     const questionEntries: DedupeEntry[] = questions
       .filter((q) => q.author)
       .map((q) => ({
@@ -131,9 +131,12 @@ async function main(): Promise<void> {
       _id: Types.ObjectId;
       course?: Types.ObjectId;
     }
-    interface AnswerWithTimestamps extends Answer {
-      createdAt: Date;
+    interface AnswerWithTimestamps {
+      _id: Types.ObjectId;
+      author: Types.ObjectId;
       question: Types.ObjectId | PopulatedQuestion;
+      isAccepted?: boolean;
+      createdAt: Date;
     }
     const answers = await answerModel
       .find({})
@@ -188,9 +191,16 @@ async function main(): Promise<void> {
 
     // 4. Backfill Contest Participations → contest_joined + placements
     console.log('\n--- Backfilling Contest Participations ---');
-    interface ParticipationWithTimestamps extends UserContestParticipation {
-      createdAt: Date;
+    interface ParticipationWithTimestamps {
+      _id: Types.ObjectId;
+      userId: Types.ObjectId;
       contestId: Types.ObjectId | { _id: Types.ObjectId };
+      rank?: number;
+      participants?: number;
+      delta?: number;
+      ratingBefore?: number;
+      ratingAfter?: number;
+      createdAt: Date;
     }
     const participations = await participationModel
       .find({})
