@@ -2,6 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User } from '@modules/auth/schemas/user.schema';
+import { PointsEngineService } from '@modules/gamification/services/points-engine.service';
+import {
+  ActivityType,
+  ActivitySource,
+} from '@modules/gamification/enums/gamification.enums';
 import {
   CompPlatform,
   ContestStatus,
@@ -25,6 +30,7 @@ export class PostContestService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly standingsService: StandingsService,
     private readonly ratingsService: RatingsService,
+    private readonly pointsEngine: PointsEngineService,
   ) {}
 
   async processEndedContests(): Promise<void> {
@@ -100,17 +106,74 @@ export class PostContestService {
       badge: string;
       auraDelta: number;
     }> = [];
-    for (const row of standings.individual.slice(0, 3)) {
+    const totalParticipants = standings.individual.length;
+
+    for (const participant of contest.participants) {
+      const uid = participant.toString();
+      await this.pointsEngine.award({
+        userId: uid,
+        activityType: ActivityType.ContestJoined,
+        source: ActivitySource.Contests,
+        resourceId: contestId,
+        resourceType: 'Contest',
+        dedupeKey: `contest_joined:${uid}:${contestId}`,
+        skipBadgeCheck: true,
+      });
+    }
+
+    for (const row of standings.individual) {
       if (!row.userId) continue;
+      const uid = row.userId;
+      const percentile =
+        totalParticipants > 0 ? row.rank / totalParticipants : 1;
+
+      if (percentile <= 0.1) {
+        await this.pointsEngine.award({
+          userId: uid,
+          activityType: ActivityType.ContestTop10,
+          source: ActivitySource.Contests,
+          resourceId: contestId,
+          resourceType: 'Contest',
+          dedupeKey: `contest_top_10:${uid}:${contestId}`,
+          skipBadgeCheck: true,
+        });
+      } else if (percentile <= 0.25) {
+        await this.pointsEngine.award({
+          userId: uid,
+          activityType: ActivityType.ContestTop25,
+          source: ActivitySource.Contests,
+          resourceId: contestId,
+          resourceType: 'Contest',
+          dedupeKey: `contest_top_25:${uid}:${contestId}`,
+          skipBadgeCheck: true,
+        });
+      }
+
       await this.userModel.updateOne(
-        { _id: row.userId },
+        { _id: uid },
         { $inc: { reputationScore: TOP_BADGE_AURA } },
       );
       badgesAwarded.push({
-        userId: row.userId,
+        userId: uid,
         badge: `contest_top_${row.rank}`,
         auraDelta: TOP_BADGE_AURA,
       });
+    }
+
+    for (const elo of eloChanges) {
+      if (elo.delta > 0) {
+        await this.pointsEngine.award({
+          userId: elo.userId,
+          activityType: ActivityType.ContestRatingGain,
+          source: ActivitySource.Contests,
+          resourceId: contestId,
+          resourceType: 'Contest',
+          points: Math.min(Math.floor(elo.delta / 10), 30),
+          dedupeKey: `contest_rating_gain:${elo.userId}:${contestId}`,
+          metadata: { ratingChange: elo.delta },
+          skipBadgeCheck: true,
+        });
+      }
     }
 
     contest.summaryReport = {

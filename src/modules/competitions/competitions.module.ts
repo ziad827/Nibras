@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from '@modules/auth/auth.module';
+import { GamificationModule } from '@modules/gamification/gamification.module';
 import { User, UserSchema } from '@modules/auth/schemas/user.schema';
 import {
   CachedRanking,
@@ -60,6 +61,7 @@ import { OptionalSessionGuard } from '@common/guards/optional-session.guard';
 
 @Module({
   imports: [
+    forwardRef(() => GamificationModule),
     ScheduleModule.forRoot(),
     AuthModule,
     MongooseModule.forFeature([

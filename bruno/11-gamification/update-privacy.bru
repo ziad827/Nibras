@@ -1,0 +1,17 @@
+meta {
+  name: Update Privacy
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/users/me/privacy
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "showOnLeaderboard": false
+  }
+}

@@ -12,6 +12,7 @@ import { HealthModule } from '@modules/health/health.module';
 import { RbacModule } from '@modules/rbac/rbac.module';
 import { UsersModule } from '@modules/users/users.module';
 import { CompetitionsModule } from '@modules/competitions/competitions.module';
+import { GamificationModule } from '@modules/gamification/gamification.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { CompetitionsModule } from '@modules/competitions/competitions.module';
     RbacModule,
     AuthModule,
     UsersModule,
+    GamificationModule,
     CompetitionsModule,
     CommunityModule,
     HealthModule,

@@ -1,0 +1,22 @@
+meta {
+  name: Create Badge (Admin)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/admin/badges
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "name": "100 Problems",
+    "description": "Solve 100 coding problems",
+    "type": "competitive",
+    "criteria": { "minProblemSolved": 100 },
+    "pointsValue": 30,
+    "level": "gold"
+  }
+}

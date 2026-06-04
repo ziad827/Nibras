@@ -1,0 +1,11 @@
+meta {
+  name: Leaderboard
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/leaderboards?type=community&limit=20
+  body: none
+  auth: bearer
+}
