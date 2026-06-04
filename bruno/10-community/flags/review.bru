@@ -1,0 +1,21 @@
+meta {
+  name: Review Flag
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/flags/{{flagId}}/review
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "status": "resolved"
+  }
+}

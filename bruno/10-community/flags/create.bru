@@ -1,0 +1,23 @@
+meta {
+  name: Flag Content
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/flags
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "targetId": "{{questionId}}",
+    "targetType": "question",
+    "reason": "This content violates community guidelines by containing offensive language."
+  }
+}

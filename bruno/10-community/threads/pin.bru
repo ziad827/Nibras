@@ -1,0 +1,15 @@
+meta {
+  name: Pin Thread
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/threads/{{threadId}}/pin
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

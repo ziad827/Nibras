@@ -1,0 +1,15 @@
+meta {
+  name: Accept Answer
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/answers/{{answerId}}/accept
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

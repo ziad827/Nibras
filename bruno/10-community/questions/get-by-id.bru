@@ -1,0 +1,11 @@
+meta {
+  name: Get Question by ID
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/questions/{{questionId}}
+  body: none
+  auth: bearer
+}

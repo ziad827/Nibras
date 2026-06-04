@@ -1,0 +1,11 @@
+meta {
+  name: Get Tag by ID
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/tags/{{tagId}}
+  body: none
+  auth: bearer
+}

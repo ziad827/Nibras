@@ -1,0 +1,11 @@
+meta {
+  name: List Answers by User
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/answers/user/{{userId}}
+  body: none
+  auth: bearer
+}

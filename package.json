@@ -26,12 +26,15 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "dev:session": "node -r tsconfig-paths/register -r ts-node/register scripts/local-dev-session.ts",
+    "dev:student": "node -r tsconfig-paths/register -r ts-node/register scripts/local-dev-student.ts",
+    "seed:tags": "node -r tsconfig-paths/register -r ts-node/register scripts/seed-tags.ts",
     "smoke:local": "bash scripts/full-system-smoke.sh",
     "smoke:socket": "node scripts/socket-contest-listen.mjs",
     "prepare": "husky"
   },
   "dependencies": {
     "@keyv/redis": "^5.1.6",
+    "@nestjs/axios": "^4.0.1",
     "@nestjs/cache-manager": "^3.1.2",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",

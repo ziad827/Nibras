@@ -1,0 +1,21 @@
+meta {
+  name: Create Answer
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/answers/{{questionId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "body": "BFS is O(V+E) for adjacency list and O(V^2) for adjacency matrix."
+  }
+}

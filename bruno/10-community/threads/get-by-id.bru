@@ -1,0 +1,11 @@
+meta {
+  name: Get Thread by ID
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/threads/{{threadId}}
+  body: none
+  auth: bearer
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Get My Vote
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/votes/question/{{questionId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

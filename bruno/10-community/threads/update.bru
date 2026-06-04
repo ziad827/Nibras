@@ -1,0 +1,22 @@
+meta {
+  name: Update Thread
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/threads/{{threadId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Updated: Understanding Dynamic Programming",
+    "tags": ["dp", "algorithms", "recursion"]
+  }
+}

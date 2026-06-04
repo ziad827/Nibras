@@ -1,0 +1,24 @@
+meta {
+  name: Create Question
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/questions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "What is the time complexity of BFS?",
+    "body": "I'm confused about whether BFS is O(V+E) or O(V^2) on an adjacency matrix.",
+    "tags": ["graph", "bfs", "complexity"],
+    "isAnonymous": false
+  }
+}

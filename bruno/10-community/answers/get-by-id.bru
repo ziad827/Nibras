@@ -1,0 +1,11 @@
+meta {
+  name: Get Answer by ID
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/answers/{{answerId}}
+  body: none
+  auth: bearer
+}

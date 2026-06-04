@@ -1,0 +1,11 @@
+meta {
+  name: Search Threads
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/threads/course/{{courseId}}?search=dynamic&status=open
+  body: none
+  auth: bearer
+}

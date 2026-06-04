@@ -1,0 +1,11 @@
+meta {
+  name: Get Popular Tags
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/tags/popular
+  body: none
+  auth: bearer
+}

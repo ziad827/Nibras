@@ -1,0 +1,11 @@
+meta {
+  name: List Threads by Course
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/threads/course/{{courseId}}
+  body: none
+  auth: bearer
+}

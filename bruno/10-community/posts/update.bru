@@ -1,0 +1,21 @@
+meta {
+  name: Update Post
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/posts/{{postId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "body": "Updated: Let me clarify the approach further..."
+  }
+}

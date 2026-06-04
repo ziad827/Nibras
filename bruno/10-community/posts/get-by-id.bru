@@ -1,0 +1,11 @@
+meta {
+  name: Get Post by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/posts/{{postId}}
+  body: none
+  auth: bearer
+}

@@ -1,0 +1,23 @@
+meta {
+  name: Cast Vote
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/votes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "targetType": "question",
+    "targetId": "{{questionId}}",
+    "value": 1
+  }
+}

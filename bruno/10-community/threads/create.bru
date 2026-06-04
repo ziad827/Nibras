@@ -1,0 +1,23 @@
+meta {
+  name: Create Thread
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/threads/{{courseId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Understanding Dynamic Programming",
+    "body": "Can someone explain the DP approach for knapsack?",
+    "tags": ["dp", "algorithms"]
+  }
+}

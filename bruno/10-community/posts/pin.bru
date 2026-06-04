@@ -1,0 +1,15 @@
+meta {
+  name: Pin Post
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/posts/{{postId}}/pin
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

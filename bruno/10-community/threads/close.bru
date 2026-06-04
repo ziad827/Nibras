@@ -1,0 +1,15 @@
+meta {
+  name: Close Thread
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/threads/{{threadId}}/close
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Update Tag
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/tags/{{tagId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "description": "Updated: Graph theory, algorithms, and data structures"
+  }
+}

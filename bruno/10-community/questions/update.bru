@@ -1,0 +1,22 @@
+meta {
+  name: Update Question
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/questions/{{questionId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Updated: Time complexity of BFS vs DFS",
+    "tags": ["graph", "bfs", "dfs"]
+  }
+}

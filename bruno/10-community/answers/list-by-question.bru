@@ -1,0 +1,11 @@
+meta {
+  name: List Answers by Question
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/answers/question/{{questionId}}
+  body: none
+  auth: bearer
+}

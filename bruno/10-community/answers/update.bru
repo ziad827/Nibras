@@ -1,0 +1,21 @@
+meta {
+  name: Update Answer
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/answers/{{answerId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "body": "Updated: BFS complexity depends on the data structure used."
+  }
+}

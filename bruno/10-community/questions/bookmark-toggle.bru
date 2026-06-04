@@ -1,0 +1,21 @@
+meta {
+  name: Toggle Bookmark
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/questions/{{questionId}}/bookmark
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "on": true
+  }
+}

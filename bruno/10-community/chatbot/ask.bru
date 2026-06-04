@@ -1,0 +1,21 @@
+meta {
+  name: Ask Chatbot
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/chatbot/ask
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "question": "What is the time complexity of quicksort in the worst case?"
+  }
+}

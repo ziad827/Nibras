@@ -1,0 +1,24 @@
+meta {
+  name: Publish Chatbot Answer
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/chatbot/publish
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Quicksort Worst-Case Complexity",
+    "question": "What is the time complexity of quicksort in the worst case?",
+    "finalAnswer": "Quicksort has O(n²) worst-case time complexity, which occurs when the pivot selection results in highly unbalanced partitions (e.g., when the array is already sorted and the first/last element is chosen as pivot). Average case is O(n log n).",
+    "tags": ["sorting", "complexity"]
+  }
+}

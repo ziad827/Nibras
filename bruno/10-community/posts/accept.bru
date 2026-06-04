@@ -1,0 +1,15 @@
+meta {
+  name: Accept Post
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/posts/{{postId}}/accept
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

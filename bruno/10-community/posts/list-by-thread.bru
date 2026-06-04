@@ -1,0 +1,11 @@
+meta {
+  name: List Posts by Thread
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/posts/thread/{{threadId}}
+  body: none
+  auth: bearer
+}

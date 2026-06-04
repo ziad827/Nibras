@@ -1,0 +1,21 @@
+meta {
+  name: Create Post
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/posts/{{threadId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "body": "Great question! The key insight is to break it into subproblems..."
+  }
+}

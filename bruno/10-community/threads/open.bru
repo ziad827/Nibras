@@ -1,0 +1,15 @@
+meta {
+  name: Open Thread
+  type: http
+  seq: 10
+}
+
+patch {
+  url: {{baseUrl}}/threads/{{threadId}}/open
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
