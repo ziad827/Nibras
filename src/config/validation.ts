@@ -47,4 +47,19 @@ export const validationSchema = Joi.object({
   RANKING_CALC_CRON: Joi.string().default('*/30 * * * *'),
   CONTEST_REMINDER_CRON: Joi.string().default('* * * * *'),
   POST_CONTEST_CRON: Joi.string().default('*/10 * * * *'),
+
+  EXECUTOR_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
+  EXECUTOR_MAX_CONCURRENT: Joi.number().integer().min(1).max(32).default(4),
+  EXECUTOR_DEFAULT_MEMORY_MB: Joi.number()
+    .integer()
+    .min(32)
+    .max(512)
+    .default(256),
+  EXECUTOR_DEFAULT_TIME_MS: Joi.number()
+    .integer()
+    .min(100)
+    .max(60000)
+    .default(5000),
+  EXECUTOR_DEFAULT_DISK_MB: Joi.number().integer().min(1).max(100).default(50),
+  MOSS_USER_ID: Joi.string().allow('').optional(),
 });

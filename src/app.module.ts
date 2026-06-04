@@ -11,6 +11,8 @@ import { HealthModule } from '@modules/health/health.module';
 import { RbacModule } from '@modules/rbac/rbac.module';
 import { UsersModule } from '@modules/users/users.module';
 import { CompetitionsModule } from '@modules/competitions/competitions.module';
+import { CoursesModule } from '@modules/courses/courses.module';
+import { AssessmentsModule } from '@modules/assessments/assessments.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { CompetitionsModule } from '@modules/competitions/competitions.module';
     AuthModule,
     UsersModule,
     CompetitionsModule,
+    CoursesModule,
+    AssessmentsModule,
     HealthModule,
   ],
   providers: [

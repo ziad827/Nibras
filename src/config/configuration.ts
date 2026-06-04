@@ -19,6 +19,18 @@ export interface RedisConfig {
   ttlSeconds: number;
 }
 
+export interface ExecutorConfig {
+  enabled: boolean;
+  maxConcurrent: number;
+  defaultMemoryMb: number;
+  defaultTimeMs: number;
+  defaultDiskMb: number;
+}
+
+export interface MossConfig {
+  userId?: string;
+}
+
 export interface CompetitionsConfig {
   syncEnabled: boolean;
   contestSyncCron: string;
@@ -47,6 +59,8 @@ export interface NibrasConfig {
   redis: RedisConfig;
   auth: AuthConfig;
   competitions: CompetitionsConfig;
+  executor: ExecutorConfig;
+  moss: MossConfig;
 }
 
 export const configuration = (): NibrasConfig => ({
@@ -88,6 +102,19 @@ export const configuration = (): NibrasConfig => ({
     apiBaseUrl:
       process.env.API_BASE_URL ??
       `http://localhost:${process.env.PORT ?? '3000'}`,
+  },
+  executor: {
+    enabled: process.env.EXECUTOR_ENABLED === 'true',
+    maxConcurrent: parseInt(process.env.EXECUTOR_MAX_CONCURRENT ?? '4', 10),
+    defaultMemoryMb: parseInt(
+      process.env.EXECUTOR_DEFAULT_MEMORY_MB ?? '256',
+      10,
+    ),
+    defaultTimeMs: parseInt(process.env.EXECUTOR_DEFAULT_TIME_MS ?? '5000', 10),
+    defaultDiskMb: parseInt(process.env.EXECUTOR_DEFAULT_DISK_MB ?? '50', 10),
+  },
+  moss: {
+    userId: process.env.MOSS_USER_ID,
   },
   competitions: {
     syncEnabled: process.env.COMPETITIONS_SYNC_ENABLED !== 'false',
