@@ -3,7 +3,7 @@
 # Usage: BASE=https://nibras-api.fly.dev npm run smoke:api-prod
 set -euo pipefail
 
-BASE="${BASE:-https://web-production-f3a04.up.railway.app}"
+BASE="${BASE:-https://api-production-bd99.up.railway.app}"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
@@ -50,6 +50,7 @@ assert_status "200" "$HTTP_STATUS" "GET /v1/community/tags"
 step "Contests"
 request GET "${BASE}/v1/contests?page=1&limit=5"
 assert_status "200" "$HTTP_STATUS" "GET /v1/contests"
+echo "$HTTP_BODY" | jq -e 'type == "array"' >/dev/null || fail "contests: expected JSON array response"
 
 echo ""
 echo -e "${GREEN}API production smoke checks passed.${NC}"

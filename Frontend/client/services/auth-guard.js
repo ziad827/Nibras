@@ -11,6 +11,12 @@
       if (host === 'localhost' || host === '127.0.0.1') {
         return window.location.origin.replace(/\/+$/, '') + '/api';
       }
+      if (
+        host.includes('vercel.app') ||
+        (host.includes('railway.app') && !host.startsWith('api-'))
+      ) {
+        return window.location.origin.replace(/\/+$/, '') + '/api';
+      }
       var stored =
         localStorage.getItem('nibras_admin_api_url') ||
         localStorage.getItem('nibras_api_url') ||

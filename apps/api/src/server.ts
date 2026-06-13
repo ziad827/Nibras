@@ -199,8 +199,42 @@ async function seedDemoShowcaseOnStartup(): Promise<void> {
   }
 }
 
+async function syncContestsOnStartup(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+
+  const { getSharedPrisma } = await import('./lib/prisma');
+  const {
+    runContestSync,
+    shouldRunContestStartupSync,
+  } = await import('./features/competitions/contest-sync');
+  const { enqueueCompetitionsJob } = await import('./lib/competitions-queue');
+
+  try {
+    const prisma = getSharedPrisma();
+    if (await shouldRunContestStartupSync(prisma)) {
+      await runContestSync(prisma);
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          msg: 'Contest catalog synced on startup',
+        }),
+      );
+    }
+    await enqueueCompetitionsJob({ type: 'contest-sync' });
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        msg: 'Contest sync failed on startup',
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
+}
+
 function runStartupSyncInBackground(): void {
   void syncBadgeCatalogOnStartup();
+  void syncContestsOnStartup();
   void (async () => {
     await syncCpRoadmapOnStartup();
     await syncCurriculumOnStartup();

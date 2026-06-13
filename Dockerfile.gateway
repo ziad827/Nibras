@@ -1,0 +1,23 @@
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/proxy/package.json ./apps/proxy/
+RUN npm ci --workspace=@nibras/proxy --include-workspace-root --ignore-scripts
+
+FROM deps AS build
+COPY apps/proxy ./apps/proxy
+COPY tsconfig.base.json ./
+RUN npm run build -w @nibras/proxy
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NIBRAS_STATIC_ROOT=Frontend/client
+ENV NIBRAS_PROXY_HOST=0.0.0.0
+ENV PORT=8080
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/apps/proxy/dist ./apps/proxy/dist
+COPY --from=build /app/apps/proxy/package.json ./apps/proxy/package.json
+COPY Frontend/client ./Frontend/client
+EXPOSE 8080
+CMD ["node", "apps/proxy/dist/server.js"]

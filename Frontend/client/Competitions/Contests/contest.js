@@ -997,6 +997,16 @@
         'Competitions service is unavailable on this page.',
         'error',
       );
+      if (liveContainer) liveContainer.innerHTML = '';
+      if (upcomingContainer) upcomingContainer.innerHTML = '';
+      if (bookmarksContainer) {
+        bookmarksContainer.innerHTML =
+          '<p>Competitions service is unavailable.</p>';
+      }
+      if (remindersContainer) {
+        remindersContainer.innerHTML =
+          '<p>Competitions service is unavailable.</p>';
+      }
       return;
     }
 

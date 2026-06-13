@@ -381,6 +381,62 @@ window.NibrasReact.run(() => {
     }
   };
 
+  const getAdminApiBase = () =>
+    window.NibrasApiConfig?.getServiceUrl?.('admin') ||
+    window.NIBRAS_API_URL ||
+    window.NIBRAS_BACKEND_URL ||
+    adminApiBase ||
+    window.location.origin;
+
+  const completeGoogleLogin = async (accessToken, onError) => {
+    try {
+      const apiBase = getAdminApiBase();
+      const response = await fetch(`${apiBase}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: accessToken }),
+      });
+      const payload = await response.json();
+      const authData = extractAuthData(payload);
+      if (authData.accessToken) {
+        setAuthData(authData);
+        sessionStorage.removeItem('google_access_token');
+        redirectToDashboard();
+        return;
+      }
+      onError('Google sign-in failed. Please try again.');
+    } catch (e) {
+      console.error('Google auth failed:', e);
+      onError('Google sign-in failed. Please try again.');
+    }
+  };
+
+  const handleAuthQueryParams = () => {
+    const params = new URLSearchParams(window.location.search);
+    const googleAuth = params.get('google_auth');
+    const googleMessage = params.get('message');
+
+    if (googleAuth === 'error') {
+      setNotice(
+        googleMessage
+          ? decodeURIComponent(googleMessage)
+          : 'Google sign-in was denied or failed.',
+        'error',
+      );
+      return;
+    }
+
+    if (googleAuth === 'success') {
+      const token = sessionStorage.getItem('google_access_token');
+      if (token) {
+        setNotice('Completing Google sign-in...', 'info');
+        completeGoogleLogin(token, (msg) => setNotice(msg, 'error'));
+      }
+    }
+  };
+
+  handleAuthQueryParams();
+
   const setOtpMode = (enabled, email = '') => {
     if (signupForm) signupForm.hidden = enabled;
     if (otpForm) otpForm.hidden = !enabled;
@@ -404,6 +460,65 @@ window.NibrasReact.run(() => {
         window.NIBRAS_GOOGLE_CLIENT_ID ||
         '',
     ).trim();
+  };
+
+  const createGoogleTokenClient = (googleClientId, onAccessToken, onError) => {
+    if (!window.google?.accounts?.oauth2?.initTokenClient) {
+      return null;
+    }
+    return google.accounts.oauth2.initTokenClient({
+      client_id: googleClientId,
+      scope: 'openid email profile',
+      callback: (response) => {
+        if (response.error) {
+          onError(
+            response.error_description ||
+              response.error ||
+              'Google sign-in was denied or failed.',
+          );
+          return;
+        }
+        if (!response.access_token) {
+          onError('Google sign-in failed. No access token returned.');
+          return;
+        }
+        onAccessToken(response.access_token);
+      },
+    });
+  };
+
+  const requestGoogleAccessToken = (googleClientId, onAccessToken, onError) => {
+    let tokenClient = createGoogleTokenClient(
+      googleClientId,
+      onAccessToken,
+      onError,
+    );
+    if (tokenClient) {
+      tokenClient.requestAccessToken({ prompt: '' });
+      return;
+    }
+
+    let attempts = 0;
+    const waitForGoogle = () => {
+      attempts += 1;
+      tokenClient = createGoogleTokenClient(
+        googleClientId,
+        onAccessToken,
+        onError,
+      );
+      if (tokenClient) {
+        tokenClient.requestAccessToken({ prompt: '' });
+        return;
+      }
+      if (attempts >= 25) {
+        onError(
+          'Google sign-in failed to load. Check your connection and try again.',
+        );
+        return;
+      }
+      setTimeout(waitForGoogle, 200);
+    };
+    waitForGoogle();
   };
 
   const resolveUserRole = () => {
@@ -554,21 +669,14 @@ window.NibrasReact.run(() => {
       (btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)');
     btn.onmouseleave = () => (btn.style.boxShadow = 'none');
     btn.onclick = () => {
-      const state =
-        Math.random().toString(36).substring(2) + Date.now().toString(36);
-      sessionStorage.setItem('google_oauth_state', state);
-
-      const redirectUri = `${window.location.origin}${window.location.pathname}`;
-      const params = new URLSearchParams({
-        client_id: googleClientId,
-        redirect_uri: redirectUri,
-        response_type: 'token',
-        scope: 'email profile openid',
-        include_granted_scopes: 'true',
-        state: state,
-      });
-
-      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+      requestGoogleAccessToken(
+        googleClientId,
+        (accessToken) => {
+          setNotice('Completing Google sign-in...', 'info');
+          completeGoogleLogin(accessToken, (msg) => setNotice(msg, 'error'));
+        },
+        (message) => setNotice(message, 'error'),
+      );
     };
     buttonContainer.appendChild(btn);
 

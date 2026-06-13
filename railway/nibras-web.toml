@@ -1,0 +1,8 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.gateway"
+
+[deploy]
+healthcheckPath = "/Login/loginPage/login.html"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"

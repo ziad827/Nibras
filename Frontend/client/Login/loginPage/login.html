@@ -21,8 +21,7 @@
     <!-- OAuth Client IDs -->
     <script>
         window.NibrasApiConfig = {
-            googleClientId: '809028632276-sgttn83goo7em2anm7t0t5ar37m4v8nm.apps.googleusercontent.com',
-            microsoftClientId: '347c6c6f-1234-5678-9abc-def012345678'
+            googleClientId: '561316297025-c9ohua7q6sa91nn2eetsprac65a3oog6.apps.googleusercontent.com'
         };
     </script>
 </head>
@@ -66,13 +65,16 @@
                         <input type="text" id="otpCodeInput" inputmode="numeric" maxlength="6" placeholder="6-digit OTP" required>
                     </div>
                     <button type="submit" class="btn-login">Verify OTP</button>
+                    <p class="otp-back-link">
+                        <a href="#" id="otpBackLink">Back to login</a>
+                    </p>
                 </form>
 
                 <!-- Inputs -->
                 <form id="loginForm">
                     <div class="form-group">
                         <label>Email</label>
-                        <input type="email" id="emailInput" placeholder="Email">
+                        <input type="email" id="emailInput" placeholder="Email" required>
                     </div>
 
                     <div class="form-group">
@@ -81,7 +83,7 @@
                             <a href="../Reset%20Password/Email/email.html" class="forgot-link">Forgot ?</a>
                         </div>
                         <div class="password-input-wrapper">
-                            <input type="password" placeholder="Enter your password" id="passwordInput">
+                            <input type="password" placeholder="Enter your password" id="passwordInput" required>
                             <i class="fa-regular fa-eye toggle-password" onclick="togglePassword()"></i>
                         </div>
                     </div>
@@ -104,8 +106,6 @@
                 <!-- OAuth Buttons -->
                 <div class="oauth-divider"><span>or continue with</span></div>
                 <div class="oauth-buttons" id="googleSignInContainer"></div>
-                <div class="oauth-buttons" id="microsoftSignInContainer"></div>
-                <p id="microsoftAuthStatus" class="auth-notice" hidden></p>
             </div>
 
         </div>

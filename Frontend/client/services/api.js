@@ -2308,6 +2308,66 @@
     throw lastError || new Error('No compatible competitions endpoint found.');
   };
 
+  const normalizeContest = (raw) => {
+    if (!raw || typeof raw !== 'object') return raw;
+    const id = raw._id || raw.id || null;
+    const startsAt = raw.startTime || raw.startsAt || null;
+    const endsAt = raw.endsAt || null;
+    const now = Date.now();
+    let status = raw.status;
+    if (!status && startsAt) {
+      const startMs = new Date(startsAt).getTime();
+      const endMs = endsAt
+        ? new Date(endsAt).getTime()
+        : startMs + Number(raw.duration ?? raw.durationMinutes ?? 120) * 60000;
+      if (Number.isFinite(startMs)) {
+        if (now < startMs) status = 'upcoming';
+        else if (now <= endMs) status = 'running';
+        else status = 'past';
+      }
+    }
+    return Object.assign({}, raw, {
+      _id: id,
+      id,
+      title: raw.title || raw.name || '',
+      platform: raw.platform || raw.host || '',
+      startTime: startsAt,
+      duration: raw.duration ?? raw.durationMinutes ?? null,
+      contestIdOnPlatform:
+        raw.contestIdOnPlatform || raw.platformContestId || '',
+      status,
+    });
+  };
+
+  const extractContestList = (payload) => {
+    const data = unwrapApiData(payload);
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.contests)) return data.contests;
+    if (Array.isArray(data?.items)) return data.items;
+    return [];
+  };
+
+  const buildContestListQuery = (filters = {}) => {
+    const params = {
+      page: filters.page,
+      limit: filters.limit,
+      bookmarked: filters.bookmarked,
+    };
+    const platform = filters.platform;
+    if (platform && platform !== 'all') {
+      params.host = platform;
+    }
+    const status = String(filters.status || '').toLowerCase();
+    if (status === 'running' || status === 'active') {
+      params.active = 'true';
+    } else if (status === 'upcoming') {
+      params.upcoming = 'true';
+    } else if (status === 'past') {
+      params.past = 'true';
+    }
+    return buildQueryString(params);
+  };
+
   const competitionsService = {
     async getMe() {
       const payload = await apiFetch('/auth/me', {
@@ -2319,15 +2379,7 @@
     },
 
     async listContests(filters = {}) {
-      const query = buildQueryString({
-        platform: filters.platform,
-        status: filters.status,
-        bookmarked: filters.bookmarked,
-        page: filters.page,
-        limit: filters.limit,
-        sortBy: filters.sortBy,
-        order: filters.order,
-      });
+      const query = buildContestListQuery(filters);
       const payload = await requestCompetitionsWithCompatibility(
         `/contests${query}`,
         {
@@ -2335,10 +2387,19 @@
           auth: false,
         },
       );
-      const data = unwrapApiData(payload) || {};
+      const items = extractContestList(payload).map(normalizeContest);
+      const data = unwrapApiData(payload);
+      const total =
+        payload?.pagination?.total ??
+        data?.pagination?.total ??
+        data?.total ??
+        items.length;
       return {
-        contests: Array.isArray(data.contests) ? data.contests : [],
-        pagination: data.pagination || payload?.pagination || null,
+        contests: items,
+        pagination:
+          data?.pagination ||
+          payload?.pagination ||
+          (items.length ? { total, page: filters.page || 1, limit: filters.limit || items.length } : null),
       };
     },
 
@@ -2350,7 +2411,8 @@
           auth: false,
         },
       );
-      return unwrapApiData(payload);
+      const raw = unwrapApiData(payload);
+      return raw ? normalizeContest(raw) : raw;
     },
 
     async bookmarkContest(id) {
@@ -2401,10 +2463,11 @@
           auth: true,
         },
       );
-      const data = unwrapApiData(payload) || {};
+      const items = extractContestList(payload).map(normalizeContest);
+      const data = unwrapApiData(payload);
       return {
-        contests: Array.isArray(data.contests) ? data.contests : [],
-        pagination: data.pagination || payload?.pagination || null,
+        contests: items,
+        pagination: data?.pagination || payload?.pagination || null,
       };
     },
 
@@ -2456,10 +2519,11 @@
           auth: true,
         },
       );
-      const data = unwrapApiData(payload) || {};
+      const items = extractContestList(payload).map(normalizeContest);
+      const data = unwrapApiData(payload);
       return {
-        contests: Array.isArray(data.contests) ? data.contests : [],
-        pagination: data.pagination || payload?.pagination || null,
+        contests: items,
+        pagination: data?.pagination || payload?.pagination || null,
       };
     },
 

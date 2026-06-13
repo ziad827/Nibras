@@ -19,7 +19,11 @@ import {
   computeAuraDelta,
   syncLinkedAccountAura,
 } from '../reputation/linked-account-aura';
-import { effectiveDurationMinutes } from './contest-duration';
+import {
+  buildContestListWhere,
+  loadUserContestFlags,
+  toContestListItem,
+} from './contest-mappers';
 import { GamificationService } from '../gamification/service';
 
 export function registerCompetitionsRoutes(
@@ -37,6 +41,8 @@ export function registerCompetitionsRoutes(
       const user = await optionalUser(request, reply, store);
       const query = request.query as {
         upcoming?: string;
+        active?: string;
+        past?: string;
         host?: string;
         from?: string;
         to?: string;
@@ -44,23 +50,7 @@ export function registerCompetitionsRoutes(
         limit?: string;
       };
 
-      const where: Record<string, unknown> = {};
-      const hasDateFilter = query.upcoming || query.from || query.to;
-      if (query.upcoming === 'true') {
-        where.startsAt = { gte: new Date() };
-      }
-      if (query.host) {
-        where.platform = query.host;
-      }
-      if (query.from || query.to) {
-        where.startsAt = {
-          ...(typeof where.startsAt === 'object'
-            ? (where.startsAt as Record<string, unknown>)
-            : {}),
-          ...(query.from ? { gte: new Date(query.from) } : {}),
-          ...(query.to ? { lte: new Date(query.to) } : {}),
-        };
-      }
+      const { where, hasDateFilter } = buildContestListWhere(query);
 
       const page = Math.max(1, parseInt(query.page ?? '1', 10));
       const limit = Math.min(
@@ -78,40 +68,40 @@ export function registerCompetitionsRoutes(
         prisma.contest.count({ where }),
       ]);
 
-      let bookmarkedIds = new Set<string>();
-      let reminderIds = new Set<string>();
-      if (user) {
-        const contestIds = contests.map((c) => c.id);
-        const [bookmarks, reminders] = await Promise.all([
-          prisma.contestBookmark.findMany({
-            where: { userId: user.id, contestId: { in: contestIds } },
-          }),
-          prisma.contestReminder.findMany({
-            where: { userId: user.id, contestId: { in: contestIds } },
-          }),
-        ]);
-        bookmarkedIds = new Set(bookmarks.map((b) => b.contestId));
-        reminderIds = new Set(reminders.map((r) => r.contestId));
-      }
+      const { bookmarkedIds, reminderIds } = user
+        ? await loadUserContestFlags(
+            prisma,
+            user.id,
+            contests.map((c) => c.id),
+          )
+        : { bookmarkedIds: new Set<string>(), reminderIds: new Set<string>() };
 
       void reply.header('x-total-count', String(total));
-      return contests.map((c) => ({
-        id: c.id,
-        name: c.name,
-        host: c.platform,
-        startsAt: c.startsAt.toISOString(),
-        endsAt: c.endsAt.toISOString(),
-        durationMinutes: effectiveDurationMinutes(
-          c.startsAt,
-          c.endsAt,
-          c.durationMinutes,
-        ),
-        url: c.url,
-        phase: c.phase,
-        tags: c.tags,
-        bookmarked: bookmarkedIds.has(c.id),
-        reminderSet: reminderIds.has(c.id),
-      }));
+      return contests.map((c) =>
+        toContestListItem(c, bookmarkedIds, reminderIds),
+      );
+    },
+  );
+
+  app.get(
+    '/v1/contests/:contestId',
+    { schema: { tags: ['competitions'], summary: 'Get contest by id' } },
+    async (request, reply) => {
+      const user = await optionalUser(request, reply, store);
+      const { contestId } = request.params as { contestId: string };
+
+      const contest = await prisma.contest.findUnique({
+        where: { id: contestId },
+      });
+      if (!contest) {
+        return reply.status(404).send({ error: 'Contest not found' });
+      }
+
+      const { bookmarkedIds, reminderIds } = user
+        ? await loadUserContestFlags(prisma, user.id, [contest.id])
+        : { bookmarkedIds: new Set<string>(), reminderIds: new Set<string>() };
+
+      return toContestListItem(contest, bookmarkedIds, reminderIds);
     },
   );
 
@@ -147,44 +137,24 @@ export function registerCompetitionsRoutes(
         orderBy: { startsAt: 'asc' },
       });
 
-      let bookmarkedIds = new Set<string>();
-      let reminderIds = new Set<string>();
-      if (user) {
-        const contestIds = contests.map((c) => c.id);
-        if (contestIds.length > 0) {
-          const [bookmarks, reminders] = await Promise.all([
-            prisma.contestBookmark.findMany({
-              where: { userId: user.id, contestId: { in: contestIds } },
-            }),
-            prisma.contestReminder.findMany({
-              where: { userId: user.id, contestId: { in: contestIds } },
-            }),
-          ]);
-          bookmarkedIds = new Set(bookmarks.map((b) => b.contestId));
-          reminderIds = new Set(reminders.map((r) => r.contestId));
-        }
-      }
+      const { bookmarkedIds, reminderIds } = user
+        ? await loadUserContestFlags(
+            prisma,
+            user.id,
+            contests.map((c) => c.id),
+          )
+        : { bookmarkedIds: new Set<string>(), reminderIds: new Set<string>() };
 
       const days: Record<string, Array<Record<string, unknown>>> = {};
       for (const c of contests) {
         const dateKey = c.startsAt.toISOString().slice(0, 10);
         if (!days[dateKey]) days[dateKey] = [];
-        days[dateKey].push({
-          id: c.id,
-          name: c.name,
-          host: c.platform,
-          startsAt: c.startsAt.toISOString(),
-          endsAt: c.endsAt.toISOString(),
-          durationMinutes: effectiveDurationMinutes(
-            c.startsAt,
-            c.endsAt,
-            c.durationMinutes,
-          ),
-          url: c.url,
-          phase: c.phase,
-          bookmarked: bookmarkedIds.has(c.id),
-          reminderSet: reminderIds.has(c.id),
-        });
+        days[dateKey].push(
+          toContestListItem(c, bookmarkedIds, reminderIds) as Record<
+            string,
+            unknown
+          >,
+        );
       }
 
       return {
@@ -251,6 +221,102 @@ export function registerCompetitionsRoutes(
         update: {},
       });
       return { bookmarked: true };
+    },
+  );
+
+  app.get(
+    '/v1/user-contests/bookmarks',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'List bookmarked contests',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const query = request.query as { page?: string; limit?: string };
+      const page = Math.max(1, parseInt(query.page ?? '1', 10));
+      const limit = Math.min(
+        100,
+        Math.max(1, parseInt(query.limit ?? '50', 10)),
+      );
+
+      const [bookmarks, total] = await Promise.all([
+        prisma.contestBookmark.findMany({
+          where: { userId: auth.user.id },
+          include: { contest: true },
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.contestBookmark.count({ where: { userId: auth.user.id } }),
+      ]);
+
+      const contests = bookmarks
+        .map((entry) => entry.contest)
+        .filter((contest): contest is NonNullable<typeof contest> =>
+          Boolean(contest),
+        );
+      const { reminderIds } = await loadUserContestFlags(
+        prisma,
+        auth.user.id,
+        contests.map((c) => c.id),
+      );
+      const bookmarkedIds = new Set(contests.map((c) => c.id));
+
+      void reply.header('x-total-count', String(total));
+      return contests.map((c) =>
+        toContestListItem(c, bookmarkedIds, reminderIds),
+      );
+    },
+  );
+
+  app.get(
+    '/v1/user-contests/reminders',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'List contests with reminders',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const query = request.query as { page?: string; limit?: string };
+      const page = Math.max(1, parseInt(query.page ?? '1', 10));
+      const limit = Math.min(
+        100,
+        Math.max(1, parseInt(query.limit ?? '50', 10)),
+      );
+
+      const [reminders, total] = await Promise.all([
+        prisma.contestReminder.findMany({
+          where: { userId: auth.user.id },
+          include: { contest: true },
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.contestReminder.count({ where: { userId: auth.user.id } }),
+      ]);
+
+      const contests = reminders
+        .map((entry) => entry.contest)
+        .filter((contest): contest is NonNullable<typeof contest> =>
+          Boolean(contest),
+        );
+      const { bookmarkedIds } = await loadUserContestFlags(
+        prisma,
+        auth.user.id,
+        contests.map((c) => c.id),
+      );
+      const reminderIds = new Set(contests.map((c) => c.id));
+
+      void reply.header('x-total-count', String(total));
+      return contests.map((c) =>
+        toContestListItem(c, bookmarkedIds, reminderIds),
+      );
     },
   );
 

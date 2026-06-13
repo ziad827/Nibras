@@ -40,6 +40,7 @@ function loadConfig(): ProxyConfig {
     port: Number(
       process.env.NIBRAS_PROXY_PORT ||
         process.env.NIBRAS_GATEWAY_PORT ||
+        process.env.PORT ||
         '8080',
     ),
     fastifyOrigin:

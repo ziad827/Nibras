@@ -143,6 +143,19 @@ assert_status "200" "$HTTP_STATUS" "GET /v1/community/tags"
 step "Competitions contests via gateway"
 request GET "${BASE}/v1/contests?page=1&limit=5"
 assert_status "200" "$HTTP_STATUS" "GET /v1/contests"
+echo "$HTTP_BODY" | jq -e 'type == "array"' >/dev/null || fail "contests: expected JSON array response"
+CONTEST_COUNT="$(echo "$HTTP_BODY" | jq 'length')"
+if [[ "${CONTEST_COUNT:-0}" -gt 0 ]]; then
+  echo "$HTTP_BODY" | jq -e '.[0].name and .[0].host and .[0].startsAt' >/dev/null || fail "contests: unexpected item shape"
+  echo "Contests list OK (${CONTEST_COUNT} items)"
+else
+  echo "Contests list OK (empty — run contest sync if production should show data)"
+fi
+
+step "Competitions active filter via gateway"
+request GET "${BASE}/v1/contests?active=true&limit=5"
+assert_status "200" "$HTTP_STATUS" "GET /v1/contests?active=true"
+echo "$HTTP_BODY" | jq -e 'type == "array"' >/dev/null || fail "active contests: expected JSON array"
 
 step "Competitions ranking via gateway"
 out="$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer ${DEMO_TOKEN}" "${BASE}/v1/ranking?page=1&limit=5")"
