@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Deploy Nibras Fastify API + worker to Railway (no credit card).
+# Deploy Nibras platform to Railway: backend, tutor, api, worker, web gateway.
 # Prerequisites:
 #   1. railway login
-#   2. Downgrade to Free plan if trial expired: https://railway.com/workspace/plans
-#   3. railway link -p nibras-platform
-#   4. ./scripts/railway-secrets.sh (optional if vars not set in dashboard)
+#   2. railway link -p nibras-platform
+#   3. ./scripts/railway-provision-mongo.sh (first time)
+#   4. ./scripts/railway-secrets.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -37,6 +37,54 @@ resolve_gateway_url() {
   echo "$DEFAULT_API_URL"
 }
 
+resolve_service_url() {
+  local service="$1"
+  local raw candidate
+  raw="$(railway domain --service "$service" 2>/dev/null || true)"
+  while IFS= read -r candidate; do
+    candidate="${candidate#🚀 }"
+    candidate="${candidate//$'\r'/}"
+    if is_valid_url "$candidate"; then
+      echo "${candidate%/}"
+      return
+    fi
+  done < <(echo "$raw" | rg -o 'https://[A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9](/[^[:space:]]*)?' || true)
+  return 1
+}
+
+wait_for_deploy() {
+  local service="$1"
+  local max_attempts="${2:-60}"
+  local attempt=0
+  local status=""
+  echo "==> Waiting for ${service} deployment..."
+  while (( attempt < max_attempts )); do
+    status="$(railway deployment list -s "$service" --json 2>/dev/null | jq -r '.[0].status // "UNKNOWN"' 2>/dev/null || echo "UNKNOWN")"
+    case "$status" in
+      SUCCESS)
+        echo "  ${service}: SUCCESS"
+        return 0
+        ;;
+      FAILED|CRASHED)
+        echo "  ${service}: ${status}" >&2
+        railway logs -s "$service" --lines 50 2>&1 | tail -30 >&2 || true
+        return 1
+        ;;
+      *)
+        sleep 15
+        (( attempt++ )) || true
+        ;;
+    esac
+  done
+  echo "  ${service}: timed out (last status: ${status})" >&2
+  return 1
+}
+
+service_exists() {
+  local name="$1"
+  railway service list --json 2>/dev/null | jq -r '.[].name' 2>/dev/null | rg -i "^${name}$" >/dev/null
+}
+
 if ! railway whoami >/dev/null 2>&1; then
   echo "Run: railway login" >&2
   exit 1
@@ -58,6 +106,8 @@ fi
 API_SERVICE="${RAILWAY_API_SERVICE:-api}"
 WORKER_SERVICE="${RAILWAY_WORKER_SERVICE:-worker}"
 WEB_SERVICE="${RAILWAY_WEB_SERVICE:-web}"
+BACKEND_SERVICE="${RAILWAY_BACKEND_SERVICE:-backend}"
+TUTOR_SERVICE="${RAILWAY_TUTOR_SERVICE:-tutor}"
 
 if ! railway status >/dev/null 2>&1; then
   echo "Link project first: railway link -p nibras-platform" >&2
@@ -65,18 +115,46 @@ if ! railway status >/dev/null 2>&1; then
 fi
 
 echo "==> Connect GitHub (branch phase-5/competitive-programming)"
-railway service source connect --repo NibrasPlatform/Nibras --branch phase-5/competitive-programming --service "$API_SERVICE" || true
-railway service source connect --repo NibrasPlatform/Nibras --branch phase-5/competitive-programming --service "$WORKER_SERVICE" || true
-railway service source connect --repo NibrasPlatform/Nibras --branch phase-5/competitive-programming --service "$WEB_SERVICE" || true
+for svc in "$API_SERVICE" "$WORKER_SERVICE" "$WEB_SERVICE" "$BACKEND_SERVICE" "$TUTOR_SERVICE"; do
+  if service_exists "$svc"; then
+    railway service source connect --repo NibrasPlatform/Nibras --branch phase-5/competitive-programming --service "$svc" || true
+  fi
+done
+
+if service_exists "$BACKEND_SERVICE"; then
+  echo "==> Deploy backend (${BACKEND_SERVICE})"
+  railway up --service "$BACKEND_SERVICE" -y -d -m "Deploy NestJS backend"
+  wait_for_deploy "$BACKEND_SERVICE" || true
+fi
+
+if service_exists "$TUTOR_SERVICE"; then
+  echo "==> Deploy tutor (${TUTOR_SERVICE})"
+  railway up --service "$TUTOR_SERVICE" -y -d -m "Deploy AI Tutor"
+  wait_for_deploy "$TUTOR_SERVICE" || true
+  if TUTOR_URL="$(resolve_service_url "$TUTOR_SERVICE" 2>/dev/null || true)" && [[ -n "$TUTOR_URL" ]]; then
+    echo "==> Wire CHATBOT_V1_URL=${TUTOR_URL}"
+    railway variable set -s "$API_SERVICE" "CHATBOT_V1_URL=${TUTOR_URL}" --skip-deploys
+  fi
+fi
+
+if service_exists "$BACKEND_SERVICE"; then
+  if BACKEND_URL="$(resolve_service_url "$BACKEND_SERVICE" 2>/dev/null || true)" && [[ -n "$BACKEND_URL" ]]; then
+    echo "==> Wire NIBRAS_NESTJS_ORIGIN=${BACKEND_URL}"
+    railway variable set -s "$WEB_SERVICE" "NIBRAS_NESTJS_ORIGIN=${BACKEND_URL}" --skip-deploys
+  fi
+fi
 
 echo "==> Deploy API (${API_SERVICE})"
-railway up --service "$API_SERVICE" -y -d
+railway up --service "$API_SERVICE" -y -d -m "Deploy Fastify API"
+wait_for_deploy "$API_SERVICE" || true
 
 echo "==> Deploy worker (${WORKER_SERVICE})"
-railway up --service "$WORKER_SERVICE" -y -d
+railway up --service "$WORKER_SERVICE" -y -d -m "Deploy worker"
+wait_for_deploy "$WORKER_SERVICE" || true
 
 echo "==> Deploy gateway (${WEB_SERVICE})"
-railway up --service "$WEB_SERVICE" -y -d
+railway up --service "$WEB_SERVICE" -y -d -m "Deploy gateway"
+wait_for_deploy "$WEB_SERVICE" || true
 
 if ! is_valid_url "$API_URL"; then
   API_URL="$(resolve_gateway_url || true)"
@@ -89,6 +167,26 @@ else
   curl -sf "${API_URL}/v1/health" | head -c 200
   echo ""
   curl -sf "${API_URL}/readyz" >/dev/null || curl -sf "${API_URL}/v1/health" >/dev/null
+
+  if service_exists "$BACKEND_SERVICE"; then
+    BACKEND_URL="$(resolve_service_url "$BACKEND_SERVICE" 2>/dev/null || true)"
+    if [[ -n "$BACKEND_URL" ]]; then
+      echo "==> NestJS backend smoke (${BACKEND_URL})"
+      curl -sf "${BACKEND_URL}/api/ping" | head -c 200 || echo "Warning: backend /api/ping failed" >&2
+      echo ""
+      curl -sf "${API_URL}/api/ping" | head -c 200 || echo "Warning: gateway→backend proxy failed" >&2
+      echo ""
+    fi
+  fi
+
+  if service_exists "$TUTOR_SERVICE"; then
+    TUTOR_URL="$(resolve_service_url "$TUTOR_SERVICE" 2>/dev/null || true)"
+    if [[ -n "$TUTOR_URL" ]]; then
+      echo "==> Tutor smoke (${TUTOR_URL})"
+      curl -sf "${TUTOR_URL}/api/health" | head -c 200 || echo "Warning: tutor health failed" >&2
+      echo ""
+    fi
+  fi
 
   echo "==> Contests smoke"
   CONTESTS_BODY="$(curl -sf "${API_URL}/v1/contests?upcoming=true&limit=1")"
