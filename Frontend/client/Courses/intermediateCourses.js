@@ -168,23 +168,7 @@ const initCoursesLogic = () => {
         if (bid && backendCourses[bid]) delete backendCourses[bid];
       });
 
-      const extraCourses = Object.values(backendCourses)
-        .filter((course) => course?.level?.toLowerCase() === 'intermediate')
-        .map((course) => ({
-          id: course?._id || course?.id,
-          title: course?.title || 'Untitled',
-          instructor:
-            course?.instructor?.name || course?.instructorName || 'Instructor',
-          progress: 0,
-          rating: 0,
-          level: course?.level || 'Intermediate',
-          deadline: 'No deadline set',
-          isPopular: false,
-          category: (course?.category || 'core').toLowerCase(),
-          type: course?.type || 'standard',
-        }));
-
-      coursesData = [...mappedCourses, ...extraCourses];
+      coursesData = mappedCourses;
       filterAndRender(activeCategory);
     } catch (error) {
       console.warn(

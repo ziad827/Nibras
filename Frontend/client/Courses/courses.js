@@ -361,24 +361,8 @@ async function initCourses() {
         if (bid && backendCourses[bid]) delete backendCourses[bid];
       });
 
-      var extraCourses = Object.values(backendCourses).map(function (course) {
-        return {
-          id: course?._id || course?.id,
-          title: course?.title || 'Untitled',
-          instructor:
-            course?.instructor?.name || course?.instructorName || 'Instructor',
-          progress: 0,
-          rating: 0,
-          level: course?.level || levelFilter,
-          deadline: 'No deadline set',
-          isPopular: false,
-          category: (course?.category || 'core').toLowerCase(),
-          type: course?.type || 'standard',
-        };
-      });
-
-      coursesData = mappedCourses.concat(extraCourses);
-      mappedCoursesAll = mappedCourses.concat(extraCourses);
+      coursesData = mappedCourses;
+      mappedCoursesAll = mappedCourses;
       filterAndRender(activeCategory);
       checkLevelComplete();
     } catch (error) {

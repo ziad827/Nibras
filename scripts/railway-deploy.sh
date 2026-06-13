@@ -16,7 +16,25 @@ API_URL="${RAILWAY_API_URL:-$DEFAULT_API_URL}"
 
 is_valid_url() {
   local value="$1"
-  [[ "$value" =~ ^https?://[A-Za-z0-9.-]+(/.*)?$ ]]
+  [[ "$value" =~ ^https?://[A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9](/.*)?$ ]]
+}
+
+resolve_gateway_url() {
+  if [[ -n "${RAILWAY_API_URL:-}" ]] && is_valid_url "${RAILWAY_API_URL}"; then
+    echo "${RAILWAY_API_URL}"
+    return
+  fi
+  local raw candidate
+  raw="$(railway domain --service "$WEB_SERVICE" 2>/dev/null || true)"
+  while IFS= read -r candidate; do
+    candidate="${candidate#🚀 }"
+    candidate="${candidate//$'\r'/}"
+    if is_valid_url "$candidate"; then
+      echo "$candidate"
+      return
+    fi
+  done < <(echo "$raw" | rg -o 'https://[A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9](/[^[:space:]]*)?' || true)
+  echo "$DEFAULT_API_URL"
 }
 
 if ! railway whoami >/dev/null 2>&1; then
@@ -59,22 +77,6 @@ railway up --service "$WORKER_SERVICE" -y -d
 
 echo "==> Deploy gateway (${WEB_SERVICE})"
 railway up --service "$WEB_SERVICE" -y -d
-
-resolve_gateway_url() {
-  if [[ -n "${RAILWAY_API_URL:-}" ]] && is_valid_url "${RAILWAY_API_URL}"; then
-    echo "${RAILWAY_API_URL}"
-    return
-  fi
-  local raw candidate
-  raw="$(railway domain --service "$WEB_SERVICE" 2>/dev/null || true)"
-  while IFS= read -r candidate; do
-    if is_valid_url "$candidate"; then
-      echo "$candidate"
-      return
-    fi
-  done < <(echo "$raw" | rg -o 'https://[^[:space:]]+' || true)
-  echo "$DEFAULT_API_URL"
-}
 
 if ! is_valid_url "$API_URL"; then
   API_URL="$(resolve_gateway_url || true)"
