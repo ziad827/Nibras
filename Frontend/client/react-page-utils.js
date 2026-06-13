@@ -1770,7 +1770,7 @@
       },
       {
         keywords: ['competition history', 'contest history', 'past contests'],
-        url: 'Competitions/History/history.html',
+        url: 'Competitions/Contests/contest.html',
       },
       {
         keywords: ['competition practice', 'contest practice', 'practice'],

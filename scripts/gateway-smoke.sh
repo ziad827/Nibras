@@ -162,6 +162,21 @@ out="$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer ${DEMO_TOKEN}" "${B
 HTTP_STATUS="${out##*$'\n'}"
 HTTP_BODY="${out%$'\n'*}"
 assert_status "200" "$HTTP_STATUS" "GET /v1/ranking"
+echo "$HTTP_BODY" | jq -e 'type == "array"' >/dev/null || fail "ranking: expected JSON array"
+
+step "Competitions ranking me via gateway"
+out="$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer ${DEMO_TOKEN}" "${BASE}/v1/ranking/me")"
+HTTP_STATUS="${out##*$'\n'}"
+HTTP_BODY="${out%$'\n'*}"
+assert_status "200" "$HTTP_STATUS" "GET /v1/ranking/me"
+echo "$HTTP_BODY" | jq -e 'type == "array"' >/dev/null || fail "ranking/me: expected JSON array"
+
+step "Competitions linked accounts via gateway"
+out="$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer ${DEMO_TOKEN}" "${BASE}/v1/contests/accounts")"
+HTTP_STATUS="${out##*$'\n'}"
+HTTP_BODY="${out%$'\n'*}"
+assert_status "200" "$HTTP_STATUS" "GET /v1/contests/accounts"
+echo "$HTTP_BODY" | jq -e 'type == "array"' >/dev/null || fail "accounts: expected JSON array"
 
 step "Nibras 75 problems via gateway"
 out="$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer ${DEMO_TOKEN}" --max-time 15 "${BASE}/v1/practice/nibras-75/problems?page=1&limit=5")"
@@ -174,6 +189,13 @@ out="$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer ${DEMO_TOKEN}" --ma
 HTTP_STATUS="${out##*$'\n'}"
 HTTP_BODY="${out%$'\n'*}"
 assert_status "200" "$HTTP_STATUS" "GET /v1/practice/cp-roadmap/roadmap"
+
+step "Daily problem today via gateway"
+out="$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer ${DEMO_TOKEN}" --max-time 15 "${BASE}/v1/daily-problem/today")"
+HTTP_STATUS="${out##*$'\n'}"
+HTTP_BODY="${out%$'\n'*}"
+assert_status "200" "$HTTP_STATUS" "GET /v1/daily-problem/today"
+echo "$HTTP_BODY" | jq -e '.streak.current != null' >/dev/null || fail "daily-problem: expected streak.current in response"
 
 echo ""
 echo -e "${GREEN}Gateway smoke checks passed.${NC}"

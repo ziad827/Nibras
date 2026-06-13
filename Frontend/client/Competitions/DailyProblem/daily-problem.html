@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nibras - Daily Problem</title>
-    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html"></script>
     <script>
     (function () {
         const savedTheme = localStorage.getItem('theme');
@@ -66,7 +66,6 @@
                 <a href="../Nibras75/nibras75.html" class="tab-btn">Nibras 75</a>
                 <a href="../CpRoadmap/cp-roadmap.html" class="tab-btn">CP Roadmap</a>
                 <a href="./daily-problem.html" class="tab-btn active">Daily Problem</a>
-                <a href="../History/history.html" class="tab-btn">History</a>
                 <a href="../Ranking/ranking.html" class="tab-btn">Rankings</a>
                 <a href="../Teams/team.html" class="tab-btn">Teams</a>
             </div>
@@ -78,6 +77,7 @@
     </main>
     <script src="../../react-page-utils.js"></script>
     <script src="../../react-bootstrap.js"></script>
+    <script src="./daily-problem-ui.js"></script>
     <script src="./daily-problem.js"></script>
     <script src="../../services/gamification-ui.js"></script>
 </body>

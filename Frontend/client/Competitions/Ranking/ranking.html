@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nibras - Rankings</title>
-    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html"></script>
     <script>
     (function () {
         const savedTheme = localStorage.getItem('theme');
@@ -101,6 +101,7 @@
                 <a href="../CpRoadmap/cp-roadmap.html" class="tab-btn">CP Roadmap</a>
                 <a href="../DailyProblem/daily-problem.html" class="tab-btn">Daily Problem</a>
                 <a href="./ranking.html" class="tab-btn active">Rankings</a>
+                <a href="../Teams/team.html" class="tab-btn">Teams</a>
             </div>
 
             <!-- Rankings Grid Layout -->
@@ -190,25 +191,48 @@
                         </div>
                     </div>
 
-                    <!-- HackerRank -->
-                    <div class="account-platform" data-platform="hackerrank">
-                        <div class="platform-header hackerrank-header">
-                            <i class="fa-brands fa-hackerrank"></i>
-                            <span>HackerRank</span>
+                    <!-- AtCoder -->
+                    <div class="account-platform" data-platform="atcoder">
+                        <div class="platform-header atcoder-header">
+                            <i class="fa-solid fa-a"></i>
+                            <span>AtCoder</span>
                         </div>
                         <div class="platform-body">
                             <div class="platform-info-row">
                                 <span class="platform-label">Handle:</span>
-                                <span class="platform-value" id="hr-handle-display">Not linked</span>
+                                <span class="platform-value" id="ac-handle-display">Not linked</span>
                             </div>
                             <div class="platform-info-row">
                                 <span class="platform-label">Status:</span>
-                                <span class="platform-status" id="hr-status-display"><span class="status-dot status-unverified"></span> Unverified</span>
+                                <span class="platform-status" id="ac-status-display"><span class="status-dot status-unverified"></span> Unverified</span>
                             </div>
                             <div class="platform-actions">
-                                <button class="btn-account btn-link-account" data-action="link-account" data-platform="hackerrank"><i class="fa-solid fa-link"></i> Link</button>
-                                <button class="btn-account btn-verify" data-action="verify-account" data-platform="hackerrank"><i class="fa-solid fa-shield-halved"></i> Verify</button>
-                                <button class="btn-account btn-check" data-action="check-verification" data-platform="hackerrank"><i class="fa-solid fa-rotate"></i> Check</button>
+                                <button class="btn-account btn-link-account" data-action="link-account" data-platform="atcoder"><i class="fa-solid fa-link"></i> Link</button>
+                                <button class="btn-account btn-verify" data-action="verify-account" data-platform="atcoder"><i class="fa-solid fa-shield-halved"></i> Verify</button>
+                                <button class="btn-account btn-check" data-action="check-verification" data-platform="atcoder"><i class="fa-solid fa-rotate"></i> Check</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CodeChef -->
+                    <div class="account-platform" data-platform="codechef">
+                        <div class="platform-header codechef-header">
+                            <i class="fa-solid fa-c"></i>
+                            <span>CodeChef</span>
+                        </div>
+                        <div class="platform-body">
+                            <div class="platform-info-row">
+                                <span class="platform-label">Handle:</span>
+                                <span class="platform-value" id="cc-handle-display">Not linked</span>
+                            </div>
+                            <div class="platform-info-row">
+                                <span class="platform-label">Status:</span>
+                                <span class="platform-status" id="cc-status-display"><span class="status-dot status-unverified"></span> Unverified</span>
+                            </div>
+                            <div class="platform-actions">
+                                <button class="btn-account btn-link-account" data-action="link-account" data-platform="codechef"><i class="fa-solid fa-link"></i> Link</button>
+                                <button class="btn-account btn-verify" data-action="verify-account" data-platform="codechef"><i class="fa-solid fa-shield-halved"></i> Verify</button>
+                                <button class="btn-account btn-check" data-action="check-verification" data-platform="codechef"><i class="fa-solid fa-rotate"></i> Check</button>
                             </div>
                         </div>
                     </div>
@@ -217,16 +241,36 @@
                 <div id="account-link-status" class="account-link-status"></div>
             </section>
 
+            <section class="card global-leaderboard-section" style="margin-top: 20px;">
+                <div class="section-header leaderboard-header">
+                    <div>
+                        <h3>Global Leaderboard</h3>
+                        <p class="section-sub">Top rated competitors across platforms</p>
+                    </div>
+                    <div class="leaderboard-filters">
+                        <label for="leaderboard-platform-filter">Platform</label>
+                        <select id="leaderboard-platform-filter" class="leaderboard-filter-select">
+                            <option value="all">All platforms</option>
+                            <option value="codeforces">Codeforces</option>
+                            <option value="leetcode">LeetCode</option>
+                            <option value="atcoder">AtCoder</option>
+                            <option value="codechef">CodeChef</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="leaderboard-table-wrap" id="leaderboard-table-container">
+                    <div class="skeleton skeleton-rank-row"></div>
+                    <div class="skeleton skeleton-rank-row"></div>
+                    <div class="skeleton skeleton-rank-row"></div>
+                </div>
+            </section>
+
         </div>
     </main>
 
         <script src="../../react-page-utils.js"></script>
-    <script>
-        if (window.NibrasShared?.session?.updateUserInfoDisplay) {
-            window.NibrasShared.session.updateUserInfoDisplay();
-        }
-    </script>
     <script src="../../react-bootstrap.js"></script>
+    <script src="./ranking-accounts.js"></script>
     <script src="./ranking.js"></script>
     <script src="../../services/gamification-ui.js"></script>
     <script>

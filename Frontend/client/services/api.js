@@ -2546,57 +2546,144 @@
 
     async listHistory(filters = {}) {
       const query = buildQueryString({
-        platform: filters.platform,
+        host: filters.platform || filters.host,
         from: filters.from,
         to: filters.to,
         page: filters.page,
         limit: filters.limit,
       });
       const payload = await requestCompetitionsWithCompatibility(
-        ['/contests/user-contests/history', '/user-contests/history'],
+        [`/user-contests/history${query}`, `/contests/user-contests/history${query}`],
         {
           method: 'GET',
           auth: true,
         },
       );
+      const data = unwrapApiData(payload);
+      const items = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+      const total = Number(
+        data?.total ?? payload?.pagination?.total ?? items.length,
+      );
       return {
-        items: Array.isArray(payload?.data)
-          ? payload.data
-          : Array.isArray(unwrapApiData(payload))
-            ? unwrapApiData(payload)
-            : [],
-        pagination:
-          payload?.pagination || unwrapApiData(payload)?.pagination || null,
+        items,
+        total,
+        pagination: payload?.pagination || data?.pagination || { total },
       };
     },
 
-    async linkAccounts(accounts) {
-      const body = {};
-      if (accounts.codeforcesHandle)
-        body.codeforcesHandle = accounts.codeforcesHandle;
-      if (accounts.leetcodeUsername)
-        body.leetcodeUsername = accounts.leetcodeUsername;
-      if (accounts.hackerrankHandle)
-        body.hackerrankHandle = accounts.hackerrankHandle;
+    async listLinkedAccounts() {
+      const payload = await requestCompetitionsWithCompatibility(
+        '/contests/accounts',
+        {
+          method: 'GET',
+          auth: true,
+        },
+      );
+      const data = unwrapApiData(payload);
+      return Array.isArray(data) ? data : Array.isArray(payload) ? payload : [];
+    },
 
-      if (Object.keys(body).length === 0) {
-        return { message: 'No accounts to link', data: [] };
-      }
-
+    async linkAccount(platform, handle) {
       const payload = await requestCompetitionsWithCompatibility(
         '/contests/accounts/link',
         {
           method: 'POST',
           auth: true,
-          body,
+          body: {
+            platform: String(platform || '').toLowerCase(),
+            handle: String(handle || '').trim(),
+          },
           timeoutMs: 60000,
         },
       );
+      return unwrapApiData(payload) || payload || {};
+    },
 
+    async linkAccounts(accounts) {
+      const entries = [];
+      if (accounts?.platform && accounts?.handle) {
+        entries.push(
+          await this.linkAccount(accounts.platform, accounts.handle),
+        );
+      } else {
+        if (accounts?.codeforcesHandle) {
+          entries.push(
+            await this.linkAccount('codeforces', accounts.codeforcesHandle),
+          );
+        }
+        if (accounts?.leetcodeUsername || accounts?.leetcodeHandle) {
+          entries.push(
+            await this.linkAccount(
+              'leetcode',
+              accounts.leetcodeUsername || accounts.leetcodeHandle,
+            ),
+          );
+        }
+        if (accounts?.atcoderHandle) {
+          entries.push(
+            await this.linkAccount('atcoder', accounts.atcoderHandle),
+          );
+        }
+        if (accounts?.codechefHandle) {
+          entries.push(
+            await this.linkAccount('codechef', accounts.codechefHandle),
+          );
+        }
+      }
+      if (!entries.length) {
+        return { message: 'No accounts to link', data: [] };
+      }
       return {
         message: 'Accounts linked successfully',
-        data: [unwrapApiData(payload)],
+        data: entries,
       };
+    },
+
+    async resyncAccount(host) {
+      const platform = encodeURIComponent(String(host || ''));
+      const payload = await requestCompetitionsWithCompatibility(
+        `/contests/accounts/${platform}/resync`,
+        {
+          method: 'POST',
+          auth: true,
+          body: {},
+          timeoutMs: 60000,
+        },
+      );
+      return unwrapApiData(payload) || payload || {};
+    },
+
+    async getRanking(filters = {}) {
+      const query = buildQueryString({
+        host: filters.host || filters.platform,
+        scope: filters.scope,
+        page: filters.page,
+        limit: filters.limit,
+      });
+      const payload = await requestCompetitionsWithCompatibility(
+        `/ranking${query}`,
+        {
+          method: 'GET',
+          auth: true,
+        },
+      );
+      const data = unwrapApiData(payload);
+      return Array.isArray(data) ? data : Array.isArray(payload) ? payload : [];
+    },
+
+    async getMyRanking() {
+      const payload = await requestCompetitionsWithCompatibility('/ranking/me', {
+        method: 'GET',
+        auth: true,
+      });
+      const data = unwrapApiData(payload);
+      return Array.isArray(data) ? data : Array.isArray(payload) ? payload : [];
     },
 
     async startVerification(platform) {
@@ -2610,9 +2697,10 @@
           timeoutMs: 60000,
         },
       );
+      const data = unwrapApiData(payload) || payload || {};
       return {
-        message: payload?.message || 'Verification started',
-        data: unwrapApiData(payload),
+        message: data?.message || (data?.verified ? 'Verified' : 'Verification checked'),
+        data,
       };
     },
 
@@ -2627,36 +2715,51 @@
           timeoutMs: 60000,
         },
       );
+      const data = unwrapApiData(payload) || payload || {};
       return {
-        message: payload?.message || '',
-        data: unwrapApiData(payload),
+        message: data?.message || '',
+        data,
       };
     },
 
     async getAggregatedProfile(userId) {
-      const encodedUserId = encodeURIComponent(String(userId || ''));
-      const payload = await requestCompetitionsWithCompatibility(
-        [`/contests/accounts/profile/${encodedUserId}`],
-        {
-          method: 'GET',
-          auth: true,
-        },
-      );
-      return unwrapApiData(payload);
+      const accounts = await this.listLinkedAccounts();
+      const mapped =
+        typeof window !== 'undefined' && window.RankingAccounts?.mapLinkedAccounts
+          ? window.RankingAccounts.mapLinkedAccounts(accounts)
+          : {
+              linkedAccounts: Object.fromEntries(
+                accounts.map((a) => [a.host, a.handle]),
+              ),
+              verification: Object.fromEntries(
+                accounts.map((a) => [
+                  a.host,
+                  { status: a.verificationStatus || 'unverified' },
+                ]),
+              ),
+            };
+      return {
+        userId,
+        linkedAccounts: mapped.linkedAccounts,
+        verification: mapped.verification,
+      };
     },
 
     async syncProfile(options = {}) {
-      const force = options.force === true;
-      const query = force ? '?force=true' : '';
-      const payload = await requestCompetitionsWithCompatibility(
-        [`/contests/accounts/profile/sync${query}`],
-        {
-          method: 'POST',
-          auth: true,
-          body: {},
-        },
-      );
-      return unwrapApiData(payload);
+      const accounts = await this.listLinkedAccounts();
+      const hosts = accounts
+        .map((account) => account.host)
+        .filter(Boolean);
+      const results = [];
+      for (const host of hosts) {
+        results.push(await this.resyncAccount(host));
+      }
+      return {
+        syncing: true,
+        results,
+        problemSync: { totalSynced: results.length },
+        force: options.force === true,
+      };
     },
 
     async listProblems(filters = {}) {

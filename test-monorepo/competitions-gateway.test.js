@@ -112,6 +112,94 @@ test('competitions ranking route requires auth', async (t) => {
   }
 });
 
+async function demoLogin(app) {
+  const login = await app.inject({
+    method: 'POST',
+    url: '/api/auth/login',
+    payload: { email: 'demo@nibras.dev', password: 'local123' },
+  });
+  if (login.statusCode !== 200) return null;
+  return login.json().accessToken;
+}
+
+test('competitions ranking route returns array with auth', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const app = buildApp(new PrismaStore(prisma));
+  try {
+    const token = await demoLogin(app);
+    if (!token) {
+      t.skip('demo login unavailable');
+      return;
+    }
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/ranking?page=1&limit=5',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.ok(Array.isArray(response.json()));
+  } finally {
+    await app.close();
+  }
+});
+
+test('competitions ranking me route returns array with auth', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const app = buildApp(new PrismaStore(prisma));
+  try {
+    const token = await demoLogin(app);
+    if (!token) {
+      t.skip('demo login unavailable');
+      return;
+    }
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/ranking/me',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.ok(Array.isArray(response.json()));
+  } finally {
+    await app.close();
+  }
+});
+
+test('competitions linked accounts route returns array with auth', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const app = buildApp(new PrismaStore(prisma));
+  try {
+    const token = await demoLogin(app);
+    if (!token) {
+      t.skip('demo login unavailable');
+      return;
+    }
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/contests/accounts',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.ok(Array.isArray(response.json()));
+  } finally {
+    await app.close();
+  }
+});
+
 test('competitions bookmark route requires auth', async (t) => {
   if (!process.env.DATABASE_URL) {
     t.skip('DATABASE_URL not set');

@@ -44,8 +44,10 @@
     --codeforces-bg: rgba(31, 138, 203, 0.1);
     --leetcode-color: #f5a623;
     --leetcode-bg: rgba(245, 166, 35, 0.1);
-    --hackerrank-color: #2ec866;
-    --hackerrank-bg: rgba(46, 200, 102, 0.1);
+    --atcoder-color: #000000;
+    --atcoder-bg: rgba(0, 0, 0, 0.08);
+    --codechef-color: #5b4638;
+    --codechef-bg: rgba(91, 70, 56, 0.1);
 
     --verify-success-bg: #ecfdf5;
     --verify-success-border: #d1fae5;
@@ -818,9 +820,14 @@ a { text-decoration: none; }
     background-color: var(--leetcode-bg);
 }
 
-.hackerrank-header {
-    color: var(--hackerrank-color);
-    background-color: var(--hackerrank-bg);
+.atcoder-header {
+    color: var(--atcoder-color);
+    background-color: var(--atcoder-bg);
+}
+
+.codechef-header {
+    color: var(--codechef-color);
+    background-color: var(--codechef-bg);
 }
 
 .platform-body {
@@ -1158,4 +1165,80 @@ a { text-decoration: none; }
     .top-header { padding: 0 1rem; }
     .search-bar-global { width: 160px; }
     .comp-stats-grid { grid-template-columns: 1fr; }
+}
+
+.leaderboard-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.leaderboard-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.leaderboard-filter-select {
+    border: 1px solid var(--border-color);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    padding: 0.45rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.leaderboard-table-wrap {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.leaderboard-table th {
+    background: var(--tag-bg);
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.leaderboard-table td {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
+.leaderboard-table th.col-rank,
+.leaderboard-table td.col-rank,
+.leaderboard-table th.col-rating,
+.leaderboard-table td.col-rating,
+.leaderboard-table th.col-delta,
+.leaderboard-table td.col-delta,
+.leaderboard-table th.col-contests,
+.leaderboard-table td.col-contests {
+    text-align: center;
+}
+
+.leaderboard-table tbody tr:hover {
+    background-color: var(--tag-bg);
+}
+
+.leaderboard-table .current-user-row {
+    background: rgba(37, 99, 235, 0.05);
+    border-left: 3px solid var(--accent-blue);
+}
+
+.leaderboard-empty {
+    padding: 1rem;
 }

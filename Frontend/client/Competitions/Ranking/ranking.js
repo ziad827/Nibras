@@ -10,8 +10,10 @@
       }
     })(() => {
   const shared = window.NibrasShared || {};
+  shared.session?.updateUserInfoDisplay?.();
   const uiStates = shared.uiStates;
   const competitionsService = window.NibrasServices?.competitionsService;
+  const accountsHelper = window.RankingAccounts || {};
   const token = (() => {
     try {
       if (typeof shared.auth?.getToken === 'function')
@@ -23,46 +25,55 @@
   const statsContainer = document.getElementById('stats-container');
   const rankContainer = document.getElementById('ranking-list-container');
   const rateContainer = document.getElementById('rating-content-container');
+  const leaderboardContainer = document.getElementById('leaderboard-table-container');
+  const leaderboardFilter = document.getElementById('leaderboard-platform-filter');
+
+  const PLATFORM_CARDS = [
+    { key: 'codeforces', label: 'Codeforces', prefix: 'cf' },
+    { key: 'leetcode', label: 'LeetCode', prefix: 'lc' },
+    { key: 'atcoder', label: 'AtCoder', prefix: 'ac' },
+    { key: 'codechef', label: 'CodeChef', prefix: 'cc' },
+  ];
 
   const state = {
     me: null,
     profile: null,
     progress: null,
     history: null,
+    myRanks: [],
+    leaderboard: [],
+    leaderboardHost: 'all',
+    leaderboardPage: 1,
+    leaderboardLimit: 25,
   };
 
   const getProgressTotals = () => {
-    const keys = ['beginner', 'newbie', 'intermediate', 'advanced'];
-    let solved = 0;
-    let total = 0;
-    keys.forEach((key) => {
-      solved += Number(state.progress?.[key]?.solved || 0);
-      total += Number(state.progress?.[key]?.total || 0);
-    });
-    return { solved, total };
+    const solved = Number(state.progress?.solvedCount ?? 0);
+    const total = Number(state.progress?.problemCount ?? 0);
+    const percent = Number(
+      state.progress?.percent ??
+        (total ? Math.round((solved / total) * 100) : 0),
+    );
+    return { solved, total, percent };
   };
 
   const verifiedCount = () => {
+    if (accountsHelper.verifiedCount) {
+      return accountsHelper.verifiedCount(state.profile?.verification);
+    }
     const verification = state.profile?.verification || {};
     return Object.values(verification).filter(
       (entry) => String(entry?.status || '').toLowerCase() === 'verified',
     ).length;
   };
 
-  const syncSuccessCount = () => {
-    const sync = state.profile?.sync || {};
-    return Object.values(sync).filter(
-      (entry) => String(entry?.syncStatus || '').toLowerCase() === 'success',
-    ).length;
-  };
-
   const renderStats = () => {
     if (!statsContainer) return;
     const totals = getProgressTotals();
-    const completion = totals.total
-      ? Math.round((totals.solved / totals.total) * 100)
-      : 0;
-    const participations = Number(state.history?.pagination?.total || 0);
+    const completion = totals.percent;
+    const participations = Number(
+      state.history?.total ?? state.history?.items?.length ?? 0,
+    );
     const stats = [
       {
         label: 'Problems Solved',
@@ -159,25 +170,10 @@
   const renderRankings = () => {
     if (!rankContainer) return;
 
-    const linkedAccounts = state.profile?.linkedAccounts || {};
-    const verification = state.profile?.verification || {};
+    const rows = accountsHelper.formatMyRankRows
+      ? accountsHelper.formatMyRankRows(state.myRanks)
+      : [{ label: 'Global rank', value: 'Not ranked yet' }];
 
-    const cfHandle = linkedAccounts.codeforces || null;
-    const lcUsername = linkedAccounts.leetcode || null;
-    const hrHandle = linkedAccounts.hackerrank || null;
-
-    const cfVerify = verification.codeforces?.status || 'unverified';
-    const lcVerify = verification.leetcode?.status || 'unverified';
-    const hrVerify = verification.hackerrank?.status || 'unverified';
-
-    const rows = [
-      { label: 'Codeforces Handle', value: cfHandle || 'Not linked' },
-      { label: 'LeetCode Username', value: lcUsername || 'Not linked' },
-      { label: 'HackerRank Handle', value: hrHandle || 'Not linked' },
-      { label: 'Codeforces Verification', value: cfVerify },
-      { label: 'LeetCode Verification', value: lcVerify },
-      { label: 'HackerRank Verification', value: hrVerify },
-    ];
     rankContainer.innerHTML = '';
     rows.forEach((item) => {
       rankContainer.innerHTML += `
@@ -188,31 +184,29 @@
             `;
     });
 
-    updatePlatformCards(linkedAccounts, verification);
+    updatePlatformCards(
+      state.profile?.linkedAccounts || {},
+      state.profile?.verification || {},
+      state.profile?.ratings || {},
+    );
   };
 
-  const updatePlatformCards = (linkedAccounts, verification) => {
-    const cfHandle = linkedAccounts.codeforces || null;
-    const lcUsername = linkedAccounts.leetcode || null;
-    const hrHandle = linkedAccounts.hackerrank || null;
-    const cfVerify = verification.codeforces?.status || 'unverified';
-    const lcVerify = verification.leetcode?.status || 'unverified';
-    const hrVerify = verification.hackerrank?.status || 'unverified';
-
-    const cfHandleEl = document.getElementById('cf-handle-display');
-    const cfStatusEl = document.getElementById('cf-status-display');
-    const lcHandleEl = document.getElementById('lc-handle-display');
-    const lcStatusEl = document.getElementById('lc-status-display');
-    const hrHandleEl = document.getElementById('hr-handle-display');
-    const hrStatusEl = document.getElementById('hr-status-display');
-
-    if (cfHandleEl) cfHandleEl.textContent = cfHandle || 'Not linked';
-    if (lcHandleEl) lcHandleEl.textContent = lcUsername || 'Not linked';
-    if (hrHandleEl) hrHandleEl.textContent = hrHandle || 'Not linked';
-
-    if (cfStatusEl) cfStatusEl.innerHTML = getStatusBadgeHTML(cfVerify);
-    if (lcStatusEl) lcStatusEl.innerHTML = getStatusBadgeHTML(lcVerify);
-    if (hrStatusEl) hrStatusEl.innerHTML = getStatusBadgeHTML(hrVerify);
+  const updatePlatformCards = (linkedAccounts, verification, ratings) => {
+    PLATFORM_CARDS.forEach(({ key, prefix }) => {
+      const handle = linkedAccounts[key] || null;
+      const status = verification[key]?.status || 'unverified';
+      const handleEl = document.getElementById(`${prefix}-handle-display`);
+      const statusEl = document.getElementById(`${prefix}-status-display`);
+      if (handleEl) {
+        const rating = ratings?.[key];
+        handleEl.textContent = handle
+          ? rating != null
+            ? `${handle} (${rating})`
+            : handle
+          : 'Not linked';
+      }
+      if (statusEl) statusEl.innerHTML = getStatusBadgeHTML(status);
+    });
   };
 
   const getStatusBadgeHTML = (status) => {
@@ -230,15 +224,11 @@
     if (!container) return;
 
     const totals = getProgressTotals();
-    const percent = totals.total
-      ? Math.round((totals.solved / totals.total) * 100)
-      : 0;
-
+    const percent = totals.percent;
     const linkedAccounts = state.profile?.linkedAccounts || {};
-    const hasCf = !!linkedAccounts.codeforces;
-    const hasLc = !!linkedAccounts.leetcode;
-    const hasHr = !!linkedAccounts.hackerrank;
-    const linkedCount = [hasCf, hasLc, hasHr].filter(Boolean).length;
+    const linkedCount = PLATFORM_CARDS.filter(
+      (platform) => linkedAccounts[platform.key],
+    ).length;
 
     container.innerHTML = `
             <div class="rating-progress-row">
@@ -254,47 +244,135 @@
             </div>
             <div class="rating-big-display">
                 <div class="rating-number">${percent}%</div>
-                <span class="rating-sub">Progress Completion</span>
+                <span class="rating-sub">CP Roadmap Progress</span>
                 <div class="rating-badge">${linkedCount ? 'Connected' : 'Connect Accounts'}</div>
             </div>
             ${message ? `<p class="section-sub" style="margin-top: 12px;">${message}</p>` : ''}
             <div class="progress-actions">
                 <button class="btn-progress" id="btn-link-accounts"><i class="fa-solid fa-link"></i> Link Accounts</button>
-                <button class="btn-progress-secondary" id="btn-sync-profile"><i class="fa-solid fa-arrows-rotate"></i> Sync Profile</button>
+                <button class="btn-progress-secondary" id="btn-sync-profile"><i class="fa-solid fa-arrows-rotate"></i> Sync Accounts</button>
             </div>
         `;
+  };
+
+  const renderLeaderboard = () => {
+    if (!leaderboardContainer) return;
+    const rows = Array.isArray(state.leaderboard) ? state.leaderboard : [];
+    const myId = state.me?._id || state.me?.id || null;
+
+    if (!rows.length) {
+      leaderboardContainer.innerHTML =
+        '<p class="section-sub leaderboard-empty">No ranking data yet. Link and verify accounts to appear on the leaderboard.</p>';
+      return;
+    }
+
+    const body = rows
+      .map((entry) => {
+        const isMe = myId && entry.userId === myId;
+        const delta =
+          entry.delta == null
+            ? '—'
+            : entry.delta > 0
+              ? `+${entry.delta}`
+              : String(entry.delta);
+        return `
+          <tr class="${isMe ? 'current-user-row' : ''}">
+            <td class="col-rank">${entry.rank ?? '—'}</td>
+            <td class="col-user">${entry.username || 'Unknown'}</td>
+            <td class="col-rating">${entry.rating ?? '—'}</td>
+            <td class="col-delta">${delta}</td>
+            <td class="col-contests">${entry.contestsLast30d ?? 0}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    leaderboardContainer.innerHTML = `
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th class="col-rank">Rank</th>
+            <th class="col-user">User</th>
+            <th class="col-rating">Rating</th>
+            <th class="col-delta">Δ</th>
+            <th class="col-contests">Contests (30d)</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    `;
+  };
+
+  const mapAccountsToProfile = (accounts) => {
+    if (accountsHelper.mapLinkedAccounts) {
+      return accountsHelper.mapLinkedAccounts(accounts);
+    }
+    const linkedAccounts = {};
+    const verification = {};
+    (accounts || []).forEach((account) => {
+      const platform = String(account.host || account.platform || '').toLowerCase();
+      if (!platform) return;
+      linkedAccounts[platform] = account.handle || '';
+      verification[platform] = {
+        status: account.verificationStatus || 'unverified',
+      };
+    });
+    return { linkedAccounts, verification, ratings: {}, verificationProblems: {} };
   };
 
   const loadRankingData = async () => {
     try {
       const currentUser = await competitionsService.getMe();
       const userId = currentUser?._id || currentUser?.id;
+      state.me = currentUser || null;
 
       if (!userId) {
         renderProgress('Please login to view rankings');
+        renderLeaderboard();
         return;
       }
 
-      const [profile, progress] = await Promise.all([
-        competitionsService.getAggregatedProfile(userId).catch(() => ({})),
-        competitionsService.getProgress().catch(() => ({})),
-      ]);
+      const host = state.leaderboardHost || 'all';
+      const [accounts, progress, history, myRanks, leaderboard] =
+        await Promise.all([
+          competitionsService.listLinkedAccounts().catch(() => []),
+          competitionsService.getProgress().catch(() => ({})),
+          competitionsService.listHistory().catch(() => ({ items: [], total: 0 })),
+          competitionsService.getMyRanking().catch(() => []),
+          competitionsService
+            .getRanking({
+              host,
+              scope: 'global',
+              page: state.leaderboardPage,
+              limit: state.leaderboardLimit,
+            })
+            .catch(() => []),
+        ]);
 
-      console.log('[loadRankingData] Profile:', profile);
-      console.log('[loadRankingData] Progress:', progress);
-
-      state.profile = profile || {};
+      const mapped = mapAccountsToProfile(accounts);
+      state.profile = {
+        userId,
+        linkedAccounts: mapped.linkedAccounts,
+        verification: mapped.verification,
+        ratings: mapped.ratings,
+        verificationProblems: mapped.verificationProblems,
+      };
       state.progress = progress || {};
+      state.history = history || { items: [], total: 0 };
+      state.myRanks = myRanks || [];
+      state.leaderboard = leaderboard || [];
+
       renderStats();
-      var statValues = statsContainer.querySelectorAll('.stat-info h2');
-      statValues.forEach(function (el, i) {
-        setTimeout(function () {
-          animateCounter(el, 700);
-        }, i * 100);
+      const statValues = statsContainer?.querySelectorAll('.stat-info h2');
+      statValues?.forEach((el, i) => {
+        setTimeout(() => animateCounter(el, 700), i * 100);
       });
       renderRankings();
+      renderProgress();
+      renderLeaderboard();
     } catch (error) {
       renderProgress('Could not load data');
+      renderLeaderboard();
     }
   };
 
@@ -336,12 +414,17 @@
 
   const triggerSync = async () => {
     try {
-      renderProgress('Syncing profile...');
-      const syncResult = await competitionsService.syncProfile({ force: true });
-      const syncedCount = syncResult?.problemSync?.totalSynced || 0;
-      renderProgress(
-        `Profile synced. Updated solved problems: ${syncedCount}. Reloading...`,
+      renderProgress('Syncing linked accounts...');
+      const accounts = await competitionsService.listLinkedAccounts().catch(() => []);
+      const hosts = accounts.map((account) => account.host).filter(Boolean);
+      if (!hosts.length) {
+        renderProgress('Link an account before syncing.');
+        return;
+      }
+      await Promise.all(
+        hosts.map((host) => competitionsService.resyncAccount(host).catch(() => null)),
       );
+      renderProgress('Accounts queued for resync. Reloading...');
       await loadRankingData();
     } catch (error) {
       if (
@@ -362,40 +445,40 @@
     if (!platform) {
       platform = (
         window.prompt(
-          'Platform to verify (codeforces or leetcode):',
+          'Platform to verify (codeforces, leetcode, atcoder, or codechef):',
           'codeforces',
         ) || ''
       )
         .trim()
         .toLowerCase();
     }
-    if (platform !== 'codeforces' && platform !== 'leetcode') {
+    const supported = PLATFORM_CARDS.map((entry) => entry.key);
+    if (!supported.includes(platform)) {
       renderProgress(
-        'Verification canceled. Platform must be codeforces or leetcode.',
+        `Verification canceled. Platform must be one of: ${supported.join(', ')}.`,
       );
       return null;
     }
-    console.log('[Verification] Starting for platform:', platform);
+    const platformName =
+      PLATFORM_CARDS.find((entry) => entry.key === platform)?.label || platform;
     try {
-      console.log('[Verification] Starting verification for:', platform);
       const result = await competitionsService.startVerification(platform);
-      console.log('[Verification] Start result:', result);
-      const data = result?.data;
-      const platformName =
-        platform === 'codeforces' ? 'Codeforces' : 'LeetCode';
+      const data = result?.data || {};
 
-      if (data?.token) {
-        renderVerificationStarted(platform, platformName, data);
-        return data;
-      } else if (data?.verified) {
+      if (data.verified) {
         renderVerificationResult(platform, platformName, data);
-        return data;
-      } else {
-        renderProgress(
-          `${platformName} verification started. Check again using the "Check Verification" button.`,
-        );
+        await loadRankingData();
         return data;
       }
+
+      const verificationProblem =
+        data.verificationProblem ||
+        state.profile?.verificationProblems?.[platform];
+      renderVerificationPending(platform, platformName, {
+        ...data,
+        verificationProblem,
+      });
+      return data;
     } catch (error) {
       console.error('[Verification] Error:', error);
       if (
@@ -423,42 +506,37 @@
     if (!platform) {
       platform = (
         window.prompt(
-          'Platform to check (codeforces or leetcode):',
+          'Platform to check (codeforces, leetcode, atcoder, or codechef):',
           'codeforces',
         ) || ''
       )
         .trim()
         .toLowerCase();
     }
-    if (platform !== 'codeforces' && platform !== 'leetcode') {
+    const supported = PLATFORM_CARDS.map((entry) => entry.key);
+    if (!supported.includes(platform)) {
       renderProgress(
-        'Check canceled. Platform must be codeforces or leetcode.',
+        `Check canceled. Platform must be one of: ${supported.join(', ')}.`,
       );
       return;
     }
-    console.log('[Verification] Checking for platform:', platform);
+    const platformName =
+      PLATFORM_CARDS.find((entry) => entry.key === platform)?.label || platform;
     try {
       const result = await competitionsService.checkVerification(platform);
-      console.log('[Verification] Check result:', result);
-      const data = result?.data;
-      const platformName =
-        platform === 'codeforces' ? 'Codeforces' : 'LeetCode';
+      const data = result?.data || {};
 
-      if (data?.verified) {
+      if (data.verified) {
         renderVerificationResult(platform, platformName, data);
         await loadRankingData();
-        renderStats();
-        renderRankings();
-      } else if (data?.status === 'pending' || data?.token) {
-        renderVerificationPending(platform, platformName, data);
-      } else if (data?.verified === false) {
-        renderProgress(
-          `${platformName} verification still pending. Complete the verification step and check again.`,
-        );
       } else {
-        renderProgress(
-          `${platformName} verification not started. Use "Start Verification" first.`,
-        );
+        const verificationProblem =
+          data.verificationProblem ||
+          state.profile?.verificationProblems?.[platform];
+        renderVerificationPending(platform, platformName, {
+          ...data,
+          verificationProblem,
+        });
       }
     } catch (error) {
       console.error('[Verification] Check error:', error);
@@ -574,9 +652,13 @@
       document.getElementById('rating-content-container') || rateContainer;
     if (!container) return;
 
-    const expiresDate = data.expiresAt
-      ? new Date(data.expiresAt).toLocaleString()
-      : 'N/A';
+    const problem = data.verificationProblem;
+    const problemHtml = problem?.url
+      ? `<div class="verify-info-row">
+            <span class="verify-info-label">Verification problem:</span>
+            <a href="${problem.url}" target="_blank" rel="noopener">${problem.name || problem.url}</a>
+         </div>`
+      : '';
 
     container.innerHTML = `
             <div class="verify-panel verify-pending">
@@ -585,24 +667,15 @@
                     <span>${platformName} Verification Pending</span>
                 </div>
                 <div class="verify-panel-body">
-                    ${
-                      data.token
-                        ? `
-                    <div class="verify-info-row">
-                        <span class="verify-info-label">Your Token:</span>
-                        <code class="verify-token">${data.token}</code>
-                    </div>
-                    `
-                        : ''
-                    }
+                    ${problemHtml}
                     <div class="verify-notice">
                         <i class="fa-solid fa-info-circle"></i>
-                        Verification still pending. Complete the verification step and check again.
+                        Complete verification on the platform, then click "Check Verification".
                     </div>
                 </div>
                 <div class="verify-actions">
                     <button class="btn-account btn-verify" data-action="check-verification" data-platform="${platform}"><i class="fa-solid fa-rotate"></i> Check Verification</button>
-                    <button class="btn-account btn-check" data-action="restart-verification" data-platform="${platform}"><i class="fa-solid fa-arrow-rotate-right"></i> Start New</button>
+                    <button class="btn-account btn-check" data-action="restart-verification" data-platform="${platform}"><i class="fa-solid fa-arrow-rotate-right"></i> Check Again</button>
                 </div>
             </div>
         `;
@@ -702,6 +775,42 @@
     }
   });
 
+  const accountLinkStatus = document.getElementById('account-link-status');
+
+  const linkAccountSimple = async (platform) => {
+    const platformMeta = PLATFORM_CARDS.find((entry) => entry.key === platform);
+    const platformName = platformMeta?.label || platform;
+    const username = prompt(`Enter your ${platformName} username:`);
+    if (!username || !username.trim()) {
+      if (accountLinkStatus)
+        accountLinkStatus.innerHTML =
+          '<span class="status-msg-error">Username is required.</span>';
+      return;
+    }
+    try {
+      const result = await competitionsService.linkAccount(
+        platform,
+        username.trim(),
+      );
+      if (result?.verificationProblem) {
+        state.profile = state.profile || {};
+        state.profile.verificationProblems =
+          state.profile.verificationProblems || {};
+        state.profile.verificationProblems[platform] = result.verificationProblem;
+      }
+      if (accountLinkStatus)
+        accountLinkStatus.innerHTML = `<span class="status-msg-success">${platformName} account linked. ${
+          result?.verificationProblem?.url
+            ? 'Complete verification on the assigned problem.'
+            : 'You can verify ownership next.'
+        }</span>`;
+      await loadRankingData();
+    } catch (error) {
+      if (accountLinkStatus)
+        accountLinkStatus.innerHTML = `<span class="status-msg-error">Failed to link: ${error?.message || 'Unknown error'}</span>`;
+    }
+  };
+
   // Account linking in platform cards
   document.addEventListener('click', (event) => {
     const target = event.target;
@@ -714,59 +823,14 @@
     linkAccountSimple(platform);
   });
 
+  leaderboardFilter?.addEventListener('change', () => {
+    state.leaderboardHost = leaderboardFilter.value || 'all';
+    state.leaderboardPage = 1;
+    void loadRankingData();
+  });
+
   renderStats();
   renderRankings();
   renderProgress('Loading data...');
   loadRankingData();
-
-  const accountLinkStatus = document.getElementById('account-link-status');
-
-  const linkAccountSimple = async (platform) => {
-    const platformName =
-      platform === 'codeforces'
-        ? 'Codeforces'
-        : platform === 'leetcode'
-          ? 'LeetCode'
-          : 'HackerRank';
-    const username = prompt(`Enter your ${platformName} username:`);
-    if (!username || !username.trim()) {
-      if (accountLinkStatus)
-        accountLinkStatus.innerHTML =
-          '<span class="status-msg-error">Username is required.</span>';
-      return;
-    }
-    try {
-      if (competitionsService?.linkAccounts) {
-        const body =
-          platform === 'codeforces'
-            ? { codeforcesHandle: username.trim() }
-            : platform === 'leetcode'
-              ? { leetcodeUsername: username.trim() }
-              : { hackerrankHandle: username.trim() };
-        console.log(
-          '[Link Account] Sending request with body:',
-          JSON.stringify(body),
-        );
-        const result = await competitionsService.linkAccounts(body);
-        console.log('[Link Account] Response:', result);
-        if (accountLinkStatus)
-          accountLinkStatus.innerHTML = `<span class="status-msg-success">${platformName} account linked! Reloading profile...</span>`;
-        if (competitionsService?.syncProfile) {
-          await competitionsService
-            .syncProfile({ force: true })
-            .catch(() => {});
-        }
-        await loadRankingData();
-        console.log('[Link Account] Profile after reload:', state.profile);
-      } else {
-        if (accountLinkStatus)
-          accountLinkStatus.innerHTML =
-            '<span class="status-msg-error">Link service not available.</span>';
-      }
-    } catch (error) {
-      console.error('[Link Account] Error:', error);
-      if (accountLinkStatus)
-        accountLinkStatus.innerHTML = `<span class="status-msg-error">Failed to link: ${error?.message || 'Unknown error'}</span>`;
-    }
-  };
 });

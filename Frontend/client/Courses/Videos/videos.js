@@ -352,6 +352,14 @@ function buildLessonFromVideo(video, index, courseSlug) {
       bilibili: video.playbackUrl,
       duration: lesson.duration,
     });
+  } else if (video.provider === 'panopto' && video.playbackUrl) {
+    lesson.videoSources.panopto = video.playbackUrl;
+    lesson.videoItems.push({
+      id: `${lessonId}-panopto`,
+      title: video.title,
+      panopto: video.playbackUrl,
+      duration: lesson.duration,
+    });
   } else if (video.playbackUrl) {
     lesson.videoSources.html5 = video.playbackUrl;
     lesson.videoItems.push({
@@ -721,6 +729,8 @@ function setupVideoPlayer() {
     activeVideoItem?.youtube || currentLesson.videoSources?.youtube;
   const bilibiliSource =
     activeVideoItem?.bilibili || currentLesson.videoSources?.bilibili;
+  const panoptoSource =
+    activeVideoItem?.panopto || currentLesson.videoSources?.panopto;
 
   videoContainer.innerHTML = '';
 
@@ -758,6 +768,20 @@ function setupVideoPlayer() {
                     width="100%"
                     height="100%"
                     src="${bilibiliSource}"
+                    frameborder="0"
+                    allow="autoplay; fullscreen; encrypted-media"
+                    allowfullscreen
+                    style="width: 100%; height: 100%;">
+                </iframe>
+            `;
+      currentIframeElement = document.getElementById('lesson-video-iframe');
+    } else if (panoptoSource) {
+      videoContainer.innerHTML = `
+                <iframe
+                    id="lesson-video-iframe"
+                    width="100%"
+                    height="100%"
+                    src="${panoptoSource}"
                     frameborder="0"
                     allow="autoplay; fullscreen; encrypted-media"
                     allowfullscreen
