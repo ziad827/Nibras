@@ -87,6 +87,19 @@ test('dev proxy sends /v1 requests to Fastify, /api to NestJS, and static files 
 
     assert.equal(login.status, 200);
     assert.match(login.text, /"service":"fastify"/);
+
+    const community = await fetchText(
+      `${proxyOrigin}/community/questions?page=1&limit=5`,
+    );
+    const contests = await fetchText(`${proxyOrigin}/contests?page=1&limit=5`);
+
+    assert.equal(community.status, 200);
+    assert.match(community.text, /"service":"fastify"/);
+    assert.match(community.text, /\/v1\/community\/questions/);
+
+    assert.equal(contests.status, 200);
+    assert.match(contests.text, /"service":"fastify"/);
+    assert.match(contests.text, /\/v1\/contests/);
   } finally {
     await Promise.all([
       new Promise((resolve, reject) =>

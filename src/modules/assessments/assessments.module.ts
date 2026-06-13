@@ -59,6 +59,6 @@ import { RubricsService } from './services/rubrics.service';
     FeedbackService,
     RubricsService,
   ],
-  exports: [AssignmentsService, MongooseModule],
+  exports: [AssignmentsService, DockerExecutorService, MongooseModule],
 })
 export class AssessmentsModule {}

@@ -266,6 +266,7 @@ window.NibrasReact.run(() => {
     currentUser: null,
     votesByTargetId: new Map(),
     pollTimer: null,
+    eventSource: null,
     isPolling: false,
   };
 
@@ -410,7 +411,7 @@ window.NibrasReact.run(() => {
     if (!state.currentUser) return;
     await loadThreadAndPosts();
     configureBackLink();
-    startPolling();
+    startRealtime();
   }
 
   async function loadCurrentUser() {
@@ -743,32 +744,76 @@ window.NibrasReact.run(() => {
       : fallbackPath;
   }
 
+  function stopRealtime() {
+    if (state.pollTimer) {
+      window.clearInterval(state.pollTimer);
+      state.pollTimer = null;
+    }
+    if (state.eventSource) {
+      state.eventSource.close();
+      state.eventSource = null;
+    }
+  }
+
+  async function refreshThreadData() {
+    if (!state.threadId || state.isPolling) return;
+    state.isPolling = true;
+    try {
+      const previousPostCount = state.posts?.length || 0;
+      const threadPayload = await threadService.getById(state.threadId);
+      state.thread = pickEntity(threadPayload, 'thread') || state.thread;
+      await reloadPosts();
+      if ((state.posts?.length || 0) !== previousPostCount) {
+        await hydrateVotes();
+        renderThread();
+        renderPosts();
+      }
+    } catch (_) {
+      // ignore transient refresh errors
+    } finally {
+      state.isPolling = false;
+    }
+  }
+
   function startPolling() {
     if (state.pollTimer) {
       window.clearInterval(state.pollTimer);
     }
-    state.pollTimer = window.setInterval(async () => {
-      if (!state.threadId || state.isPolling) return;
-      state.isPolling = true;
-      try {
-        const previousPostCount = state.posts?.length || 0;
-        const threadPayload = await threadService.getById(state.threadId);
-        state.thread = pickEntity(threadPayload, 'thread') || state.thread;
-        await reloadPosts();
-        if ((state.posts?.length || 0) !== previousPostCount) {
-          await hydrateVotes();
-          renderThread();
-          renderPosts();
-        }
-      } catch (_) {
-        // ignore transient polling errors
-      } finally {
-        state.isPolling = false;
-      }
+    state.pollTimer = window.setInterval(() => {
+      void refreshThreadData();
     }, 8000);
-    window.addEventListener('beforeunload', () => {
-      if (state.pollTimer) window.clearInterval(state.pollTimer);
-    });
+    window.addEventListener('beforeunload', stopRealtime, { once: true });
+  }
+
+  function startRealtime() {
+    stopRealtime();
+    if (!state.threadId) return;
+
+    const base = resolveServiceUrl('community');
+    const streamUrl = joinUrl(
+      base,
+      `/v1/community/threads/${encodeURIComponent(state.threadId)}/stream`,
+    );
+
+    if (typeof EventSource !== 'undefined') {
+      try {
+        state.eventSource = new EventSource(streamUrl);
+        state.eventSource.addEventListener('update', () => {
+          void refreshThreadData();
+        });
+        state.eventSource.addEventListener('connected', () => {});
+        state.eventSource.addEventListener('heartbeat', () => {});
+        state.eventSource.onerror = () => {
+          stopRealtime();
+          startPolling();
+        };
+        window.addEventListener('beforeunload', stopRealtime, { once: true });
+        return;
+      } catch (_) {
+        stopRealtime();
+      }
+    }
+    startPolling();
   }
 
   function getCurrentUserId() {

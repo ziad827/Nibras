@@ -4,31 +4,110 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nibras - Nibras 75</title>
-    <script src="../../config.js"></script>
-    <script src="../../services/api.js"></script>
-    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html"></script>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../Practice/practice.css">
+    <link rel="stylesheet" href="../Contests/contest.css">
     <link rel="stylesheet" href="../shared-competitions.css">
 </head>
 <body>
-    <main class="main-content" style="margin-left:0; padding:24px;">
+    <div id="app-root" hidden></div>
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            <li class="nav-item"><a href="../../Projects/projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../../CLI/cli.html" class="nav-link"><i class="fa-solid fa-terminal"></i> CLI</a></li>
+            <li class="nav-item"><a href="../Contests/contest.html" class="nav-link active"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="../../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <li class="nav-item"><a href="../../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <li class="nav-item"><a href="../../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+        <div class="user-profile">
+            <div class="avatar-circle">ZA</div>
+            <div class="user-info"><h4>User</h4><span>student</span></div>
+        </div>
+        <div class="reputation-box"><span>Reputation</span><div class="rep-badge">0</div></div>
+        <a href="../../Login/loginPage/login.html" class="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a>
+    </aside>
+    <main class="main-content">
+        <header class="top-header">
+            <div class="search-bar-global">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Search Nibras 75 problems" id="search-input">
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" id="themeBtn"><i class="fa-regular fa-moon"></i></button>
+                <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
+                <div class="profile-circle-small">ZA</div>
+            </div>
+        </header>
         <div class="content-wrapper">
-            <div class="page-title-section"><h1>Nibras 75</h1><p>Curated interview problems with progress tracking.</p></div>
-            <div class="competitions-subnav">
+            <div class="comp-page-title">
+                <h1>Nibras 75</h1>
+                <p>Curated interview-style problems with progress tracking</p>
+            </div>
+            <div class="comp-stats-row" id="stats-row"></div>
+            <div class="tabs-container">
                 <a href="../Contests/contest.html" class="tab-btn">Contests</a>
                 <a href="../Practice/practice.html" class="tab-btn">Practice</a>
                 <a href="./nibras75.html" class="tab-btn active">Nibras 75</a>
                 <a href="../CpRoadmap/cp-roadmap.html" class="tab-btn">CP Roadmap</a>
                 <a href="../DailyProblem/daily-problem.html" class="tab-btn">Daily Problem</a>
+                <a href="../History/history.html" class="tab-btn">History</a>
                 <a href="../Ranking/ranking.html" class="tab-btn">Rankings</a>
+                <a href="../Teams/team.html" class="tab-btn">Teams</a>
             </div>
-            <div id="stats-line" class="feature-card"></div>
-            <div id="problems-list" class="feature-grid"></div>
+            <div class="comp-panel">
+                <div class="comp-toolbar">
+                    <select id="difficulty-filter">
+                        <option value="">All difficulties</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                    <select id="status-filter">
+                        <option value="">All statuses</option>
+                        <option value="false">Unsolved</option>
+                        <option value="true">Solved</option>
+                    </select>
+                    <select id="sort-filter">
+                        <option value="order">Curriculum order</option>
+                        <option value="difficulty">Difficulty</option>
+                        <option value="title">Title</option>
+                    </select>
+                </div>
+                <div id="notice" class="comp-loading">Loading Nibras 75 problems...</div>
+                <table class="comp-table" id="problems-table" hidden>
+                    <thead>
+                        <tr>
+                            <th>Problem</th>
+                            <th>Difficulty</th>
+                            <th>Tags</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="problems-tbody"></tbody>
+                </table>
+            </div>
         </div>
     </main>
     <script src="../../react-page-utils.js"></script>
+    <script src="../../react-bootstrap.js"></script>
     <script src="./nibras75.js"></script>
+    <script src="../../services/gamification-ui.js"></script>
 </body>
 </html>

@@ -56,6 +56,11 @@ window.NibrasReact.run(function () {
   }
 
   function loadSuggestions() {
+    suggestionsContainer.innerHTML =
+      '<div class="empty-state"><i class="fa-solid fa-hourglass-half"></i><p>Mentorship is coming soon. Mentor matching and requests will appear here once the backend launches.</p></div>';
+    if (requestsSection) requestsSection.style.display = 'none';
+    return;
+
     if (!services || !services.mentorshipService) {
       suggestionsContainer.innerHTML =
         '<div class="empty-state"><i class="fa-solid fa-user-group"></i><p>Mentorship service not available.</p></div>';

@@ -40,16 +40,21 @@
   })();
 
   const LOCAL_GATEWAY = 'http://localhost:8080';
+  const DEFAULT_GATEWAY = isLocalHost
+    ? LOCAL_GATEWAY
+    : 'https://nibras-api.fly.dev';
+  let productionGateway = DEFAULT_GATEWAY;
+  try {
+    if (!isLocalHost && window.location.hostname.includes('vercel.app')) {
+      productionGateway = window.location.origin;
+    }
+  } catch (_) {}
   const DEFAULT_MONOLITH_API = isLocalHost
     ? `${LOCAL_GATEWAY}/api`
-    : 'https://nibras-backend.up.railway.app/api';
+    : `${productionGateway}/api`;
   const DEFAULT_ADMIN_API = DEFAULT_MONOLITH_API;
-  const DEFAULT_LEGACY_API = isLocalHost
-    ? LOCAL_GATEWAY
-    : 'https://nibras-backend.up.railway.app/api';
-  const DEFAULT_COMMUNITY_API = isLocalHost
-    ? LOCAL_GATEWAY
-    : 'https://nibras-backend.up.railway.app/api';
+  const DEFAULT_LEGACY_API = isLocalHost ? LOCAL_GATEWAY : productionGateway;
+  const DEFAULT_COMMUNITY_API = isLocalHost ? LOCAL_GATEWAY : productionGateway;
   var DEFAULT_TRACKING_API = isLocalHost
     ? LOCAL_GATEWAY
     : 'https://nibras-api.fly.dev';
@@ -59,7 +64,7 @@
   } catch (_) {}
   const DEFAULT_COMPETITIONS_API = isLocalHost
     ? LOCAL_GATEWAY
-    : 'https://nibras-backend.up.railway.app';
+    : productionGateway;
   const DEFAULT_RECOMMENDATION_API =
     'https://recommendationmodel-production-c22c.up.railway.app/api/recommend';
   const DEFAULT_COURSES_API = 'https://nibras-backend.up.railway.app/api';
@@ -125,9 +130,7 @@
 
   const ensureCompetitionsApiBaseUrl = (value) => {
     const gatewayBase = ensureGatewayBaseUrl(value);
-    if (gatewayBase && isLocalHost) {
-      return gatewayBase;
-    }
+    if (gatewayBase) return gatewayBase;
     const normalizedBase = ensureApiBaseUrl(value);
     if (!normalizedBase) return null;
     try {
@@ -165,40 +168,23 @@
     ) || DEFAULT_ADMIN_API;
 
   const legacyCommunityApi =
-    (isLocalHost
-      ? ensureGatewayBaseUrl(
-          readFirst(
-            params.get('legacyApi'),
-            localStorage.getItem('nibras_legacy_api_url'),
-            DEFAULT_LEGACY_API,
-          ),
-        )
-      : ensureApiBaseUrl(
-          readFirst(
-            params.get('legacyApi'),
-            localStorage.getItem('nibras_legacy_api_url'),
-            DEFAULT_LEGACY_API,
-          ),
-        )) || DEFAULT_LEGACY_API;
+    ensureGatewayBaseUrl(
+      readFirst(
+        params.get('legacyApi'),
+        localStorage.getItem('nibras_legacy_api_url'),
+        DEFAULT_LEGACY_API,
+      ),
+    ) || DEFAULT_LEGACY_API;
 
   const communityApi =
-    (isLocalHost
-      ? ensureGatewayBaseUrl(
-          readFirst(
-            params.get('communityApi'),
-            params.get('discussionsApi'),
-            localStorage.getItem('nibras_community_api_url'),
-            DEFAULT_COMMUNITY_API,
-          ),
-        )
-      : ensureApiBaseUrl(
-          readFirst(
-            params.get('communityApi'),
-            params.get('discussionsApi'),
-            localStorage.getItem('nibras_community_api_url'),
-            DEFAULT_COMMUNITY_API,
-          ),
-        )) || DEFAULT_COMMUNITY_API;
+    ensureGatewayBaseUrl(
+      readFirst(
+        params.get('communityApi'),
+        params.get('discussionsApi'),
+        localStorage.getItem('nibras_community_api_url'),
+        DEFAULT_COMMUNITY_API,
+      ),
+    ) || DEFAULT_COMMUNITY_API;
 
   const trackingApi = (() => {
     const raw = readFirst(

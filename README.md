@@ -9,8 +9,8 @@ Collaborative learning, competitive programming, and project-based assessment �
 | Component   | Port | Role                                                              |
 | ----------- | ---- | ----------------------------------------------------------------- |
 | **Gateway** | 8080 | Serves `Frontend/client`, routes `/api` → NestJS, `/v1` → Fastify |
-| **NestJS**  | 3000 | Auth, community, competitions, courses (`/api/*`)                 |
-| **Fastify** | 4848 | Projects, CLI, tracking, programs (`/v1/*`)                       |
+| **NestJS**  | 3000 | Auth bridge, courses, **internal contests** (`/api/contests/*`)   |
+| **Fastify** | 4848 | Community, external competitions, projects, CLI, tracking (`/v1/*`) |
 | **Worker**  | 9090 | Submission verification, grading jobs                             |
 | **CLI**     | —    | `nibras login`, `test`, `submit`                                  |
 
@@ -60,6 +60,7 @@ Gateway: [http://localhost:8080](http://localhost:8080)
 | `npm run test:e2e`          | NestJS E2E tests                             |
 | `npm run dev:session`       | Create local instructor session token        |
 | `npm run smoke:local`       | HTTP smoke test against NestJS API           |
+| `npm run smoke:gateway`     | Gateway smoke (community + competitions)     |
 | `npm run db:deploy`         | Apply Prisma migrations                      |
 | `npm run seed:screenshot`   | Seed demo data for UI screenshots            |
 
@@ -106,8 +107,8 @@ Key variables:
 ## Project layout
 
 ```
-src/              NestJS backend (auth, community, competitions)
-Frontend/client/  Static student/instructor dashboard
+src/              NestJS backend (auth, courses, internal contests bridge)
+Frontend/client/  Static student/instructor dashboard (canonical UI)
 apps/
   api/            Fastify platform API
   cli/            @nibras/cli

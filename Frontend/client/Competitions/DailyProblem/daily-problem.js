@@ -1,68 +1,129 @@
-window.NibrasReact.run(() => {
-  const service = window.NibrasServices?.competitionsService;
-  const cardEl = document.getElementById('daily-card');
-  const feedbackEl = document.getElementById('daily-feedback');
-  const verifyBtn = document.getElementById('verify-btn');
-  const solveBtn = document.getElementById('solve-btn');
+(window.NibrasReact && typeof window.NibrasReact.run === 'function'
+  ? window.NibrasReact.run.bind(window.NibrasReact)
+  : (initializer) => {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializer, { once: true });
+      } else {
+        initializer();
+      }
+    })(() => {
+  const shared = window.NibrasShared || {};
+  const competitionsService = window.NibrasServices?.competitionsService;
+  const safeHtml =
+    typeof shared.safeHtml === 'function'
+      ? shared.safeHtml
+      : (value) => String(value ?? '');
 
-  function esc(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+  const statsRow = document.getElementById('stats-row');
+  const notice = document.getElementById('notice');
+  const content = document.getElementById('daily-content');
+
+  function showNotice(message, type) {
+    if (!notice) return;
+    notice.hidden = false;
+    notice.className =
+      type === 'error'
+        ? 'comp-error'
+        : type === 'loading'
+          ? 'comp-loading'
+          : 'comp-empty';
+    notice.textContent = message;
+    if (content) content.hidden = true;
   }
 
-  function setFeedback(message, isError) {
-    feedbackEl.textContent = message || '';
-    feedbackEl.style.color = isError ? '#dc2626' : 'var(--text-secondary,#6b7280)';
+  function renderStats(payload) {
+    if (!statsRow) return;
+    const streak = payload?.streak ?? payload?.currentStreak ?? 0;
+    const longest = payload?.longestStreak ?? streak;
+    const solvedToday = payload?.solvedToday ?? payload?.status === 'solved';
+    statsRow.innerHTML = `
+      <div class="comp-stat-card"><div class="label">Current streak</div><div class="value">${safeHtml(streak)}</div></div>
+      <div class="comp-stat-card"><div class="label">Longest streak</div><div class="value">${safeHtml(longest)}</div></div>
+      <div class="comp-stat-card"><div class="label">Today</div><div class="value">${solvedToday ? 'Solved' : 'Pending'}</div></div>
+    `;
   }
 
-  function renderAssignment(payload) {
+  function renderProblem(payload) {
+    if (!content || !notice) return;
     const problem = payload?.problem || payload?.assignment?.problem || payload;
-    if (!problem) {
-      cardEl.innerHTML = 'No daily problem assigned for today.';
-      return;
-    }
-    const title = problem.title || problem.name || 'Daily Problem';
-    const platform = problem.platform || payload.platform || 'platform';
-    const url = problem.url || '#';
-    const status = payload.status || payload.assignment?.status || 'pending';
-    cardEl.innerHTML = `<h2 style="margin:0 0 8px;">${esc(title)}</h2><div><span class="status-pill">${esc(platform)}</span><span class="status-pill">${esc(status)}</span></div><div class="feature-actions"><a href="${esc(url)}" target="_blank" rel="noopener" class="tab-btn" style="display:inline-block;">Open Problem</a></div>`;
+    const title = problem?.title || problem?.name || 'Daily problem';
+    const url = problem?.url || problem?.problemUrl || '#';
+    const platform = problem?.platform || problem?.sourcePlatform || 'leetcode';
+    const difficulty = problem?.difficulty || '—';
+    const status = payload?.status || (payload?.solved ? 'solved' : 'pending');
+    const solved = status === 'solved' || payload?.solved === true;
+
+    notice.hidden = true;
+    content.hidden = false;
+    content.innerHTML = `
+      <h2>${safeHtml(title)}</h2>
+      <p style="color:var(--text-secondary);margin:0;">
+        Platform: ${safeHtml(platform)} · Difficulty: ${safeHtml(String(difficulty))}
+      </p>
+      <p style="margin-top:0.75rem;">
+        <a href="${safeHtml(url)}" target="_blank" rel="noopener noreferrer">Open problem on platform</a>
+      </p>
+      <div class="daily-actions">
+        <button class="btn-primary" id="verify-btn" type="button" ${solved ? 'disabled' : ''}>Verify on platform</button>
+        <button class="btn-secondary" id="solve-btn" type="button" ${solved ? 'disabled' : ''}>Mark solved</button>
+        <button class="btn-secondary" id="refresh-btn" type="button">Refresh</button>
+      </div>
+      <p id="action-message" style="margin-top:1rem;color:var(--text-secondary);font-size:0.9rem;"></p>
+    `;
+
+    document.getElementById('verify-btn')?.addEventListener('click', () => void runAction('verify'));
+    document.getElementById('solve-btn')?.addEventListener('click', () => void runAction('solve'));
+    document.getElementById('refresh-btn')?.addEventListener('click', () => void loadData());
   }
 
-  async function load() {
-    if (!service) {
-      cardEl.textContent = 'Competitions service unavailable.';
-      return;
-    }
+  async function runAction(kind) {
+    if (!competitionsService) return;
+    const messageEl = document.getElementById('action-message');
     try {
-      renderAssignment(await service.getDailyProblemToday());
+      const result =
+        kind === 'verify'
+          ? await competitionsService.verifyDailyProblem()
+          : await competitionsService.solveDailyProblem();
+      if (messageEl) {
+        messageEl.textContent =
+          result?.message ||
+          (kind === 'verify' ? 'Verification complete.' : 'Marked as solved.');
+      }
+      await loadData();
     } catch (error) {
-      cardEl.textContent = error.message || 'Failed to load daily problem.';
+      if (messageEl) {
+        messageEl.textContent = error?.message || 'Action failed.';
+      }
     }
   }
 
-  verifyBtn?.addEventListener('click', async () => {
-    setFeedback('Verifying submission...');
-    try {
-      const result = await service.verifyDailyProblem();
-      setFeedback(result?.message || 'Verification successful.');
-      await load();
-    } catch (error) {
-      setFeedback(error.message || 'Verification failed.', true);
+  async function loadData() {
+    if (!competitionsService) {
+      showNotice('Competitions service unavailable.', 'error');
+      return;
     }
+    showNotice("Loading today's problem...", 'loading');
+    try {
+      const payload = await competitionsService.getDailyProblemToday();
+      if (!payload || (!payload.problem && !payload.assignment && !payload.title)) {
+        showNotice('No daily problem assigned for today.', 'empty');
+        renderStats(payload || {});
+        return;
+      }
+      renderStats(payload);
+      renderProblem(payload);
+    } catch (error) {
+      console.error('[Daily Problem] load failed:', error);
+      showNotice(error?.message || 'Failed to load daily problem.', 'error');
+    }
+  }
+
+  document.getElementById('themeBtn')?.addEventListener('click', () => {
+    const root = document.documentElement;
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
   });
 
-  solveBtn?.addEventListener('click', async () => {
-    setFeedback('Marking as solved...');
-    try {
-      const result = await service.solveDailyProblem();
-      setFeedback(result?.message || 'Marked as solved.');
-      await load();
-    } catch (error) {
-      setFeedback(error.message || 'Could not mark as solved.', true);
-    }
-  });
-
-  load();
+  void loadData();
 });

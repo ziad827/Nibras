@@ -1,62 +1,146 @@
-window.NibrasReact.run(() => {
-  const service = window.NibrasServices?.competitionsService;
-  const statsEl = document.getElementById('stats-line');
-  const listEl = document.getElementById('topics-list');
+(window.NibrasReact && typeof window.NibrasReact.run === 'function'
+  ? window.NibrasReact.run.bind(window.NibrasReact)
+  : (initializer) => {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializer, { once: true });
+      } else {
+        initializer();
+      }
+    })(() => {
+  const shared = window.NibrasShared || {};
+  const competitionsService = window.NibrasServices?.competitionsService;
+  const safeHtml =
+    typeof shared.safeHtml === 'function'
+      ? shared.safeHtml
+      : (value) => String(value ?? '');
 
-  function esc(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+  const statsRow = document.getElementById('stats-row');
+  const notice = document.getElementById('notice');
+  const root = document.getElementById('roadmap-root');
+  const searchInput = document.getElementById('search-input');
+
+  let roadmapData = null;
+
+  function showNotice(message, type) {
+    if (!notice) return;
+    notice.hidden = false;
+    notice.className =
+      type === 'error'
+        ? 'comp-error'
+        : type === 'loading'
+          ? 'comp-loading'
+          : 'comp-empty';
+    notice.textContent = message;
+    if (root) root.hidden = true;
   }
 
-  function flattenTopics(node, depth = 0, acc = []) {
-    if (!node) return acc;
-    if (Array.isArray(node)) {
-      node.forEach((entry) => flattenTopics(entry, depth, acc));
-      return acc;
-    }
-    acc.push({
-      title: node.title || node.name || node.slug || 'Topic',
-      solved: Number(node.solved || node.solvedCount || 0),
-      total: Number(node.total || node.problemCount || node.count || 0),
-      depth,
-    });
-    const children = node.children || node.topics || node.subtopics || [];
-    if (Array.isArray(children)) children.forEach((child) => flattenTopics(child, depth + 1, acc));
-    return acc;
+  function renderStats(data) {
+    if (!statsRow) return;
+    const solved = data?.solvedCount ?? 0;
+    const total = data?.problemCount ?? 0;
+    const topics = data?.topicCount ?? 0;
+    const pct = data?.percent ?? (total > 0 ? Math.round((solved / total) * 100) : 0);
+    statsRow.innerHTML = `
+      <div class="comp-stat-card"><div class="label">Topics</div><div class="value">${safeHtml(topics)}</div></div>
+      <div class="comp-stat-card"><div class="label">Problems solved</div><div class="value">${safeHtml(solved)} / ${safeHtml(total)}</div></div>
+      <div class="comp-stat-card"><div class="label">Overall progress</div><div class="value">${safeHtml(pct)}%</div></div>
+    `;
   }
 
-  async function load() {
-    if (!service) {
-      listEl.innerHTML = '<div class="feature-card">Competitions service unavailable.</div>';
+  function topicMatchesSearch(topic, query) {
+    if (!query) return true;
+    const haystack = `${topic.title || ''} ${topic.topicId || ''}`.toLowerCase();
+    return haystack.includes(query);
+  }
+
+  function renderRoadmap(data, query) {
+    if (!root || !notice) return;
+    const categories = Array.isArray(data?.categories) ? data.categories : [];
+    const normalizedQuery = String(query || '').trim().toLowerCase();
+    const html = categories
+      .map((category) => {
+        const subCategories = Array.isArray(category.subCategories)
+          ? category.subCategories
+          : [];
+        const topicsHtml = subCategories
+          .map((sub) => {
+            const topics = (sub.topics || []).filter((topic) =>
+              topicMatchesSearch(topic, normalizedQuery),
+            );
+            if (!topics.length) return '';
+            const topicRows = topics
+              .map((topic) => {
+                const pct = topic.percent ?? 0;
+                return `<div class="roadmap-topic">
+                  <div>
+                    <strong>${safeHtml(topic.title || topic.topicId)}</strong>
+                    <div class="roadmap-progress"><span style="width:${safeHtml(Math.min(100, pct))}%"></span></div>
+                  </div>
+                  <div>${safeHtml(topic.solvedCount || 0)} / ${safeHtml(topic.totalCount || 0)}</div>
+                </div>`;
+              })
+              .join('');
+            return `<div style="margin-bottom:0.75rem;">
+              <div style="font-weight:600;margin-bottom:0.35rem;">${safeHtml(sub.title || sub.subCategoryId)}</div>
+              ${topicRows}
+            </div>`;
+          })
+          .join('');
+        if (!topicsHtml) return '';
+        const catPct = category.percent ?? 0;
+        return `<section class="roadmap-category">
+          <div class="roadmap-category-header">
+            <div>
+              <strong>${safeHtml(category.title || category.categoryId)}</strong>
+              <div class="roadmap-progress" style="margin-top:0.35rem;max-width:220px;"><span style="width:${safeHtml(Math.min(100, catPct))}%"></span></div>
+            </div>
+            <span>${safeHtml(category.solvedCount || 0)} / ${safeHtml(category.totalCount || 0)}</span>
+          </div>
+          <div class="roadmap-category-body">${topicsHtml}</div>
+        </section>`;
+      })
+      .filter(Boolean)
+      .join('');
+
+    if (!html) {
+      showNotice('No roadmap topics match your search.', 'empty');
       return;
     }
-    listEl.innerHTML = '<div class="feature-card">Loading CP Roadmap...</div>';
+    notice.hidden = true;
+    root.hidden = false;
+    root.innerHTML = html;
+  }
+
+  async function loadData() {
+    if (!competitionsService) {
+      showNotice('Competitions service unavailable.', 'error');
+      return;
+    }
+    showNotice('Loading CP roadmap...', 'loading');
     try {
-      const [roadmap, stats] = await Promise.all([
-        service.getRoadmap(),
-        service.getProgress().catch(() => ({})),
+      const [roadmap, progress] = await Promise.all([
+        competitionsService.getRoadmap(),
+        competitionsService.getProgress().catch(() => ({})),
       ]);
-      const solved = Number(stats.solved || stats.solvedCount || 0);
-      const total = Number(stats.total || stats.problemCount || 0);
-      const pct = total > 0 ? Math.round((solved / total) * 100) : 0;
-      statsEl.innerHTML = `<strong>${solved} / ${total || '—'} problems solved</strong><div class="progress-bar"><span style="width:${pct}%"></span></div>`;
-      const topics = flattenTopics(roadmap.categories || roadmap.topics || roadmap);
-      if (!topics.length) {
-        listEl.innerHTML = '<div class="feature-card">No roadmap topics available.</div>';
-        return;
-      }
-      listEl.innerHTML = topics
-        .map((topic) => {
-          const progress = topic.total > 0 ? `${topic.solved}/${topic.total}` : `${topic.solved}`;
-          return `<article class="feature-card" style="margin-left:${topic.depth * 16}px"><strong>${esc(topic.title)}</strong><span class="status-pill">${esc(progress)}</span></article>`;
-        })
-        .join('');
+      roadmapData = Object.assign({}, roadmap, progress);
+      renderStats(roadmapData);
+      renderRoadmap(roadmapData, searchInput?.value || '');
     } catch (error) {
-      listEl.innerHTML = `<div class="feature-card">Failed to load CP Roadmap: ${esc(error.message || 'Unknown error')}</div>`;
+      console.error('[CP Roadmap] load failed:', error);
+      showNotice(error?.message || 'Failed to load CP roadmap.', 'error');
     }
   }
 
-  load();
+  searchInput?.addEventListener('input', () => {
+    if (roadmapData) renderRoadmap(roadmapData, searchInput.value || '');
+  });
+
+  document.getElementById('themeBtn')?.addEventListener('click', () => {
+    const rootEl = document.documentElement;
+    const next = rootEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    rootEl.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+  });
+
+  void loadData();
 });

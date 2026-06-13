@@ -1,9 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { DockerExecutorService } from '@modules/assessments/execution/docker-executor.service';
+import { ResourceLimits } from '@modules/assessments/schemas/assignment.schema';
 import { SubmissionStatus } from '../enums/competition.enums';
 import { Problem } from '../schemas/problem.schema';
 import { Submission } from '../schemas/submission.schema';
+
+const DEFAULT_LIMITS: ResourceLimits = {
+  cpuCores: 1,
+  memoryMb: 256,
+  timeMs: 5000,
+  diskMb: 50,
+};
 
 @Injectable()
 export class JudgeService {
@@ -11,6 +20,7 @@ export class JudgeService {
     @InjectModel(Submission.name)
     private readonly submissionModel: Model<Submission>,
     @InjectModel(Problem.name) private readonly problemModel: Model<Problem>,
+    private readonly executor: DockerExecutorService,
   ) {}
 
   async judgeSubmission(submissionId: string): Promise<SubmissionStatus> {
@@ -30,29 +40,33 @@ export class JudgeService {
     const hidden = problem.testCases.filter((t) => !t.isSample);
     const tests = hidden.length > 0 ? hidden : problem.testCases;
 
+    let maxTime = 0;
+    let maxMem = 0;
     try {
-      if (submission.language === 'javascript') {
-        for (const tc of tests) {
-          // Stub judge: in-process eval for MVP; replace with sandbox runner later.
-          // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call
-          const out = new Function(
-            'input',
-            `${submission.code}; return solve(input);`,
-          )(tc.input.trim()) as unknown;
-          const expected = tc.expectedOutput.trim();
-          if (String(out).trim() !== expected) {
-            submission.status = SubmissionStatus.WrongAnswer;
-            await submission.save();
-            return submission.status;
-          }
+      for (const tc of tests) {
+        const exec = await this.executor.runTestCase({
+          language: submission.language ?? 'javascript',
+          code: submission.code,
+          stdin: tc.input,
+          expectedOutput: tc.expectedOutput,
+          limits: DEFAULT_LIMITS,
+          timeLimitMs: DEFAULT_LIMITS.timeMs,
+          memoryLimitMb: DEFAULT_LIMITS.memoryMb,
+        });
+        maxTime = Math.max(maxTime, exec.timeMs);
+        maxMem = Math.max(maxMem, exec.memoryKb);
+        if (exec.verdict !== SubmissionStatus.Accepted) {
+          submission.status = exec.verdict;
+          submission.runtime = maxTime;
+          submission.memory = maxMem;
+          await submission.save();
+          return submission.status;
         }
-        submission.status = SubmissionStatus.Accepted;
-        submission.score = 100;
-        submission.runtime = 10;
-        submission.memory = 1024;
-      } else {
-        submission.status = SubmissionStatus.RuntimeError;
       }
+      submission.status = SubmissionStatus.Accepted;
+      submission.score = 100;
+      submission.runtime = maxTime || 10;
+      submission.memory = maxMem || 1024;
     } catch {
       submission.status = SubmissionStatus.RuntimeError;
     }

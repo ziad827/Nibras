@@ -46,6 +46,22 @@ jobs:
   test:
     runs-on: ubuntu-latest
     needs: lint
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nibras
+          POSTGRES_PASSWORD: nibras
+          POSTGRES_DB: nibras
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nibras"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://nibras:nibras@localhost:5432/nibras
     steps:
       - uses: actions/checkout@v4
 
@@ -60,10 +76,11 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Apply Prisma migrations
+        run: npm run db:deploy
+
       - name: Monorepo platform tests
         run: npm run test:platform
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
   e2e:
     runs-on: ubuntu-latest

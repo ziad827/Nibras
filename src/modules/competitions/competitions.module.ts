@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from '@modules/auth/auth.module';
+import { AssessmentsModule } from '@modules/assessments/assessments.module';
 import { GamificationModule } from '@modules/gamification/gamification.module';
 import { User, UserSchema } from '@modules/auth/schemas/user.schema';
 import {
@@ -48,6 +49,7 @@ import { OptionalSessionGuard } from '@common/guards/optional-session.guard';
 @Module({
   imports: [
     forwardRef(() => GamificationModule),
+    AssessmentsModule,
     ScheduleModule.forRoot(),
     AuthModule,
     MongooseModule.forFeature([

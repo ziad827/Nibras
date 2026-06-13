@@ -843,6 +843,106 @@ export function registerCommunityRoutes(
     },
   );
 
+  app.get(
+    '/v1/community/threads/:threadId/stream',
+    {
+      schema: {
+        tags: ['community'],
+        summary: 'SSE stream for thread post activity',
+        hide: true,
+      },
+    },
+    async (request, reply) => {
+      const { threadId } = request.params as { threadId: string };
+      const thread = await prisma.communityThread.findUnique({
+        where: { id: threadId },
+      });
+      if (!thread) {
+        reply.code(404).send(Errors.notFound('Thread'));
+        return;
+      }
+
+      void reply
+        .header('Content-Type', 'text/event-stream')
+        .header('Cache-Control', 'no-cache')
+        .header('Connection', 'keep-alive')
+        .header('X-Accel-Buffering', 'no');
+
+      const send = (event: string, data: unknown) => {
+        reply.raw.write(
+          `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+        );
+      };
+
+      const POLL_MS = 3000;
+      const TIMEOUT_MS = 30 * 60 * 1000;
+      const deadline = Date.now() + TIMEOUT_MS;
+      let lastFingerprint = '';
+
+      const tick = async () => {
+        if (request.raw.destroyed) return;
+        if (Date.now() >= deadline) {
+          send('timeout', { message: 'Stream closed.' });
+          reply.raw.end();
+          return;
+        }
+
+        try {
+          const [postCount, latestPost, latestThread] = await Promise.all([
+            prisma.communityPost.count({
+              where: {
+                threadId,
+                moderationStatus: CommunityModerationStatus.visible,
+              },
+            }),
+            prisma.communityPost.findFirst({
+              where: {
+                threadId,
+                moderationStatus: CommunityModerationStatus.visible,
+              },
+              orderBy: { updatedAt: 'desc' },
+              select: { id: true, updatedAt: true, pinned: true, accepted: true },
+            }),
+            prisma.communityThread.findUnique({
+              where: { id: threadId },
+              select: { lastActivityAt: true, postsCount: true, updatedAt: true },
+            }),
+          ]);
+
+          const fingerprint = JSON.stringify({
+            postCount,
+            postsCount: latestThread?.postsCount ?? 0,
+            lastActivityAt: latestThread?.lastActivityAt?.toISOString?.() ?? null,
+            latestPostId: latestPost?.id ?? null,
+            latestPostUpdatedAt: latestPost?.updatedAt?.toISOString?.() ?? null,
+            pinned: latestPost?.pinned ?? false,
+            accepted: latestPost?.accepted ?? false,
+          });
+
+          if (fingerprint !== lastFingerprint) {
+            lastFingerprint = fingerprint;
+            send('update', { threadId, postCount });
+          } else {
+            send('heartbeat', { threadId, postCount });
+          }
+          setTimeout(() => {
+            void tick();
+          }, POLL_MS);
+        } catch {
+          send('error', { message: 'Stream polling failed.' });
+          reply.raw.end();
+        }
+      };
+
+      request.raw.on('close', () => {
+        if (!reply.raw.writableEnded) reply.raw.end();
+      });
+
+      send('connected', { threadId });
+      void tick();
+    },
+  );
+
   app.post(
     '/v1/community/threads/:courseId',
     { schema: { tags: ['community'], summary: 'Create a thread' } },
