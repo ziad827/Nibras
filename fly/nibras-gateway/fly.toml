@@ -1,0 +1,25 @@
+app = 'nibras-web-v2'
+primary_region = 'iad'
+
+[build]
+  dockerfile = "Dockerfile.monorepo"
+  build-target = "gateway"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "15s"
+    method = "GET"
+    path = "/v1/health"
+    timeout = "5s"
+
+[env]
+  NODE_ENV = "production"
+  NIBRAS_FASTIFY_ORIGIN = "https://nibras-api-v2.fly.dev"
+  NIBRAS_NESTJS_ORIGIN = "https://nibras-backend.up.railway.app"
+  NIBRAS_STATIC_ROOT = "Frontend/client"

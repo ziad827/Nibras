@@ -1,0 +1,14 @@
+app = 'nibras-worker-v2'
+primary_region = 'iad'
+
+[build]
+  dockerfile = "Dockerfile.worker"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[env]
+  NODE_ENV = "production"
+  COMPETITIONS_SYNC_ENABLED = "false"
