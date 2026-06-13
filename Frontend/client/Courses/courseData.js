@@ -103,6 +103,91 @@
     }.`;
   }
 
+  function buildCatalogCurriculum(meta) {
+    const lectures = meta.lectures || [];
+    if (!lectures.length) {
+      return [
+        {
+          week: 1,
+          title: `Introduction to ${meta.title}`,
+          tags: [meta.category || 'core'],
+          activity: 'Getting started',
+          status: 'current',
+        },
+      ];
+    }
+    return lectures.map((lecture, index) => {
+      const lectureNumber = lecture.lecture || index + 1;
+      const videoCount = Array.isArray(lecture.videos) ? lecture.videos.length : 0;
+      return {
+        week: lectureNumber,
+        title: lecture.title || `Lecture ${lectureNumber}`,
+        tags: [
+          meta.code,
+          videoCount ? `${videoCount} videos` : meta.category || 'core',
+        ],
+        activity: videoCount
+          ? `${videoCount} video${videoCount === 1 ? '' : 's'}`
+          : 'Lecture materials',
+        status: index === 0 ? 'current' : 'upcoming',
+      };
+    });
+  }
+
+  function buildCatalogAnnouncements(meta) {
+    const lectures = meta.lectures || [];
+    const lectureCount = meta.lectureCount || lectures.length;
+    const videoCount = meta.videoCount || 0;
+    const firstLecture = lectures[0]?.title || meta.title;
+    return [
+      {
+        title: `${meta.code} catalog loaded`,
+        date: 'Catalog',
+        content: `${lectureCount} lectures and ${videoCount} videos are available in the Videos tab.`,
+      },
+      {
+        title: `Start with: ${firstLecture}`,
+        date: 'Getting started',
+        content: `Open the Videos tab to begin ${meta.title} from the first lecture.`,
+      },
+      {
+        title: `${meta.level} • ${meta.category || 'core'}`,
+        date: meta.track || 'Course track',
+        content: meta.track
+          ? `This course is part of the ${meta.track} track.`
+          : `Self-paced study path for ${meta.code}.`,
+      },
+    ];
+  }
+
+  function buildCatalogObjectives(meta) {
+    const lectures = meta.lectures || [];
+    if (!lectures.length) {
+      return [
+        `Complete all modules in ${meta.title}`,
+        `Apply ${meta.code} concepts through practice`,
+        'Track progress across lectures and assignments',
+      ];
+    }
+    return lectures.slice(0, 5).map((lecture, index) => {
+      const n = lecture.lecture || index + 1;
+      return `Complete Lecture ${n}: ${lecture.title || meta.title}`;
+    });
+  }
+
+  function buildCatalogPrerequisites(meta) {
+    return [
+      meta.level ? `${meta.level} level course` : 'Open enrollment',
+      meta.lectureCount
+        ? `${meta.lectureCount} lectures in catalog`
+        : 'Catalog materials available online',
+      meta.videoCount
+        ? `${meta.videoCount} video lessons included`
+        : 'Video lessons included',
+      `Course code: ${meta.code}`,
+    ];
+  }
+
   function buildCoursesMetaFromCatalog(catalog) {
     return (catalog?.courses || []).map((entry, index) => {
       const code = normalizeCourseField(entry.code) || `COURSE-${index + 1}`;
@@ -257,7 +342,6 @@
     return (meta.lectures || []).map((lecture, lectureIndex) => {
       const lectureNumber = lecture.lecture || lectureIndex + 1;
       const lessonId = `${meta.id}-lecture-${lectureNumber}`;
-      const isOpen = lectureNumber <= Math.max(completedLessons + 1, 3);
       const videoItems = (lecture.videos || []).map((video, videoIndex) =>
         mapVideoToLessonItem(video, lessonId, lectureIndex, videoIndex),
       );
@@ -266,8 +350,9 @@
         id: lessonId,
         title: `Lecture ${lectureNumber}: ${lecture.title || `Lecture ${lectureNumber}`}`,
         duration: `${videoItems.length} video${videoItems.length === 1 ? '' : 's'}`,
-        completed: false,
-        locked: !isOpen,
+        completed: lectureNumber <= completedLessons,
+        locked: false,
+        catalogLesson: true,
         videoItems,
         activeVideoItemId: videoItems[0]?.id || '',
         videoSources: buildLessonVideoSources(videoItems),
@@ -484,8 +569,8 @@
       0,
       Math.min(5, Math.round((progressPercent / 100) * 5)),
     );
-    const term = 'Fall 2024';
-    const currentWeek = Math.max(1, Math.min(8, 1 + Math.floor(progressPercent / 15)));
+    const term = meta.level || 'Course';
+    const currentWeek = completedLectures > 0 ? completedLectures : 1;
     const scoreBase = progressPercent > 0 ? 60 + progressPercent * 0.35 : 0;
     const assignments = buildAssignments(meta, completedAssignments, index);
     const lessons = (meta.lectures || []).length
@@ -493,6 +578,7 @@
       : buildLessons(meta, completedLectures, index);
     const currentLessonId = lessons[0]?.id || '';
     const description = buildCatalogDescription(meta);
+    const totalLectures = lessons.length || lectureCount;
 
     return {
       id: meta.id,
@@ -508,17 +594,19 @@
         description,
         term,
         currentWeek,
-        totalWeeks: 8,
+        totalWeeks: totalLectures,
         stats: {
-          duration: '8 Weeks',
-          commitment: '10-12 hours/week',
-          enrolled: 180 + index * 19,
+          duration: `${totalLectures} lectures`,
+          commitment: meta.videoCount
+            ? `${meta.videoCount} videos`
+            : 'Self-paced',
+          enrolled: meta.lectureCount || totalLectures,
         },
         progress: {
           completedLectures,
-          totalLectures: lessons.length,
+          totalLectures,
           percent: progressPercent,
-          avgScore: `${Math.round(scoreBase)}%`,
+          avgScore: progressPercent > 0 ? `${Math.round(scoreBase)}%` : '0%',
           assignmentsDone: `${completedAssignments}/5`,
         },
         instructor: {
@@ -528,94 +616,10 @@
           rating: meta.rating,
           bio: buildCatalogDescription(meta),
         },
-        announcements: [
-          {
-            title: `Week ${currentWeek} session released`,
-            date: 'Dec 18, 2024',
-            content: `New learning material for ${meta.topics[2]} is now available in videos and assignments.`,
-          },
-          {
-            title: 'Assignment update',
-            date: 'Dec 17, 2024',
-            content: `Rubric clarifications were posted for ${meta.topics[0]} submission tasks.`,
-          },
-          {
-            title: 'Resources added',
-            date: 'Dec 16, 2024',
-            content: `A reference sheet covering ${meta.topics[1]} has been added to the course files.`,
-          },
-        ],
-        objectives: [
-          `Understand core concepts in ${meta.topics[0]}`,
-          `Apply ${meta.topics[1]} in hands-on labs and assignments`,
-          `Analyze real scenarios using ${meta.topics[2]}`,
-          `Deliver a practical mini-project using ${meta.topics[3]}`,
-          'Communicate technical decisions clearly and professionally',
-        ],
-        prerequisites: [
-          'Basic computer literacy and internet navigation',
-          'Readiness to practice 8-12 hours weekly',
-          'A laptop with a modern browser and editor',
-          `Willingness to experiment with ${meta.title} exercises`,
-        ],
-        curriculum: [
-          {
-            week: 1,
-            title: `Introduction to ${meta.title}`,
-            tags: [meta.topics[0], 'Foundations'],
-            activity: 'Intro Lab',
-            status: 'completed',
-          },
-          {
-            week: 2,
-            title: 'Core Concepts',
-            tags: [meta.topics[1], 'Practice'],
-            activity: 'Skill Check',
-            status: 'completed',
-          },
-          {
-            week: 3,
-            title: 'Applied Workflows',
-            tags: [meta.topics[2], 'Case Study'],
-            activity: 'Workshop',
-            status: 'completed',
-          },
-          {
-            week: 4,
-            title: 'Intermediate Implementation',
-            tags: [meta.topics[3], 'Hands-on'],
-            activity: 'Mini Build',
-            status: 'current',
-          },
-          {
-            week: 5,
-            title: 'Optimization & Quality',
-            tags: [meta.topics[0], 'Best Practices'],
-            activity: 'Refactor Task',
-            status: 'upcoming',
-          },
-          {
-            week: 6,
-            title: 'Project Sprint',
-            tags: [meta.topics[1], 'Teamwork'],
-            activity: 'Milestone 1',
-            status: 'upcoming',
-          },
-          {
-            week: 7,
-            title: 'Testing & Validation',
-            tags: [meta.topics[2], 'Evaluation'],
-            activity: 'Milestone 2',
-            status: 'upcoming',
-          },
-          {
-            week: 8,
-            title: 'Final Delivery',
-            tags: [meta.topics[3], 'Presentation'],
-            activity: 'Capstone Demo',
-            status: 'upcoming',
-          },
-        ],
+        announcements: buildCatalogAnnouncements(meta),
+        objectives: buildCatalogObjectives(meta),
+        prerequisites: buildCatalogPrerequisites(meta),
+        curriculum: buildCatalogCurriculum(meta),
       },
       videos: {
         title: `${meta.title} Video Lessons`,

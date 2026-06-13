@@ -191,9 +191,19 @@
 
     </main>
 
-        <script src="../../../react-bootstrap.js"></script>
-    <script src="../courseData.js?v=20260615"></script>
-    <script src="./videos.js?v=20260615"></script>
+        <script src="../../react-bootstrap.js"></script>
+    <script src="../courseData.js?v=20260617"></script>
+    <script>
+    (function () {
+      var id = new URLSearchParams(window.location.search).get('courseId');
+      if (id && window.NibrasCourses?.isValidCourseId?.(id)) {
+        window.NibrasCourses.setSelectedCourseId(id);
+      } else {
+        window.NibrasCourses?.resolveCourseId?.();
+      }
+    })();
+    </script>
+    <script src="./videos.js?v=20260617"></script>
     <script>
     (function() {
         try {
