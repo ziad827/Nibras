@@ -218,6 +218,8 @@ model User {
   notificationEmail String?
   githubLinked      Boolean            @default(false)
   githubAppInstalled Boolean           @default(false)
+  /// When false, user is hidden from public leaderboards.
+  showOnLeaderboard Boolean            @default(true)
   systemRole        SystemRole         @default(user)
   yearLevel         Int                @default(1)
   bannedAt          DateTime?

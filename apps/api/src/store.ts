@@ -1194,6 +1194,7 @@ export type InstructorAnalyticsRecord = {
 export type StoreData = {
   users: UserRecord[];
   githubAccounts: GitHubAccountRecord[];
+  userPrivacy?: Record<string, { showOnLeaderboard: boolean }>;
   courses: CourseRecord[];
   programs?: ProgramRecord[];
   programVersions?: ProgramVersionRecord[];
@@ -1298,6 +1299,16 @@ export interface AppStore {
     userId: string,
     installationId: string,
   ): Promise<UserRecord>;
+  disconnectGitHub(userId: string): Promise<UserRecord>;
+  getUserPrivacy(
+    apiBaseUrl: string,
+    userId: string,
+  ): Promise<{ showOnLeaderboard: boolean } | null>;
+  updateUserPrivacy(
+    apiBaseUrl: string,
+    userId: string,
+    showOnLeaderboard: boolean,
+  ): Promise<{ showOnLeaderboard: boolean } | null>;
   refreshCliSession(
     apiBaseUrl: string,
     refreshToken: string,
@@ -3198,6 +3209,9 @@ export class FileStore implements AppStore {
       if (!parsed.githubAccounts) {
         parsed.githubAccounts = [];
       }
+      if (!parsed.userPrivacy) {
+        parsed.userPrivacy = {};
+      }
       if (!parsed.programs) {
         parsed.programs = [];
       }
@@ -3635,6 +3649,47 @@ export class FileStore implements AppStore {
     user.githubAppInstalled = true;
     this.write(data);
     return user;
+  }
+
+  async disconnectGitHub(userId: string): Promise<UserRecord> {
+    const data = this.read('http://127.0.0.1');
+    const user = data.users.find((entry) => entry.id === userId);
+    if (!user) {
+      throw new Error('User not found.');
+    }
+    data.githubAccounts = data.githubAccounts.filter(
+      (entry) => entry.userId !== userId,
+    );
+    user.githubLinked = false;
+    user.githubAppInstalled = false;
+    user.githubLogin = user.username;
+    this.write(data);
+    return user;
+  }
+
+  async getUserPrivacy(
+    apiBaseUrl: string,
+    userId: string,
+  ): Promise<{ showOnLeaderboard: boolean } | null> {
+    const data = this.read(apiBaseUrl);
+    const user = data.users.find((entry) => entry.id === userId);
+    if (!user) return null;
+    const privacy = data.userPrivacy?.[userId];
+    return { showOnLeaderboard: privacy?.showOnLeaderboard !== false };
+  }
+
+  async updateUserPrivacy(
+    apiBaseUrl: string,
+    userId: string,
+    showOnLeaderboard: boolean,
+  ): Promise<{ showOnLeaderboard: boolean } | null> {
+    const data = this.read(apiBaseUrl);
+    const user = data.users.find((entry) => entry.id === userId);
+    if (!user) return null;
+    if (!data.userPrivacy) data.userPrivacy = {};
+    data.userPrivacy[userId] = { showOnLeaderboard };
+    this.write(data);
+    return { showOnLeaderboard };
   }
 
   async listUsers(apiBaseUrl: string): Promise<UserRecord[]> {

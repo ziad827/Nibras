@@ -38,18 +38,34 @@ function checkBilibiliComplete(e) {
   try {
     var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
     if (data && (data.event === 'ended' || data.type === 'ended')) {
-      var currentLesson = courseData?.lessons?.find(function (l) {
-        return l.id === courseData?.currentLessonId;
-      });
-      if (currentLesson && !currentLesson.completed) {
-        handleVideoComplete(currentLesson, getActiveVideoItem(currentLesson));
-      }
+      triggerActiveVideoComplete();
     }
   } catch (_) {}
 }
 
+function checkYouTubeComplete(e) {
+  if (!e.origin || e.origin.indexOf('youtube.com') === -1) return;
+  try {
+    var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+    if (data && data.event === 'onStateChange' && data.info === 0) {
+      triggerActiveVideoComplete();
+    }
+  } catch (_) {}
+}
+
+function triggerActiveVideoComplete() {
+  var currentLesson = courseData?.lessons?.find(function (l) {
+    return l.id === courseData?.currentLessonId;
+  });
+  if (!currentLesson) return;
+  var activeVideoItem = getActiveVideoItem(currentLesson);
+  if (!activeVideoItem || isVideoMarkedComplete(activeVideoItem.id)) return;
+  handleVideoComplete(currentLesson, activeVideoItem);
+}
+
 if (typeof window !== 'undefined') {
   window.addEventListener('message', checkBilibiliComplete);
+  window.addEventListener('message', checkYouTubeComplete);
 }
 
 function stopCurrentMedia() {
@@ -113,6 +129,27 @@ function getCompletedLecturesKey() {
   return 'nibras_completed_lectures_' + getUserId() + '_' + courseId;
 }
 
+function getCompletedVideosKey() {
+  return 'nibras_completed_videos_' + getUserId() + '_' + courseId;
+}
+
+function getCompletedVideos() {
+  try {
+    const stored = localStorage.getItem(getCompletedVideosKey());
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCompletedVideos(completedList) {
+  localStorage.setItem(getCompletedVideosKey(), JSON.stringify(completedList));
+}
+
+function isVideoMarkedComplete(videoItemId) {
+  return getCompletedVideos().includes(videoItemId);
+}
+
 function getCompletedLectures() {
   try {
     const stored = localStorage.getItem(getCompletedLecturesKey());
@@ -129,28 +166,51 @@ function saveCompletedLectures(completedList) {
   );
 }
 
-function handleVideoComplete(lesson, videoItem) {
-  if (!lesson || !courseId) return;
-
-  const completed = getCompletedLectures();
-  const lessonId = lesson.id;
-
-  if (!completed.includes(lessonId)) {
-    completed.push(lessonId);
-    saveCompletedLectures(completed);
-    console.log(`[VIDEOS.JS] Marked lecture as complete: ${lessonId}`);
-
-    const badge = document.getElementById('lesson-status');
-    if (badge) {
-      badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> Completed`;
-      badge.style.display = 'flex';
-    }
-
-    applyCompletionState();
-    populateUI(courseData);
-    saveProgressToBackend(lessonId);
-    saveCourseProgress();
+function showVideoCompleteFeedback(videoTitle) {
+  const badge = document.getElementById('lesson-status');
+  if (badge) {
+    badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> Marked complete`;
+    badge.style.display = 'flex';
+    badge.title = videoTitle
+      ? `"${videoTitle}" marked as complete`
+      : 'Video marked as complete';
   }
+}
+
+function handleVideoComplete(lesson, videoItem) {
+  if (!lesson || !videoItem || !courseId) return;
+
+  const completedVideos = getCompletedVideos();
+  const videoJustCompleted = !completedVideos.includes(videoItem.id);
+
+  if (videoJustCompleted) {
+    completedVideos.push(videoItem.id);
+    saveCompletedVideos(completedVideos);
+    videoItem.completed = true;
+    console.log(`[VIDEOS.JS] Marked video as complete: ${videoItem.id}`);
+    showVideoCompleteFeedback(videoItem.title);
+  }
+
+  const allVideosDone =
+    Array.isArray(lesson.videoItems) &&
+    lesson.videoItems.length > 0 &&
+    lesson.videoItems.every(function (item) {
+      return item.completed || completedVideos.includes(item.id);
+    });
+
+  if (allVideosDone) {
+    const completedLectures = getCompletedLectures();
+    if (!completedLectures.includes(lesson.id)) {
+      completedLectures.push(lesson.id);
+      saveCompletedLectures(completedLectures);
+      console.log(`[VIDEOS.JS] Marked lecture as complete: ${lesson.id}`);
+      saveProgressToBackend(lesson.id);
+      saveCourseProgress();
+    }
+  }
+
+  applyCompletionState();
+  populateUI(courseData);
 }
 
 function saveCourseProgress() {
@@ -274,33 +334,52 @@ async function syncProgressFromBackend() {
 
 function applyCompletionState() {
   const completed = getCompletedLectures();
+  const completedVideos = getCompletedVideos();
   if (courseData?.lessons) {
     var completedCount = 0;
-    var hasApiLockState = courseData.lessons.some(function (l) {
-      return typeof l.locked === 'boolean';
-    });
     courseData.lessons.forEach((lesson) => {
+      if (Array.isArray(lesson.videoItems)) {
+        lesson.videoItems.forEach(function (item) {
+          item.completed = completedVideos.includes(item.id);
+        });
+      }
+
       var isDone = completed.includes(lesson.id) || lesson.completed;
+      if (
+        !isDone &&
+        Array.isArray(lesson.videoItems) &&
+        lesson.videoItems.length > 0
+      ) {
+        isDone = lesson.videoItems.every(function (item) {
+          return item.completed;
+        });
+        if (isDone && !completed.includes(lesson.id)) {
+          completed.push(lesson.id);
+          saveCompletedLectures(completed);
+        }
+      }
       lesson.completed = isDone;
       if (isDone) completedCount++;
 
-      if (!hasApiLockState) {
-        const match = lesson.id.match(/-lecture-(\d+)$/);
-        if (match) {
-          const lectureNum = parseInt(match[1], 10);
-          const maxCompleted =
-            completed.length > 0
-              ? Math.max(
-                  ...completed.map((id) => {
-                    const m = id.match(/-lecture-(\d+)$/);
-                    return m ? parseInt(m[1], 10) : 0;
-                  }),
-                  0,
-                )
-              : 0;
+      if (lesson.catalogLesson) {
+        lesson.locked = false;
+        return;
+      }
 
-          lesson.locked = lectureNum > Math.max(maxCompleted + 1, 3);
-        }
+      const match = lesson.id.match(/-lecture-(\d+)$/);
+      if (match) {
+        const lectureNum = parseInt(match[1], 10);
+        const maxCompleted =
+          completed.length > 0
+            ? Math.max(
+                ...completed.map((id) => {
+                  const m = id.match(/-lecture-(\d+)$/);
+                  return m ? parseInt(m[1], 10) : 0;
+                }),
+                0,
+              )
+            : 0;
+        lesson.locked = lectureNum > maxCompleted + 1;
       }
     });
     courseData.progress.completed = completedCount;
@@ -582,19 +661,37 @@ function initThemeToggle() {
 }
 
 async function initVideos() {
-  if (!selectedCourse || !courseData) return;
+  if (!selectedCourse || !courseData) {
+    var progressText = document.getElementById('progress-text');
+    if (progressText) {
+      progressText.textContent =
+        'Unable to load course videos. Return to the courses list and try again.';
+    }
+    return;
+  }
+
   initThemeToggle();
   setCourseLinks();
-  await resolveTrackingCourseId();
   applyCompletionState();
-  await initSectionMapping();
   populateUI(courseData);
   setupVideoPlayer();
   setupLectureListHandler();
   setupLectureVideoItemsHandler();
   setupNavigationButtons();
-  await syncProgressFromTracking();
-  syncProgressFromBackend();
+
+  resolveTrackingCourseId()
+    .then(function () {
+      return initSectionMapping();
+    })
+    .then(function () {
+      return syncProgressFromTracking();
+    })
+    .then(function () {
+      syncProgressFromBackend();
+      applyCompletionState();
+      populateUI(courseData);
+    })
+    .catch(function () {});
 }
 
 function populateUI(data) {
@@ -617,11 +714,19 @@ function populateUI(data) {
     renderLectureVideos(currentLesson, activeVideoItem);
 
     const badge = document.getElementById('lesson-status');
-    if (currentLesson.completed) {
-      badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> Completed`;
-      badge.style.display = 'flex';
-    } else {
-      badge.style.display = 'none';
+    if (badge) {
+      if (currentLesson.completed) {
+        badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> Lecture completed`;
+        badge.style.display = 'flex';
+        badge.title = 'All videos in this lecture are complete';
+      } else if (activeVideoItem?.completed) {
+        badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> Marked complete`;
+        badge.style.display = 'flex';
+        badge.title = `"${activeVideoItem.title}" marked as complete`;
+      } else {
+        badge.style.display = 'none';
+        badge.title = '';
+      }
     }
   }
 
@@ -703,14 +808,24 @@ function renderLectureVideos(lesson, activeVideoItem) {
 
   panel.hidden = false;
   list.innerHTML = lesson.videoItems
-    .map(
-      (item) => `
-            <button type="button" class="lecture-video-chip ${activeVideoItem?.id === item.id ? 'active' : ''}" data-video-item-id="${item.id}">
-                <span class="lecture-video-chip-title">${item.title}</span>
-                <span class="lecture-video-chip-time">${item.duration || 'Video'}</span>
+    .map(function (item) {
+      var isDone = item.completed || isVideoMarkedComplete(item.id);
+      var chipClass = 'lecture-video-chip';
+      if (activeVideoItem?.id === item.id) chipClass += ' active';
+      if (isDone) chipClass += ' completed';
+      return `
+            <button type="button" class="${chipClass}" data-video-item-id="${item.id}">
+                <span class="lecture-video-chip-title">${
+                  isDone
+                    ? '<i class="fa-solid fa-circle-check" aria-hidden="true"></i> '
+                    : ''
+                }${item.title}</span>
+                <span class="lecture-video-chip-time">${
+                  isDone ? 'Complete' : item.duration || 'Video'
+                }</span>
             </button>
-        `,
-    )
+        `;
+    })
     .join('');
 }
 
@@ -756,7 +871,9 @@ function setupVideoPlayer() {
             </video>
         `;
     currentVideoElement = document.getElementById('lesson-video');
-    if (currentVideoElement) setupVideoControls(currentVideoElement);
+    if (currentVideoElement) {
+      setupVideoControls(currentVideoElement, currentLesson, activeVideoItem);
+    }
   } else {
     if (controlsLeft) controlsLeft.style.display = 'none';
     if (controlsRight) controlsRight.style.display = 'none';
@@ -829,14 +946,14 @@ function setupVideoPlayer() {
           '<iframe id="lesson-video-iframe" width="100%" height="100%" src="' +
           youtubeSource +
           joiner +
-          'autoplay=0&rel=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="width:100%;height:100%;"></iframe>';
+          'enablejsapi=1&autoplay=0&rel=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="width:100%;height:100%;"></iframe>';
         currentIframeElement = document.getElementById('lesson-video-iframe');
       }
     }
   }
 }
 
-function setupVideoControls(videoElement) {
+function setupVideoControls(videoElement, lesson, videoItem) {
   const playBtn = document.querySelector(
     '.controls-left .control-btn:first-child',
   );
@@ -856,7 +973,7 @@ function setupVideoControls(videoElement) {
   });
 
   videoElement.addEventListener('ended', () => {
-    handleVideoComplete(currentLesson, activeVideoItem);
+    handleVideoComplete(lesson, videoItem);
   });
 
   videoElement.addEventListener('timeupdate', () => {
@@ -917,15 +1034,12 @@ function setupVideoControls(videoElement) {
   }
 
   videoElement.addEventListener('timeupdate', () => {
-    const currentLesson = courseData.lessons.find(
-      (l) => l.id === courseData.currentLessonId,
-    );
-    if (currentLesson && !currentLesson.completed) {
-      const percentWatched =
-        (videoElement.currentTime / videoElement.duration) * 100;
-      if (percentWatched >= 95) {
-        handleVideoComplete(currentLesson, activeVideoItem);
-      }
+    if (!videoItem || isVideoMarkedComplete(videoItem.id)) return;
+    if (!videoElement.duration) return;
+    const percentWatched =
+      (videoElement.currentTime / videoElement.duration) * 100;
+    if (percentWatched >= 95) {
+      handleVideoComplete(lesson, videoItem);
     }
   });
 

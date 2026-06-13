@@ -40,7 +40,7 @@
   })();
 
   const LOCAL_GATEWAY = 'http://localhost:8080';
-  const PRODUCTION_API = 'https://api-production-bd99.up.railway.app';
+  const PRODUCTION_API = 'https://web-production-3011ec.up.railway.app';
   const isGatewayHost = (() => {
     try {
       const host = window.location.hostname;

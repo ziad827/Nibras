@@ -453,7 +453,9 @@ export class GamificationService {
     if (since) parts.push(Prisma.sql`"createdAt" >= ${since}`);
     if (scopeUserIds)
       parts.push(Prisma.sql`"userId" IN (${Prisma.join(scopeUserIds)})`);
-    if (parts.length === 0) return Prisma.sql``;
+    parts.push(
+      Prisma.sql`"userId" NOT IN (SELECT id FROM "User" WHERE "showOnLeaderboard" = false)`,
+    );
     return Prisma.sql`WHERE ${Prisma.join(parts, ' AND ')}`;
   }
 

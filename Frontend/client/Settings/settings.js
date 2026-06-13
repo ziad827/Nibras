@@ -21,19 +21,75 @@ window.NibrasReact.run(() => {
     resolveServiceUrl('tracking') ||
       'https://nibras-backend.up.railway.app/api',
   ).replace(/\/+$/, '');
-  function loadLevel() {
-    return localStorage.getItem('pref-level') || settingsData.preferences.level;
+  const githubServiceCandidates = ['tracking', 'admin'];
+
+  const LEVEL_OPTIONS = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
+  const LEGACY_LEVEL_MAP = {
+    'Level 1': 'Beginner',
+    'Level 2': 'Intermediate',
+    'Level 3': 'Advanced',
+    'Level 4': 'Expert',
+  };
+
+  function normalizeStudyLevel(level) {
+    const raw = String(level || '').trim();
+    if (!raw) return 'Beginner';
+    if (LEVEL_OPTIONS.includes(raw)) return raw;
+    return LEGACY_LEVEL_MAP[raw] || 'Beginner';
+  }
+
+  function loadLevel(user) {
+    if (user?.selectedLevel) return normalizeStudyLevel(user.selectedLevel);
+    return normalizeStudyLevel(localStorage.getItem('pref-level'));
   }
 
   function saveLevel(level) {
-    localStorage.setItem('pref-level', level);
+    const normalized = normalizeStudyLevel(level);
+    localStorage.setItem('pref-level', normalized);
+    try {
+      const cached = JSON.parse(localStorage.getItem('user') || '{}');
+      cached.selectedLevel = normalized;
+      localStorage.setItem('user', JSON.stringify(cached));
+    } catch (_) {}
+    return normalized;
   }
 
-  const githubServiceCandidates = ['tracking', 'admin'];
-  const githubDisconnectPathCandidates = [
-    '/v1/github/oauth/disconnect',
-    '/v1/github/disconnect',
-  ];
+  var loadedSnapshot = null;
+
+  function captureSnapshot() {
+    return {
+      name: document.getElementById('input-name')?.value || '',
+      email: document.getElementById('input-email')?.value || '',
+      level: document.getElementById('pref-level')?.value || 'Beginner',
+      theme: document.getElementById('theme-selector')?.value || 'light',
+      privacyLeaderboard:
+        document.getElementById('privacy-leaderboard')?.checked ?? true,
+      currentPassword: document.getElementById('input-current-password')?.value || '',
+      newPassword: document.getElementById('input-new-password')?.value || '',
+      confirmPassword: document.getElementById('input-confirm-password')?.value || '',
+    };
+  }
+
+  function applySnapshot(snapshot) {
+    if (!snapshot) return;
+    const nameInput = document.getElementById('input-name');
+    const emailInput = document.getElementById('input-email');
+    const levelSelect = document.getElementById('pref-level');
+    const themeSelect = document.getElementById('theme-selector');
+    const privacyToggle = document.getElementById('privacy-leaderboard');
+    if (nameInput) nameInput.value = snapshot.name;
+    if (emailInput) emailInput.value = snapshot.email;
+    if (levelSelect) levelSelect.value = normalizeStudyLevel(snapshot.level);
+    if (themeSelect) themeSelect.value = snapshot.theme || 'light';
+    if (privacyToggle) privacyToggle.checked = snapshot.privacyLeaderboard;
+    const currentPassword = document.getElementById('input-current-password');
+    const newPassword = document.getElementById('input-new-password');
+    const confirmPassword = document.getElementById('input-confirm-password');
+    if (currentPassword) currentPassword.value = snapshot.currentPassword || '';
+    if (newPassword) newPassword.value = snapshot.newPassword || '';
+    if (confirmPassword) confirmPassword.value = snapshot.confirmPassword || '';
+    pendingTheme = snapshot.theme || 'light';
+  }
 
   const btnConnectGitHub = document.getElementById('btn-connect-github');
   const btnInstallGitHubApp = document.getElementById('btn-install-github-app');
@@ -118,30 +174,11 @@ window.NibrasReact.run(() => {
     return { base: adminApiBase, path: '/v1/github/oauth/login' };
   }
 
-  async function callFirstAvailableGithubDisconnectPath() {
-    let lastError = null;
-    const serviceCandidates = buildGithubServiceCandidates();
-    for (let s = 0; s < serviceCandidates.length; s += 1) {
-      const candidateService = serviceCandidates[s];
-      for (let p = 0; p < githubDisconnectPathCandidates.length; p += 1) {
-        const path = githubDisconnectPathCandidates[p];
-        try {
-          await apiFetch(path, {
-            service: candidateService.service,
-            method: 'POST',
-            auth: true,
-          });
-          return;
-        } catch (error) {
-          const status = Number(error?.status || 0);
-          lastError = error;
-          if (!isCompatibilityStatus(status)) {
-            throw error;
-          }
-        }
-      }
-    }
-    throw lastError || new Error('Failed to disconnect GitHub account.');
+  async function disconnectGitHubAccount() {
+    await githubApiRequestWithFallback('/v1/github/oauth/disconnect', {
+      method: 'POST',
+      auth: true,
+    });
   }
 
   async function startGitHubAppInstallFlow() {
@@ -269,7 +306,7 @@ window.NibrasReact.run(() => {
         return;
       }
       try {
-        await callFirstAvailableGithubDisconnectPath();
+        await disconnectGitHubAccount();
         location.reload();
       } catch (err) {
         if (Number(err?.status || 0) === 404) {
@@ -312,11 +349,11 @@ window.NibrasReact.run(() => {
 
   async function fetchProfileWithFallback() {
     const profileCandidates = [
+      { service: 'tracking', path: '/v1/web/session' },
+      { service: 'tracking', path: '/v1/me' },
       { service: 'admin', path: '/auth/me' },
       { service: 'admin', path: '/v1/web/session' },
-      { service: 'tracking', path: '/v1/web/session' },
       { service: 'admin', path: '/v1/me' },
-      { service: 'tracking', path: '/v1/me' },
     ];
     let lastError = null;
     for (let index = 0; index < profileCandidates.length; index += 1) {
@@ -349,6 +386,11 @@ window.NibrasReact.run(() => {
     if (nameInput && (user.name || user.username))
       nameInput.value = user.name || user.username;
     if (emailInput && user.email) emailInput.value = user.email;
+
+    const levelSelect = document.getElementById('pref-level');
+    if (levelSelect) {
+      levelSelect.value = loadLevel(user);
+    }
 
     const displayName = user?.name || user?.username || '';
     if (displayName) {
@@ -399,14 +441,18 @@ window.NibrasReact.run(() => {
       user.githubAppInstalled,
     );
     const hasAppInstall = Boolean(user.githubAppInstalled);
+    const githubAvatarUrl =
+      user.githubAvatarUrl ||
+      (githubUsername
+        ? `https://avatars.githubusercontent.com/${encodeURIComponent(githubUsername)}?s=64`
+        : '');
 
     if (hasGithubLink) {
       if (btnConnect) btnConnect.style.display = 'none';
       if (profileInfo) profileInfo.style.display = 'flex';
       if (usernameNode)
         usernameNode.textContent = githubUsername || 'Connected';
-      if (avatarNode && user.githubAvatarUrl)
-        avatarNode.src = user.githubAvatarUrl;
+      if (avatarNode && githubAvatarUrl) avatarNode.src = githubAvatarUrl;
 
       if (hasAppInstall) {
         if (btnInstall) btnInstall.style.display = 'none';
@@ -425,9 +471,29 @@ window.NibrasReact.run(() => {
     }
   }
 
+  async function loadPrivacySettings() {
+    const privacyToggle = document.getElementById('privacy-leaderboard');
+    if (!privacyToggle) return;
+    if (!window.NibrasServices?.usersService?.getPrivacy) {
+      return;
+    }
+    try {
+      const privacy = await window.NibrasServices.usersService.getPrivacy();
+      if (privacy && typeof privacy.showOnLeaderboard === 'boolean') {
+        privacyToggle.checked = privacy.showOnLeaderboard;
+      }
+    } catch (err) {
+      console.warn('[SETTINGS.JS] Could not fetch privacy settings:', err.message);
+    }
+  }
+
   // Load setup completion first (if redirected from install), then profile.
   void handleGitHubSetupCompletionFromUrl().finally(() => {
-    void loadUserProfile();
+    void loadUserProfile().then(function () {
+      void loadPrivacySettings().finally(function () {
+        loadedSnapshot = captureSnapshot();
+      });
+    });
   });
 
   var notifTypeMap = {
@@ -466,11 +532,6 @@ window.NibrasReact.run(() => {
       title: 'Contest Reminders',
       desc: 'Get notified when a contest is about to start',
     },
-    {
-      id: 'notif-badge',
-      title: 'Badge Achievements',
-      desc: 'Receive notifications when you earn new badges',
-    },
   ];
 
   var notifDefaults = {
@@ -479,7 +540,6 @@ window.NibrasReact.run(() => {
     'notif-course': true,
     'notif-achieve': true,
     'notif-contest': true,
-    'notif-badge': true,
     'notif-atrisk': true,
     'notif-email': false,
   };
@@ -725,7 +785,7 @@ window.NibrasReact.run(() => {
   // --- 3. BACKEND DATA (fallback defaults) ---
   const settingsData = {
     profile: { name: '', email: '', avatar: '' },
-    preferences: { level: 'Level 3' },
+    preferences: { level: 'Beginner' },
     theme: 'light',
   };
 
@@ -736,8 +796,12 @@ window.NibrasReact.run(() => {
   loadNotificationPreferences();
   loadChannelPreferences();
 
-  var savedLevel = loadLevel();
-  document.getElementById('pref-level').value = savedLevel;
+  try {
+    var cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    document.getElementById('pref-level').value = loadLevel(cachedUser);
+  } catch (_) {
+    document.getElementById('pref-level').value = loadLevel(null);
+  }
 
   // --- 5. AVATAR (local file) ---
   document
@@ -775,10 +839,17 @@ window.NibrasReact.run(() => {
     appLogo.src = '/Assets/images/logo-dark.png';
   }
   const themeSelector = document.getElementById('theme-selector');
-  var pendingTheme = null;
+  var pendingTheme = localStorage.getItem('theme') || 'light';
+  if (themeSelector) {
+    themeSelector.value = pendingTheme;
+  }
 
   themeSelector.addEventListener('change', function () {
     pendingTheme = themeSelector.value;
+  });
+
+  document.querySelector('.btn-cancel').addEventListener('click', function () {
+    applySnapshot(loadedSnapshot || captureSnapshot());
   });
 
   // --- 7. SAVE ---
@@ -788,11 +859,51 @@ window.NibrasReact.run(() => {
     btn.textContent = 'Saving...';
     btn.disabled = true;
 
-    var level = document.getElementById('pref-level').value;
+    var displayName = document.getElementById('input-name').value.trim();
+    var level = normalizeStudyLevel(document.getElementById('pref-level').value);
     var theme = pendingTheme || localStorage.getItem('theme') || 'light';
+    var showOnLeaderboard = document.getElementById('privacy-leaderboard').checked;
+    var currentPassword = document.getElementById('input-current-password').value;
+    var newPassword = document.getElementById('input-new-password').value;
+    var confirmPassword = document.getElementById('input-confirm-password').value;
+    var passwordFieldsFilled =
+      currentPassword || newPassword || confirmPassword;
 
-    function done(ok) {
-      btn.textContent = ok ? 'Settings saved!' : 'Save failed';
+    if (passwordFieldsFilled) {
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        btn.textContent = 'Fill all password fields';
+        btn.style.backgroundColor = 'var(--danger-color, #dc2626)';
+        setTimeout(function () {
+          btn.textContent = originalText;
+          btn.style.backgroundColor = '';
+          btn.disabled = false;
+        }, 2000);
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        btn.textContent = 'Passwords do not match';
+        btn.style.backgroundColor = 'var(--danger-color, #dc2626)';
+        setTimeout(function () {
+          btn.textContent = originalText;
+          btn.style.backgroundColor = '';
+          btn.disabled = false;
+        }, 2000);
+        return;
+      }
+      if (newPassword.length < 6) {
+        btn.textContent = 'Password too short';
+        btn.style.backgroundColor = 'var(--danger-color, #dc2626)';
+        setTimeout(function () {
+          btn.textContent = originalText;
+          btn.style.backgroundColor = '';
+          btn.disabled = false;
+        }, 2000);
+        return;
+      }
+    }
+
+    function done(ok, message) {
+      btn.textContent = message || (ok ? 'Settings saved!' : 'Save failed');
       btn.style.backgroundColor = ok
         ? 'var(--accent-blue, #2563eb)'
         : 'var(--danger-color, #dc2626)';
@@ -805,7 +916,6 @@ window.NibrasReact.run(() => {
 
     saveLevel(level);
 
-    // Apply theme
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
     if (appLogo) {
@@ -815,17 +925,64 @@ window.NibrasReact.run(() => {
           : '/Assets/images/logo-light.png';
     }
 
-    if (window.NibrasServices?.usersService) {
-      window.NibrasServices.usersService
-        .updateMe({ preferences: { level: level } })
-        .then(function () {
-          done(true);
-        })
-        .catch(function () {
-          done(false);
-        });
-    } else {
-      done(true);
+    var tasks = [];
+
+    if (apiFetch && displayName) {
+      tasks.push(
+        apiFetch('/v1/me/profile', {
+          service: 'tracking',
+          method: 'PATCH',
+          auth: true,
+          body: { displayName: displayName },
+        }).then(function () {
+          try {
+            var cached = JSON.parse(localStorage.getItem('user') || '{}');
+            cached.name = displayName;
+            cached.displayName = displayName;
+            localStorage.setItem('user', JSON.stringify(cached));
+          } catch (_) {}
+        }),
+      );
     }
+
+    if (window.NibrasServices?.usersService?.updatePrivacy) {
+      tasks.push(
+        window.NibrasServices.usersService.updatePrivacy({
+          showOnLeaderboard: showOnLeaderboard,
+        }),
+      );
+    }
+
+    if (window.NibrasServices?.coursesService?.updateLevel) {
+      tasks.push(window.NibrasServices.coursesService.updateLevel(level));
+    }
+
+    if (passwordFieldsFilled && window.NibrasServices?.authService?.changePassword) {
+      tasks.push(
+        window.NibrasServices.authService.changePassword({
+          currentPassword: currentPassword,
+          newPassword: newPassword,
+        }).then(function () {
+          document.getElementById('input-current-password').value = '';
+          document.getElementById('input-new-password').value = '';
+          document.getElementById('input-confirm-password').value = '';
+        }),
+      );
+    }
+
+    if (tasks.length === 0) {
+      loadedSnapshot = captureSnapshot();
+      done(true);
+      return;
+    }
+
+    Promise.all(tasks)
+      .then(function () {
+        loadedSnapshot = captureSnapshot();
+        done(true);
+      })
+      .catch(function (err) {
+        done(false, err?.message || 'Save failed');
+      });
   });
 });

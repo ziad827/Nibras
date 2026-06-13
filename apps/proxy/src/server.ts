@@ -64,6 +64,7 @@ const PLATFORM_ADMIN_AUTH_PATHS = new Set([
   '/api/auth/logout',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
+  '/api/auth/change-password',
   '/api/auth/google',
   '/api/auth/microsoft',
 ]);

@@ -591,6 +591,26 @@ body {
     box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
+.lecture-video-chip.completed {
+    border-color: var(--success, #16a34a);
+    background: rgba(22, 163, 74, 0.08);
+}
+
+.lecture-video-chip.completed .lecture-video-chip-title {
+    color: var(--success, #16a34a);
+}
+
+.lecture-video-chip.active.completed {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    border-color: #16a34a;
+    color: #fff;
+}
+
+.lecture-video-chip.active.completed .lecture-video-chip-title,
+.lecture-video-chip.active.completed .lecture-video-chip-time {
+    color: #fff;
+}
+
 .lecture-video-chip-title {
     font-size: 0.85rem;
     font-weight: 600;

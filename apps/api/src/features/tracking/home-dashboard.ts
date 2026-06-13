@@ -601,7 +601,7 @@ export function buildStudentHomeDashboard(args: {
       kind: 'github_not_linked',
       title: 'Connect GitHub first',
       body: 'Link your GitHub account to unlock repo-based submissions and tracking.',
-      cta: { label: 'Open settings', href: '/settings' },
+      cta: { label: 'Open settings', href: '/Settings/settings.html' },
     });
   } else if (!args.user.githubAppInstalled) {
     blockers.push({
@@ -609,7 +609,7 @@ export function buildStudentHomeDashboard(args: {
       kind: 'github_app_not_installed',
       title: 'Install the GitHub App',
       body: 'Automatic push tracking is off until the Nibras GitHub App is installed.',
-      cta: { label: 'Open settings', href: '/settings' },
+      cta: { label: 'Open settings', href: '/Settings/settings.html' },
     });
   }
   if (args.courses.length === 0) {
@@ -618,7 +618,7 @@ export function buildStudentHomeDashboard(args: {
       kind: 'no_memberships',
       title: 'No course membership found',
       body: 'You are signed in, but there are no student course memberships on this account yet.',
-      cta: { label: 'Open settings', href: '/settings' },
+      cta: { label: 'Open settings', href: '/Settings/settings.html' },
     });
   } else if (selectedSnapshot && selectedSnapshot.projects.length === 0) {
     blockers.push({

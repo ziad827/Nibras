@@ -2676,6 +2676,59 @@ export class PrismaStore implements AppStore {
     return toUserRecord(user);
   }
 
+  async disconnectGitHub(userId: string): Promise<UserRecord> {
+    await this.prisma.githubAccount.deleteMany({ where: { userId } });
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        githubLinked: false,
+        githubAppInstalled: false,
+      },
+      include: { githubAccount: true },
+    });
+
+    await this.prisma.auditLog
+      .create({
+        data: {
+          userId,
+          action: 'github.disconnected',
+          targetType: 'GithubAccount',
+          targetId: userId,
+          payload: {} as Prisma.InputJsonValue,
+        },
+      })
+      .catch(() => {
+        /* non-fatal */
+      });
+
+    return toUserRecord(user);
+  }
+
+  async getUserPrivacy(
+    _apiBaseUrl: string,
+    userId: string,
+  ): Promise<{ showOnLeaderboard: boolean } | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { showOnLeaderboard: true },
+    });
+    if (!user) return null;
+    return { showOnLeaderboard: user.showOnLeaderboard };
+  }
+
+  async updateUserPrivacy(
+    _apiBaseUrl: string,
+    userId: string,
+    showOnLeaderboard: boolean,
+  ): Promise<{ showOnLeaderboard: boolean } | null> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { showOnLeaderboard },
+      select: { showOnLeaderboard: true },
+    });
+    return { showOnLeaderboard: user.showOnLeaderboard };
+  }
+
   async handlePushWebhook(payload: {
     owner: string;
     repoName: string;

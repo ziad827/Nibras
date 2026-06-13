@@ -5,6 +5,8 @@ import {
   OnboardingProgressResponseSchema,
   UpdateOnboardingProgressBodySchema,
   UpdateProfileBodySchema,
+  UpdateUserPrivacyBodySchema,
+  UserPrivacyResponseSchema,
   PingResponseSchema,
   ProjectSetupResponseSchema,
   ProjectTaskResponseSchema,
@@ -195,6 +197,45 @@ export function registerHostedCliRoutes(
           level: m.level,
         })),
       });
+    },
+  );
+
+  app.get(
+    '/v1/me/privacy',
+    { schema: { tags: ['auth'], summary: 'Get leaderboard privacy settings' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const privacy = await store.getUserPrivacy(
+        requestBaseUrl(request),
+        auth.user.id,
+      );
+      if (!privacy) {
+        return reply.code(404).send(Errors.notFound('User not found.'));
+      }
+      return UserPrivacyResponseSchema.parse(privacy);
+    },
+  );
+
+  app.patch(
+    '/v1/me/privacy',
+    { schema: { tags: ['auth'], summary: 'Update leaderboard privacy settings' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const parsed = UpdateUserPrivacyBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send(Errors.validation(parsed.error.message));
+      }
+      const privacy = await store.updateUserPrivacy(
+        requestBaseUrl(request),
+        auth.user.id,
+        parsed.data.showOnLeaderboard,
+      );
+      if (!privacy) {
+        return reply.code(404).send(Errors.notFound('User not found.'));
+      }
+      return UserPrivacyResponseSchema.parse(privacy);
     },
   );
 

@@ -83,6 +83,71 @@ test('admin auth register, verify OTP, and login flow', async (t) => {
   }
 });
 
+test('admin auth logout revokes access and refresh tokens', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const app = buildApp(new PrismaStore(prisma));
+  const email = `logout-${Date.now()}@gmail.com`;
+  await cleanupTestUser(prisma, email);
+
+  try {
+    await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: {
+        name: 'Logout Test User',
+        email,
+        password: TEST_PASSWORD,
+      },
+    });
+
+    const otpRecord = await prisma.authVerification.findFirst({
+      where: { identifier: `otp:signup:${email}` },
+    });
+    assert.ok(otpRecord?.value);
+
+    const verifyResponse = await app.inject({
+      method: 'POST',
+      url: '/api/auth/verify-otp',
+      payload: { email, otp: otpRecord.value },
+    });
+    assert.equal(verifyResponse.statusCode, 200);
+
+    const { accessToken, refreshToken } = verifyResponse.json();
+    assert.ok(accessToken);
+    assert.ok(refreshToken);
+
+    const meBefore = await app.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    assert.equal(meBefore.statusCode, 200);
+
+    const logoutResponse = await app.inject({
+      method: 'POST',
+      url: '/api/auth/logout',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { refreshToken },
+    });
+    assert.equal(logoutResponse.statusCode, 200);
+
+    const meAfter = await app.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    assert.equal(meAfter.statusCode, 401);
+  } finally {
+    await cleanupTestUser(prisma, email);
+    await app.close();
+  }
+});
+
 test('admin auth accepts non-Gmail email addresses', async (t) => {
   if (!process.env.DATABASE_URL) {
     t.skip('DATABASE_URL not set');
@@ -216,6 +281,82 @@ test('admin auth forgot and reset password flow', async (t) => {
       },
     });
     assert.equal(resetResponse.statusCode, 200);
+
+    const oldLogin = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email, password: TEST_PASSWORD },
+    });
+    assert.equal(oldLogin.statusCode, 401);
+
+    const newLogin = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email, password: newPassword },
+    });
+    assert.equal(newLogin.statusCode, 200);
+  } finally {
+    await cleanupTestUser(prisma, email);
+    await app.close();
+  }
+});
+
+test('admin auth change-password updates credential password', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const app = buildApp(new PrismaStore(prisma));
+  const email = `change-pass-${Date.now()}@gmail.com`;
+  const newPassword = 'newpass456';
+  await cleanupTestUser(prisma, email);
+
+  try {
+    await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: {
+        name: 'Change Pass Test',
+        email,
+        password: TEST_PASSWORD,
+      },
+    });
+
+    const otpRecord = await prisma.authVerification.findFirst({
+      where: { identifier: `otp:signup:${email}` },
+    });
+    const verifyResponse = await app.inject({
+      method: 'POST',
+      url: '/api/auth/verify-otp',
+      payload: { email, otp: otpRecord.value },
+    });
+    const token = verifyResponse.json().accessToken;
+    assert.ok(token);
+
+    const wrongCurrent = await app.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        currentPassword: 'wrong-password',
+        newPassword,
+      },
+    });
+    assert.equal(wrongCurrent.statusCode, 401);
+
+    const changeResponse = await app.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        currentPassword: TEST_PASSWORD,
+        newPassword,
+      },
+    });
+    assert.equal(changeResponse.statusCode, 200);
+    assert.match(changeResponse.json().message, /updated/i);
 
     const oldLogin = await app.inject({
       method: 'POST',

@@ -138,6 +138,14 @@ export const UpdateProfileBodySchema = z.object({
   socialLinks: z.array(UpdateProfileSocialLinkSchema).optional(),
 });
 
+export const UserPrivacyResponseSchema = z.object({
+  showOnLeaderboard: z.boolean(),
+});
+
+export const UpdateUserPrivacyBodySchema = z.object({
+  showOnLeaderboard: z.boolean(),
+});
+
 export const AiProviderIdSchema = z.enum(['openai', 'groq', 'openrouter']);
 
 export const AiCredentialResponseSchema = z.object({

@@ -343,6 +343,66 @@ export function registerAdminAuthRoutes(
     return reply.send({ message: 'Password reset successfully.' });
   });
 
+  app.post('/api/auth/change-password', async (request, reply) => {
+    const authHeader = request.headers.authorization;
+    const token =
+      authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.slice('Bearer '.length).trim()
+        : null;
+    if (!token) {
+      return reply.code(401).send({ message: 'Authentication required.' });
+    }
+
+    const user = await store.getUserByToken(requestBaseUrl(request), token);
+    if (!user) {
+      return reply.code(401).send({ message: 'Invalid or expired session.' });
+    }
+
+    const body = request.body as {
+      currentPassword?: string;
+      newPassword?: string;
+    };
+    const currentPassword = body?.currentPassword ?? '';
+    const newPassword = body?.newPassword ?? '';
+
+    if (!currentPassword || !newPassword) {
+      return reply
+        .code(400)
+        .send({ message: 'currentPassword and newPassword are required.' });
+    }
+    if (newPassword.length < 6) {
+      return reply
+        .code(400)
+        .send({ message: 'Password must be at least 6 characters.' });
+    }
+
+    const account = await prisma.authAccount.findFirst({
+      where: { userId: user.id, providerId: 'credential' },
+      select: { id: true, password: true },
+    });
+    if (!account?.password) {
+      return reply
+        .code(400)
+        .send({ message: 'Password login is not configured for this account.' });
+    }
+
+    const valid = await verifyCredentialPassword(
+      account.password,
+      currentPassword,
+    );
+    if (!valid) {
+      return reply.code(401).send({ message: 'Current password is incorrect.' });
+    }
+
+    const hashed = await hashPassword(newPassword);
+    await prisma.authAccount.update({
+      where: { id: account.id },
+      data: { password: hashed },
+    });
+
+    return reply.send({ message: 'Password updated successfully.' });
+  });
+
   app.get('/api/auth/me', async (request, reply) => {
     const authHeader = request.headers.authorization;
     const token =
@@ -409,12 +469,31 @@ export function registerAdminAuthRoutes(
   app.post('/api/auth/logout', async (request, reply) => {
     const body = request.body as { refreshToken?: string };
     const refreshToken = body?.refreshToken?.trim();
-    if (refreshToken) {
-      await prisma.cliSession.updateMany({
-        where: { refreshToken, revokedAt: null },
-        data: { revokedAt: new Date() },
+    const authHeader = request.headers.authorization;
+    const accessToken =
+      authHeader && authHeader.startsWith('Bearer ')
+        ? authHeader.slice('Bearer '.length).trim()
+        : null;
+
+    const revokeConditions: Array<{ refreshToken?: string; accessToken?: string }> =
+      [];
+    if (refreshToken) revokeConditions.push({ refreshToken });
+    if (accessToken) revokeConditions.push({ accessToken });
+
+    if (revokeConditions.length === 0) {
+      return reply.code(400).send({
+        message: 'refreshToken or Authorization bearer token is required.',
       });
     }
+
+    await prisma.cliSession.updateMany({
+      where: {
+        revokedAt: null,
+        OR: revokeConditions,
+      },
+      data: { revokedAt: new Date() },
+    });
+
     return reply.send({ ok: true });
   });
 }

@@ -146,6 +146,7 @@
   };
 
   const getTokenFromStorage = (storage) => {
+    if (window.NibrasSession) return null;
     const keys = [
       'token',
       'nibras.webSession',
@@ -160,15 +161,24 @@
     return null;
   };
 
-  const getToken = () =>
-    getTokenFromStorage(window.localStorage) ||
-    getTokenFromStorage(window.sessionStorage);
+  const getToken = () => {
+    if (window.NibrasSession) return window.NibrasSession.getToken();
+    return (
+      getTokenFromStorage(window.localStorage) ||
+      getTokenFromStorage(window.sessionStorage)
+    );
+  };
 
-  const getRefreshToken = () =>
-    safeStorageGet(window.localStorage, 'refreshToken') ||
-    safeStorageGet(window.sessionStorage, 'refreshToken');
+  const getRefreshToken = () => {
+    if (window.NibrasSession) return window.NibrasSession.getRefreshToken();
+    return (
+      safeStorageGet(window.localStorage, 'refreshToken') ||
+      safeStorageGet(window.sessionStorage, 'refreshToken')
+    );
+  };
 
   const getUser = () => {
+    if (window.NibrasSession) return window.NibrasSession.getUser();
     const raw = safeStorageGet(window.localStorage, 'user');
     if (!raw) return null;
     try {
@@ -188,6 +198,7 @@
   };
 
   const extractAuth = (payload) => {
+    if (window.NibrasSession) return window.NibrasSession.extractAuth(payload);
     const data = payload && payload.data ? payload.data : payload || {};
     const tokens =
       payload && payload.tokens ? payload.tokens : data.tokens || {};
@@ -207,6 +218,10 @@
   };
 
   const setAuth = ({ token, accessToken, refreshToken, user }) => {
+    if (window.NibrasSession) {
+      window.NibrasSession.setAuth({ token, accessToken, refreshToken, user });
+      return;
+    }
     const finalAccess = accessToken || token || null;
     if (finalAccess) window.localStorage.setItem('token', finalAccess);
     if (refreshToken) window.localStorage.setItem('refreshToken', refreshToken);
@@ -214,6 +229,10 @@
   };
 
   const clearAuth = () => {
+    if (window.NibrasSession) {
+      window.NibrasSession.clearAuth();
+      return;
+    }
     window.localStorage.removeItem('token');
     window.localStorage.removeItem('refreshToken');
     window.localStorage.removeItem('user');
@@ -550,6 +569,11 @@
   let refreshPromise = null;
 
   const refreshAccessToken = async () => {
+    if (window.NibrasSession) {
+      return window.NibrasSession.refreshAccessToken(
+        resolveServiceUrl('admin'),
+      );
+    }
     if (refreshPromise) return refreshPromise;
 
     const refreshToken = getRefreshToken();
@@ -786,6 +810,20 @@
         method: 'POST',
         auth: false,
         retryAuth: false,
+        body: data,
+      });
+    },
+
+    /**
+     * Change password for the authenticated user
+     * @param {object} data - { currentPassword, newPassword }
+     * @returns {Promise<object>}
+     */
+    async changePassword(data) {
+      return apiFetch('/auth/change-password', {
+        service: 'admin',
+        method: 'POST',
+        auth: true,
         body: data,
       });
     },
@@ -3976,13 +4014,25 @@
     },
 
     /**
+     * Get privacy settings (leaderboard visibility)
+     * @returns {Promise<{showOnLeaderboard: boolean}>}
+     */
+    async getPrivacy() {
+      return apiFetch('/v1/me/privacy', {
+        service: 'tracking',
+        method: 'GET',
+        auth: true,
+      });
+    },
+
+    /**
      * Update privacy settings (leaderboard opt-out, etc.)
      * @param {object} privacy - { showOnLeaderboard?: boolean }
      * @returns {Promise<object>}
      */
     async updatePrivacy(privacy) {
-      return apiFetch('/users/me/privacy', {
-        service: 'admin',
+      return apiFetch('/v1/me/privacy', {
+        service: 'tracking',
         method: 'PATCH',
         auth: true,
         body: privacy,

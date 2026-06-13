@@ -138,6 +138,7 @@
   };
 
   const getTokenFromStorage = (storage) => {
+    if (window.NibrasSession) return null;
     const keys = [
       'token',
       'nibras.webSession',
@@ -152,15 +153,24 @@
     return null;
   };
 
-  const getToken = () =>
-    getTokenFromStorage(window.localStorage) ||
-    getTokenFromStorage(window.sessionStorage);
+  const getToken = () => {
+    if (window.NibrasSession) return window.NibrasSession.getToken();
+    return (
+      getTokenFromStorage(window.localStorage) ||
+      getTokenFromStorage(window.sessionStorage)
+    );
+  };
 
-  const getRefreshToken = () =>
-    safeStorageGet(window.localStorage, 'refreshToken') ||
-    safeStorageGet(window.sessionStorage, 'refreshToken');
+  const getRefreshToken = () => {
+    if (window.NibrasSession) return window.NibrasSession.getRefreshToken();
+    return (
+      safeStorageGet(window.localStorage, 'refreshToken') ||
+      safeStorageGet(window.sessionStorage, 'refreshToken')
+    );
+  };
 
   const getUser = () => {
+    if (window.NibrasSession) return window.NibrasSession.getUser();
     const raw = safeStorageGet(window.localStorage, 'user');
     if (!raw) return null;
     try {
@@ -171,6 +181,7 @@
   };
 
   const extractAuth = (payload) => {
+    if (window.NibrasSession) return window.NibrasSession.extractAuth(payload);
     const data = payload && payload.data ? payload.data : payload || {};
     const tokens =
       payload && payload.tokens ? payload.tokens : data.tokens || {};
@@ -190,6 +201,10 @@
   };
 
   const setAuth = ({ token, accessToken, refreshToken, user }) => {
+    if (window.NibrasSession) {
+      window.NibrasSession.setAuth({ token, accessToken, refreshToken, user });
+      return;
+    }
     const finalAccess = accessToken || token || null;
     if (finalAccess) window.localStorage.setItem('token', finalAccess);
     if (refreshToken) window.localStorage.setItem('refreshToken', refreshToken);
@@ -197,6 +212,10 @@
   };
 
   const clearAuth = () => {
+    if (window.NibrasSession) {
+      window.NibrasSession.clearAuth();
+      return;
+    }
     window.localStorage.removeItem('token');
     window.localStorage.removeItem('refreshToken');
     window.localStorage.removeItem('user');
@@ -783,6 +802,9 @@
   let refreshPromise = null;
 
   const refreshAccessToken = async () => {
+    if (window.NibrasSession) {
+      return window.NibrasSession.refreshAccessToken(resolveServiceUrl('admin'));
+    }
     if (refreshPromise) return refreshPromise;
 
     const refreshToken = getRefreshToken();
@@ -892,27 +914,43 @@
     if (logoutRequestPromise) return logoutRequestPromise;
 
     logoutRequestPromise = (async () => {
-      const refreshToken = getRefreshToken();
       const targetHref = normalizeLogoutRedirect(redirectHref);
 
-      if (refreshToken) {
+      if (window.NibrasSession) {
         try {
-          await apiFetch('/auth/logout', {
-            service: 'admin',
-            method: 'POST',
-            auth: true,
-            retryAuth: false,
-            body: { refreshToken },
-          });
+          await window.NibrasSession.performLogout(resolveServiceUrl('admin'));
         } catch (error) {
           console.warn(
             '[NibrasAuth] Logout API request failed:',
             error?.message || error,
           );
+          window.NibrasSession.clearAuth();
         }
+      } else {
+        const refreshToken = getRefreshToken();
+        const accessToken = getToken();
+        if (refreshToken || accessToken) {
+          try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+            await apiFetch('/auth/logout', {
+              service: 'admin',
+              method: 'POST',
+              auth: false,
+              retryAuth: false,
+              headers,
+              body: { refreshToken },
+            });
+          } catch (error) {
+            console.warn(
+              '[NibrasAuth] Logout API request failed:',
+              error?.message || error,
+            );
+          }
+        }
+        clearAuth();
       }
 
-      clearAuth();
       window.location.href = targetHref;
     })().finally(() => {
       logoutRequestPromise = null;

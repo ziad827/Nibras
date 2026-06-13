@@ -575,6 +575,28 @@ export function registerGitHubRoutes(
   );
 
   app.post(
+    '/v1/github/oauth/disconnect',
+    {
+      schema: {
+        tags: ['github'],
+        summary: 'Disconnect linked GitHub account',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      try {
+        const user = await store.disconnectGitHub(auth.user.id);
+        return { ok: true, user };
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to disconnect GitHub.';
+        return reply.code(400).send(Errors.validation(message));
+      }
+    },
+  );
+
+  app.post(
     '/v1/github/webhooks',
     {
       config: { rateLimit: { max: 50, timeWindow: '1 minute' } },
