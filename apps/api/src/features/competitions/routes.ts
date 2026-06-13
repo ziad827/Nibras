@@ -6,6 +6,7 @@ import { enqueueCompetitionsJob } from '../../lib/competitions-queue';
 import { fetchers } from './fetchers/index';
 import { pickVerificationProblem } from './fetchers/codeforces';
 import { registerPracticeCodeforcesRoutes } from './practice-codeforces-routes';
+import { registerPracticeLeetcodeRoutes } from './practice-leetcode-routes';
 import { registerCpRoadmapAdminRoutes } from './cp-roadmap-admin-routes';
 import { registerCpRoadmapRoutes } from './cp-roadmap-routes';
 import { registerNibras75Routes } from './nibras75-routes';
@@ -692,6 +693,7 @@ export function registerCompetitionsRoutes(
   );
 
   registerPracticeCodeforcesRoutes(app, store, prisma);
+  registerPracticeLeetcodeRoutes(app, store, prisma);
   registerNibras75Routes(app, store, prisma, githubConfig);
   registerCpRoadmapRoutes(app, store, prisma);
   registerCpRoadmapAdminRoutes(app, store, prisma);

@@ -18,6 +18,7 @@ export type PracticeLcProblemsResponse = {
   handle: string | null;
   page: number;
   limit: number;
+  warning?: string;
 };
 
 export type PracticeLcProblemsQuery = {

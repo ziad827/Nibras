@@ -95,7 +95,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.monorepo
-      target: proxy
+      target: gateway
     restart: unless-stopped
     env_file: .env
     environment:

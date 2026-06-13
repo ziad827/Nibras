@@ -40,6 +40,7 @@
     "dev:student": "node -r tsconfig-paths/register -r ts-node/register scripts/local-dev-student.ts",
     "seed:tags": "node -r tsconfig-paths/register -r ts-node/register scripts/seed-tags.ts",
     "smoke:local": "bash scripts/full-system-smoke.sh",
+    "smoke:gateway": "bash scripts/gateway-smoke.sh",
     "smoke:socket": "node scripts/socket-contest-listen.mjs",
     "db:generate": "npx prisma generate",
     "db:push": "npx prisma db push",

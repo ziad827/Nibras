@@ -44,6 +44,7 @@ import { registerDailyProblemRoutes } from './features/daily-problem/routes';
 import { registerUserRoutes } from './features/users/routes';
 import { registerProjectAnalyticsRoutes } from './features/tracking/project-analytics';
 import { registerAiRoutes } from './features/ai/routes';
+import { registerAdminAuthRoutes } from './features/admin-auth/routes';
 
 function normalizeOrigin(value: string | undefined): string | null {
   if (!value) {
@@ -440,6 +441,7 @@ export function buildApp(
   registerNotificationRoutes(app, store);
   if (process.env.DATABASE_URL) {
     const prisma = getSharedPrisma();
+    registerAdminAuthRoutes(app, store, prisma);
     registerCommunityRoutes(app, store, prisma);
     registerInternalTutorRoutes(app, prisma);
     registerAiCredentialRoutes(app, store, prisma);

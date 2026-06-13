@@ -54,6 +54,24 @@ function loadConfig(): ProxyConfig {
   };
 }
 
+const PLATFORM_ADMIN_AUTH_PATHS = new Set([
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/verify-otp',
+  '/api/auth/refresh-tokens',
+  '/api/auth/me',
+  '/api/auth/logout',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+  '/api/auth/google',
+  '/api/auth/microsoft',
+]);
+
+function isPlatformAdminAuthRequest(url = '/'): boolean {
+  const pathname = new URL(url, 'http://localhost').pathname;
+  return PLATFORM_ADMIN_AUTH_PATHS.has(pathname);
+}
+
 function isFastifyRequest(url = '/'): boolean {
   return (
     url === '/v1' ||
@@ -82,7 +100,7 @@ function pickTarget(
   url: string | undefined,
   config: ProxyConfig,
 ): string | null {
-  if (isFastifyRequest(url)) {
+  if (isFastifyRequest(url) || isPlatformAdminAuthRequest(url)) {
     return config.fastifyOrigin;
   }
   if (isNestjsRequest(url)) {

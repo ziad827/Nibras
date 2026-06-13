@@ -27,6 +27,24 @@ async function resolveHandle(
   return account?.handle;
 }
 
+const LC_UPSTREAM_TIMEOUT_MS = 8_000;
+
+function buildUnavailableProblemsResponse(
+  page: number,
+  limit: number,
+  handle: string | null = null,
+): PracticeLcProblemsResponse {
+  return {
+    items: [],
+    total: 0,
+    solvedCount: 0,
+    handle,
+    page,
+    limit,
+    warning: 'LeetCode problemset temporarily unavailable.',
+  };
+}
+
 export function registerPracticeLeetcodeRoutes(
   app: FastifyInstance,
   store: AppStore,
@@ -67,14 +85,22 @@ export function registerPracticeLeetcodeRoutes(
             ? (q.solved as 'true' | 'false')
             : undefined;
 
-        const result = await fetchPracticeLcProblems(handle, user?.id, prisma, {
-          page: Number.isFinite(page) ? page : 1,
-          limit: Number.isFinite(limit) ? limit : 100,
-          q: q.q,
-          tag: q.tag,
-          difficulty,
-          solved,
-        });
+        const result = await Promise.race([
+          fetchPracticeLcProblems(handle, user?.id, prisma, {
+            page: Number.isFinite(page) ? page : 1,
+            limit: Number.isFinite(limit) ? limit : 100,
+            q: q.q,
+            tag: q.tag,
+            difficulty,
+            solved,
+          }),
+          new Promise<never>((_, reject) => {
+            setTimeout(
+              () => reject(new Error('LeetCode upstream timeout')),
+              LC_UPSTREAM_TIMEOUT_MS,
+            );
+          }),
+        ]);
 
         const body: PracticeLcProblemsResponse = {
           items: result.items,
@@ -86,8 +112,14 @@ export function registerPracticeLeetcodeRoutes(
         };
         return body;
       } catch (err) {
+        const pageNum = q.page ? parseInt(q.page, 10) : 1;
+        const limitNum = q.limit ? parseInt(q.limit, 10) : 100;
         const message = err instanceof Error ? err.message : String(err);
-        return reply.status(502).send({ error: message });
+        request.log.warn({ err: message }, 'LeetCode problemset unavailable');
+        return buildUnavailableProblemsResponse(
+          Number.isFinite(pageNum) ? pageNum : 1,
+          Number.isFinite(limitNum) ? limitNum : 100,
+        );
       }
     },
   );
