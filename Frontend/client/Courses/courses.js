@@ -115,7 +115,21 @@ async function initCourses() {
 
   var mappedCoursesAll = [];
 
-  hydrateCoursesFromAdmin(currentLevel);
+  function getLocalCoursesForLevel(level) {
+    var nc = window.NibrasCourses;
+    if (!nc) return [];
+    if (level === 'Intermediate') return nc.getIntermediateCoursesList();
+    if (level === 'Advanced') return nc.getAdvancedCoursesList();
+    if (level === 'Expert') return nc.getExpertCoursesList();
+    return nc.getCoursesList();
+  }
+
+  coursesData = getLocalCoursesForLevel(currentLevel).map(function (course) {
+    return Object.assign({}, course);
+  });
+  mappedCoursesAll = coursesData;
+  filterAndRender(activeCategory);
+  hydrateCourseProgress(currentLevel);
 
   function checkLevelComplete() {
     var banner = document.getElementById('level-complete-banner');
@@ -283,32 +297,36 @@ async function initCourses() {
     grid.innerHTML += html;
   }
 
-  async function hydrateCoursesFromAdmin(level) {
-    var levelFilter = level || 'Beginner';
+  async function hydrateCourseProgress(level) {
+    var resolveAsync = window.NibrasCourses?.resolveCourseIdentifiersAsync;
+    if (typeof resolveAsync === 'function') {
+      try {
+        await Promise.all(
+          coursesData.map(async function (course) {
+            if (course.type === 'practice_lab') return;
+            var identifiers = await resolveAsync(course.id, { loadRemote: true });
+            if (!identifiers) return;
+            course.trackingCourseId = identifiers.trackingCourseId || '';
+            course.adminCourseId = identifiers.adminCourseId || '';
+            course.backendCourseId = identifiers.backendCourseId || '';
+            course.remoteCourseId = identifiers.adminCourseId || null;
+          }),
+        );
+      } catch (_) {}
+    }
 
-    var loadAdminCourses = window.NibrasCourses?.getAdminCoursesList;
-    if (typeof loadAdminCourses !== 'function') return;
-
-    try {
-      var adminCourses = await loadAdminCourses();
-      if (!Array.isArray(adminCourses) || !adminCourses.length) return;
-
-      var mappedCourses = adminCourses.filter(function (c) {
-        if (c.type === 'practice_lab') return true;
-        return c.level === levelFilter;
-      });
-
-      var coursesService = window.NibrasServices?.coursesService;
-      if (coursesService && typeof coursesService.getProgress === 'function') {
+    var coursesService = window.NibrasServices?.coursesService;
+    if (coursesService && typeof coursesService.getProgress === 'function') {
+      try {
         var progressResults = await Promise.allSettled(
-          mappedCourses.map(function (c) {
+          coursesData.map(function (c) {
             var bid = c.adminCourseId || c.backendCourseId || c.remoteCourseId;
             return bid
               ? coursesService.getProgress(bid)
               : Promise.resolve(null);
           }),
         );
-        mappedCourses.forEach(function (c, i) {
+        coursesData.forEach(function (c, i) {
           var result = progressResults[i];
           if (result.status === 'fulfilled' && result.value) {
             var pct =
@@ -336,38 +354,17 @@ async function initCourses() {
             } catch (_) {}
           }
         });
+      } catch (error) {
+        console.warn(
+          '[COURSES.JS] Failed to hydrate progress:',
+          error?.message || error,
+        );
       }
-
-      var backendCourses = {};
-      if (coursesService && typeof coursesService.getByLevel === 'function') {
-        try {
-          var response = await coursesService.getByLevel(levelFilter);
-          var rawList = Array.isArray(response?.data)
-            ? response.data
-            : Array.isArray(response?.data?.courses)
-              ? response.data.courses
-              : Array.isArray(response?.courses)
-                ? response.courses
-                : [];
-          rawList.forEach(function (c) {
-            var bid = c?._id || c?.id;
-            if (bid) backendCourses[bid] = c;
-          });
-        } catch (_) {}
-      }
-
-      mappedCourses.forEach(function (c) {
-        var bid = c.adminCourseId || c.backendCourseId || c.remoteCourseId;
-        if (bid && backendCourses[bid]) delete backendCourses[bid];
-      });
-
-      coursesData = mappedCourses;
-      mappedCoursesAll = mappedCourses;
-      filterAndRender(activeCategory);
-      checkLevelComplete();
-    } catch (error) {
-      console.warn('[COURSES.JS] Failed to hydrate:', error?.message || error);
     }
+
+    mappedCoursesAll = coursesData;
+    filterAndRender(activeCategory);
+    checkLevelComplete();
   }
 
   const themeBtn = document.getElementById('themeBtn');

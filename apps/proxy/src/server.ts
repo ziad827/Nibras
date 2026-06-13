@@ -220,9 +220,13 @@ function serveStaticFile(
   }
 
   const ext = path.extname(filePath).toLowerCase();
-  response.writeHead(200, {
+  const headers: Record<string, string> = {
     'content-type': MIME_TYPES[ext] || 'application/octet-stream',
-  });
+  };
+  if (ext === '.js') {
+    headers['cache-control'] = 'no-cache';
+  }
+  response.writeHead(200, headers);
   fs.createReadStream(filePath).pipe(response);
   return true;
 }

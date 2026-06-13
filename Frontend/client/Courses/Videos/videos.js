@@ -376,81 +376,86 @@ function buildLessonFromVideo(video, index, courseSlug) {
   return lesson;
 }
 
-async function loadCurriculumFromTracking() {
+async function resolveTrackingCourseId() {
   var trackingSvc = window.NibrasServices?.trackingCourseService;
-  if (!trackingSvc || typeof trackingSvc.listSections !== 'function')
-    return false;
+  if (!trackingSvc || typeof trackingSvc.list !== 'function') return;
 
-  if (!trackingCourseId) {
-    try {
-      var courses = await trackingSvc.list();
-      var list = Array.isArray(courses)
-        ? courses
-        : courses?.courses || courses?.data || [];
-      var match = list.find(function (c) {
-        return (
-          (selectedCourse?.code &&
-            (c.courseCode === selectedCourse.code ||
-              c.slug === selectedCourse.code)) ||
-          (selectedCourse?.title && c.title === selectedCourse.title)
-        );
-      });
-      if (match?.id) {
-        trackingCourseId = match.id;
-        adminCourseId = match.id;
-      }
-    } catch (_) {
-      return false;
-    }
-  }
-
-  if (!trackingCourseId) return false;
+  if (trackingCourseId) return;
 
   try {
-    var res = await trackingSvc.listSections(trackingCourseId);
-    var sections = res?.sections || res?.data?.sections || [];
-    if (!Array.isArray(sections) || sections.length === 0) return false;
+    var courses = await trackingSvc.list();
+    var list = Array.isArray(courses)
+      ? courses
+      : courses?.courses || courses?.data || [];
+    var match = list.find(function (c) {
+      return (
+        (selectedCourse?.code &&
+          (c.courseCode === selectedCourse.code ||
+            c.slug === selectedCourse.code)) ||
+        (selectedCourse?.title && c.title === selectedCourse.title)
+      );
+    });
+    if (match?.id) {
+      trackingCourseId = match.id;
+      adminCourseId = adminCourseId || match.id;
+    }
+  } catch (_) {}
+}
 
-    var lessons = [];
-    var lessonIndex = 0;
+async function syncProgressFromTracking() {
+  var trackingSvc = window.NibrasServices?.trackingCourseService;
+  if (
+    !trackingSvc ||
+    !trackingCourseId ||
+    typeof trackingSvc.listSections !== 'function' ||
+    !courseData?.lessons?.length
+  ) {
+    return;
+  }
+
+  try {
+    var sectionsRes = await trackingSvc.listSections(trackingCourseId);
+    var sections = sectionsRes?.sections || sectionsRes?.data?.sections || [];
+    var trackingVideos = [];
     sections.forEach(function (section) {
       (section.videos || []).forEach(function (video) {
-        lessons.push(
-          buildLessonFromVideo(
-            video,
-            lessonIndex,
-            selectedCourse?.code || courseId,
-          ),
-        );
-        lessonIndex += 1;
+        trackingVideos.push({
+          id: video.id,
+          sectionId: video.sectionId || section.id,
+          watched: Boolean(video.watched),
+        });
       });
     });
 
-    if (lessons.length === 0) return false;
+    var stored = getCompletedLectures();
+    var changed = false;
+    courseData.lessons.forEach(function (lesson, index) {
+      var remoteVideo = trackingVideos[index];
+      if (!remoteVideo) return;
+      videoIdByLessonId[lesson.id] = remoteVideo.id;
+      if (remoteVideo.sectionId) {
+        sectionIdMap[lesson.id] = remoteVideo.sectionId;
+      }
+      if (remoteVideo.watched && !stored.includes(lesson.id)) {
+        stored.push(lesson.id);
+        changed = true;
+      }
+    });
 
-    courseData = {
-      lessons: lessons,
-      currentLessonId: lessons[0].id,
-      progress: {
-        completed: lessons.filter(function (l) {
-          return l.completed;
-        }).length,
-        total: lessons.length,
-      },
-    };
-    console.log(
-      '[VIDEOS.JS] Loaded',
-      lessons.length,
-      'lectures from tracking API',
-    );
-    return true;
-  } catch (err) {
-    console.warn(
-      '[VIDEOS.JS] Failed to load curriculum from tracking API:',
-      err?.message || err,
-    );
-    return false;
-  }
+    if (changed) {
+      saveCompletedLectures(stored);
+      console.log(
+        '[VIDEOS.JS] Synced',
+        stored.length,
+        'completed lectures from tracking API',
+      );
+    }
+  } catch (_) {}
+}
+
+async function loadCurriculumFromTracking() {
+  await resolveTrackingCourseId();
+  return false;
 }
 
 async function initSectionMapping() {
@@ -577,20 +582,18 @@ function initThemeToggle() {
 }
 
 async function initVideos() {
-  if (!selectedCourse) return;
+  if (!selectedCourse || !courseData) return;
   initThemeToggle();
   setCourseLinks();
-  const loadedFromTracking = await loadCurriculumFromTracking();
-  if (!loadedFromTracking && !courseData) return;
+  await resolveTrackingCourseId();
+  applyCompletionState();
   await initSectionMapping();
   populateUI(courseData);
   setupVideoPlayer();
   setupLectureListHandler();
   setupLectureVideoItemsHandler();
   setupNavigationButtons();
-  if (!loadedFromTracking) {
-    hydrateLessonsFromAdmin();
-  }
+  await syncProgressFromTracking();
   syncProgressFromBackend();
 }
 
@@ -1094,35 +1097,7 @@ function loadLesson(lessonId) {
 }
 
 async function hydrateLessonsFromAdmin() {
-  const loadRemoteCourse = window.NibrasCourses?.getAdminCourseByLocalId;
-  if (typeof loadRemoteCourse !== 'function' || !courseId) return;
-
-  try {
-    const remoteCourse = await loadRemoteCourse(courseId);
-    if (
-      !remoteCourse ||
-      !Array.isArray(remoteCourse.sections) ||
-      remoteCourse.sections.length === 0
-    )
-      return;
-
-    courseData.lessons = courseData.lessons.map((lesson, index) => {
-      const remoteSection = remoteCourse.sections[index];
-      if (!remoteSection?.title) return lesson;
-      return {
-        ...lesson,
-        title: `Lesson ${index + 1}: ${remoteSection.title}`,
-      };
-    });
-
-    populateUI(courseData);
-    setupVideoPlayer();
-  } catch (error) {
-    console.warn(
-      '[VIDEOS.JS] Failed to hydrate lessons from admin backend:',
-      error?.message || error,
-    );
-  }
+  return;
 }
 
 function formatTime(seconds) {

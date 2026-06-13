@@ -1198,24 +1198,21 @@
     return localCourses.map((course) => {
       if (course.type !== 'standard') return course;
       const remote = remoteByLocalId[course.id];
-      const merged = !remote
-        ? course
-        : {
-            ...course,
-            title: remote.title || course.title,
-            instructor: remote.instructorName || course.instructor,
-            remoteCourseId: remote.remoteId || null,
-          };
-      const identifiers = resolveCourseIdentifiers(merged.id);
-      if (!identifiers) return merged;
+      const identifiers = resolveCourseIdentifiers(course.id);
+      if (!identifiers) {
+        return {
+          ...course,
+          remoteCourseId: remote?.remoteId || null,
+        };
+      }
       return {
-        ...merged,
+        ...course,
         trackingCourseId: identifiers.trackingCourseId,
         trackingCourseIdForApi: identifiers.trackingCourseIdForApi,
         adminCourseId: identifiers.adminCourseId,
         backendCourseId: identifiers.backendCourseId,
         remoteCourseId:
-          identifiers.adminCourseId || merged.remoteCourseId || null,
+          identifiers.adminCourseId || remote?.remoteId || null,
       };
     });
   }

@@ -294,6 +294,8 @@ window.NibrasReact.run(async () => {
 
   async function hydrateOverviewFromAdmin() {
     const selectedCourse = window.NibrasCourses?.getSelectedCourse?.();
+    if (selectedCourse?.overview?.description) return;
+
     const backendCourseId =
       selectedCourse?.adminCourseId || selectedCourse?.backendCourseId || null;
     const coursesService = window.NibrasServices?.coursesService;
