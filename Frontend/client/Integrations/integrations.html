@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Integrations</title>
+    <script src="../services/auth-guard.js" data-login="../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./integrations.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            <li class="nav-item"><a href="../Projects/projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../CLI/cli.html" class="nav-link"><i class="fa-solid fa-terminal"></i> CLI</a></li>
+            <li class="nav-item"><a href="../Competitions/Contests/contest.html" class="nav-link"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <li class="nav-item"><a href="../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <li class="nav-item"><a href="../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="./integrations.html" class="nav-link active"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+
+        <div class="user-profile">
+            <div class="avatar-circle">ZA</div>
+            <div class="user-info">
+                <h4>Ziad Alaa</h4>
+                <span>student</span>
+            </div>
+        </div>
+
+        <div class="reputation-box">
+            <span>Reputation</span>
+            <div class="rep-badge">0</div>
+        </div>
+
+        <a href="../Login/loginPage/login.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+        </a>
+    </aside>
+
+    <main class="main-content">
+        <div class="content-wrapper integrations-wrapper">
+
+            <div class="page-title-section">
+                <h1>Integrations & Connections</h1>
+                <p>Connect external services to extend Nibras capabilities</p>
+            </div>
+
+            <!-- Canvas LMS -->
+            <section class="card integration-card canvas">
+                <div class="card-header-simple">
+                    <h3><i class="fa-solid fa-graduation-cap" style="color:var(--canvas-brand);margin-right:0.5rem;"></i>Canvas LMS</h3>
+                    <p class="section-desc">Sync courses, rosters, and grades with Canvas LMS</p>
+                </div>
+                <div class="integration-row" id="canvas-main-row">
+                    <div class="integration-left">
+                        <div class="integration-icon" style="background-color:var(--canvas-brand);"><i class="fa-solid fa-graduation-cap"></i></div>
+                        <div class="integration-info">
+                            <h4>Canvas</h4>
+                            <p id="canvas-status-text">Checking connection...</p>
+                        </div>
+                    </div>
+                    <div class="integration-actions">
+                        <button id="btn-canvas-connect" class="btn btn-primary"><i class="fa-solid fa-link"></i> Connect Canvas</button>
+                    </div>
+                </div>
+                <div class="integration-detail-area" id="canvas-detail">
+                    <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
+                        <span id="canvas-connected-as" style="font-size:0.85rem;color:var(--text-secondary);"></span>
+                        <button id="btn-canvas-sync" class="btn btn-outline btn-sm"><i class="fa-solid fa-arrows-rotate"></i> Sync Roster</button>
+                        <button id="btn-canvas-disconnect" class="btn btn-danger btn-sm"><i class="fa-solid fa-unlink"></i> Disconnect</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Moodle -->
+            <section class="card integration-card moodle">
+                <div class="card-header-simple">
+                    <h3><i class="fa-solid fa-graduation-cap" style="color:var(--moodle-brand);margin-right:0.5rem;"></i>Moodle</h3>
+                    <p class="section-desc">Connect your Moodle instance for enrollment and activity sync</p>
+                </div>
+                <div class="integration-row">
+                    <div class="integration-left">
+                        <div class="integration-icon" style="background-color:var(--moodle-brand);"><i class="fa-solid fa-graduation-cap"></i></div>
+                        <div class="integration-info">
+                            <h4>Moodle</h4>
+                            <p id="moodle-status-text">Not configured</p>
+                        </div>
+                    </div>
+                    <div class="integration-actions">
+                        <button id="btn-moodle-toggle" class="btn btn-outline"><i class="fa-solid fa-sliders"></i> Configure</button>
+                    </div>
+                </div>
+                <div class="integration-detail-area" id="moodle-detail">
+                    <div class="integration-form">
+                        <div class="form-group">
+                            <label>Moodle Instance URL</label>
+                            <input type="url" id="moodle-url" class="form-control" placeholder="https://moodle.myuniversity.edu">
+                        </div>
+                        <div class="form-group">
+                            <label>API Token</label>
+                            <input type="password" id="moodle-token" class="form-control" placeholder="Paste your web service token">
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;margin-top:1rem;flex-wrap:wrap;">
+                        <button id="btn-moodle-test" class="btn btn-outline btn-sm"><i class="fa-solid fa-vial"></i> Test Connection</button>
+                        <button id="btn-moodle-connect" class="btn btn-primary btn-sm"><i class="fa-solid fa-save"></i> Save & Connect</button>
+                        <button id="btn-moodle-disconnect" class="btn btn-danger btn-sm" style="display:none;"><i class="fa-solid fa-unlink"></i> Disconnect</button>
+                        <span id="moodle-test-result" style="font-size:0.8rem;margin-left:0.5rem;align-self:center;"></span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slack -->
+            <section class="card integration-card slack">
+                <div class="card-header-simple">
+                    <h3><i class="fa-brands fa-slack" style="color:var(--slack-brand);margin-right:0.5rem;"></i>Slack</h3>
+                    <p class="section-desc">Receive Nibras notifications and use slash commands in your workspace</p>
+                </div>
+                <div class="integration-row">
+                    <div class="integration-left">
+                        <div class="integration-icon" style="background-color:var(--slack-brand);"><i class="fa-brands fa-slack"></i></div>
+                        <div class="integration-info">
+                            <h4>Slack</h4>
+                            <p id="slack-status-text">Not connected</p>
+                        </div>
+                    </div>
+                    <div class="integration-actions">
+                        <button id="btn-slack-connect" class="btn btn-primary"><i class="fa-brands fa-slack"></i> Connect Slack</button>
+                    </div>
+                </div>
+                <div class="integration-detail-area" id="slack-detail">
+                    <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
+                        <span id="slack-workspace" style="font-size:0.85rem;color:var(--text-secondary);">Workspace: <strong id="slack-workspace-name">-</strong></span>
+                        <span style="font-size:0.85rem;color:var(--text-secondary);">Slash commands: <code>/nibras status</code>, <code>/nibras leaderboard</code></span>
+                        <button id="btn-slack-disconnect" class="btn btn-danger btn-sm"><i class="fa-solid fa-unlink"></i> Disconnect</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Discord -->
+            <section class="card integration-card discord">
+                <div class="card-header-simple">
+                    <h3><i class="fa-brands fa-discord" style="color:var(--discord-brand);margin-right:0.5rem;"></i>Discord</h3>
+                    <p class="section-desc">Send Nibras notifications to your Discord channels via webhook</p>
+                </div>
+                <div class="integration-row">
+                    <div class="integration-left">
+                        <div class="integration-icon" style="background-color:var(--discord-brand);"><i class="fa-brands fa-discord"></i></div>
+                        <div class="integration-info">
+                            <h4>Discord</h4>
+                            <p id="discord-status-text">Not connected</p>
+                        </div>
+                    </div>
+                    <div class="integration-actions">
+                        <button id="btn-discord-toggle" class="btn btn-outline"><i class="fa-solid fa-sliders"></i> Configure</button>
+                    </div>
+                </div>
+                <div class="integration-detail-area" id="discord-detail">
+                    <div class="form-group" style="max-width:500px;">
+                        <label>Webhook URL</label>
+                        <input type="url" id="discord-webhook-url" class="form-control" placeholder="https://discord.com/api/webhooks/...">
+                    </div>
+                    <div>
+                        <label style="font-size:0.85rem;font-weight:500;display:block;margin-bottom:0.5rem;">Notify on these events:</label>
+                        <div class="channel-event-list" id="discord-events">
+                            <label class="channel-event-tag active" data-event="new_contest">
+                                <input type="checkbox" checked> <i class="fa-solid fa-trophy"></i> New Contest
+                            </label>
+                            <label class="channel-event-tag active" data-event="assignment_due">
+                                <input type="checkbox" checked> <i class="fa-solid fa-clock"></i> Assignment Due
+                            </label>
+                            <label class="channel-event-tag active" data-event="badge_earned">
+                                <input type="checkbox" checked> <i class="fa-solid fa-medal"></i> Badge Earned
+                            </label>
+                            <label class="channel-event-tag" data-event="grade_posted">
+                                <input type="checkbox"> <i class="fa-solid fa-file-lines"></i> Grade Posted
+                            </label>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;margin-top:1rem;flex-wrap:wrap;">
+                        <button id="btn-discord-test" class="btn btn-outline btn-sm"><i class="fa-solid fa-vial"></i> Test Webhook</button>
+                        <button id="btn-discord-save" class="btn btn-primary btn-sm"><i class="fa-solid fa-save"></i> Save</button>
+                        <button id="btn-discord-disconnect" class="btn btn-danger btn-sm" style="display:none;"><i class="fa-solid fa-unlink"></i> Disconnect</button>
+                        <span id="discord-test-result" style="font-size:0.8rem;margin-left:0.5rem;align-self:center;"></span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- GitHub -->
+            <section class="card integration-card github">
+                <div class="card-header-simple">
+                    <h3><i class="fa-brands fa-github" style="margin-right:0.5rem;"></i>GitHub</h3>
+                    <p class="section-desc">Track commits, PRs, and contributions from connected repositories</p>
+                </div>
+                <div class="integration-row">
+                    <div class="integration-left">
+                        <div class="integration-icon github-icon" style="background-color:var(--github-brand);color:white;"><i class="fa-brands fa-github"></i></div>
+                        <div class="integration-info">
+                            <h4>GitHub</h4>
+                            <p id="github-status-text">Checking...</p>
+                        </div>
+                    </div>
+                    <div class="integration-actions">
+                        <span id="github-webhook-badge" class="integration-status disconnected"><i class="fa-solid fa-circle"></i> Webhook Active</span>
+                        <a href="../Settings/settings.html" class="btn btn-outline btn-sm"><i class="fa-solid fa-gear"></i> Manage in Settings</a>
+                    </div>
+                </div>
+                <div class="integration-detail-area" id="github-detail">
+                    <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
+                        <img id="github-avatar" src="" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border-color);display:none;">
+                        <span id="github-connected-as" style="font-size:0.85rem;color:var(--text-secondary);"></span>
+                        <span style="font-size:0.8rem;color:var(--text-tertiary);">Webhook events: push, pull_request, issues</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- GitLab -->
+            <section class="card integration-card gitlab">
+                <div class="card-header-simple">
+                    <h3><i class="fa-brands fa-gitlab" style="color:var(--gitlab-brand);margin-right:0.5rem;"></i>GitLab</h3>
+                    <p class="section-desc">Receive pipeline and merge request events from GitLab</p>
+                </div>
+                <div class="integration-row">
+                    <div class="integration-left">
+                        <div class="integration-icon" style="background-color:var(--gitlab-brand);"><i class="fa-brands fa-gitlab"></i></div>
+                        <div class="integration-info">
+                            <h4>GitLab</h4>
+                            <p id="gitlab-status-text">Checking...</p>
+                        </div>
+                    </div>
+                    <div class="integration-actions">
+                        <span id="gitlab-webhook-badge" class="integration-status disconnected"><i class="fa-solid fa-circle"></i> Not Configured</span>
+                        <button id="btn-gitlab-configure" class="btn btn-outline btn-sm"><i class="fa-solid fa-sliders"></i> Configure</button>
+                    </div>
+                </div>
+                <div class="integration-detail-area" id="gitlab-detail">
+                    <div class="form-group" style="max-width:500px;">
+                        <label>GitLab Webhook URL <span style="font-weight:400;color:var(--text-tertiary);">(copy this into your GitLab project webhook settings)</span></label>
+                        <input type="text" id="gitlab-webhook-url" class="form-control" readonly value="https://nibras-backend.up.railway.app/api/webhooks/gitlab">
+                    </div>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+                        <label style="font-size:0.85rem;font-weight:500;">Events to receive:</label>
+                        <span style="font-size:0.8rem;color:var(--text-secondary);">Push events, Merge requests, Pipeline events</span>
+                        <button id="btn-gitlab-copy-url" class="btn btn-outline btn-sm"><i class="fa-solid fa-copy"></i> Copy URL</button>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <script src="../react-page-utils.js"></script>
+    <script>
+        if (window.NibrasShared?.session?.updateUserInfoDisplay) {
+            window.NibrasShared.session.updateUserInfoDisplay();
+        }
+    </script>
+    <script src="../react-bootstrap.js"></script>
+    <script src="./integrations.js?v=1"></script>
+    <script src="../services/gamification-ui.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

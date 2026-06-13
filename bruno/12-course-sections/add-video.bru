@@ -1,0 +1,33 @@
+meta {
+  name: Add Video
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{trackingBaseUrl}}/v1/tracking/courses/{{courseId}}/sections/{{sectionId}}/videos
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{trackingToken}}
+}
+
+body:json {
+  {
+    "title": "Lecture 1",
+    "description": "Course overview",
+    "provider": "youtube",
+    "externalId": "dQw4w9WgXcQ",
+    "durationSeconds": 600,
+    "sortOrder": 0
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.id) {
+    bru.setVar("videoId", res.body.id);
+    bru.setEnvVar("videoId", res.body.id);
+  }
+}

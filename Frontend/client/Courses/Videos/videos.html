@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesson Player</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+
+    <!-- Preserve courseId in navigation links -->
+    <script>
+    (function () {
+        const params = new URLSearchParams(window.location.search);
+        const courseId = params.get('courseId') || localStorage.getItem('selectedCourseId');
+        if (courseId) {
+            localStorage.setItem('selectedCourseId', courseId);
+        }
+
+        function updateLinks() {
+            const storedCourseId = localStorage.getItem('selectedCourseId');
+            if (!storedCourseId) return;
+
+            function withCourseId(path) {
+                if (path.includes('courseId=')) return path;
+                const separator = path.includes('?') ? '&' : '?';
+                return `${path}${separator}courseId=${encodeURIComponent(storedCourseId)}`;
+            }
+
+            const navLinks = [
+                { key: "courseContent", path: "../Course Description/courseContent.html" },
+                { key: "videos", path: "./videos.html" },
+                { key: "assignments", path: "../Assignments/Assignments.html" },
+                { key: "grades", path: "../Grades/grades.html" },
+            ];
+
+            navLinks.forEach(({ key, path }) => {
+                const el = document.querySelector(`[data-nav-link="${key}"]`);
+                if (el) el.setAttribute("href", withCourseId(path));
+            });
+
+            const backBtn = document.querySelector(".back-btn");
+            if (backBtn) backBtn.setAttribute("href", withCourseId("../courses.html"));
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', updateLinks);
+        } else {
+            updateLinks();
+        }
+    })();
+    </script>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CSS -->
+    <link rel="stylesheet" href="./videos.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>Course Content</h2>
+            <div class="sidebar-progress">
+                <span class="progress-text" id="progress-text">Loading...</span>
+                <div class="progress-bar-container">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../Course%20Description/courseContent.html" class="nav-link" data-nav-link="courseContent"><i class="fa-solid fa-book-open"></i> Course Overview</a></li>
+            <li class="nav-item"><a href="./videos.html" class="nav-link active" data-nav-link="videos"><i class="fa-solid fa-video"></i> Videos</a></li>
+            <li class="nav-item"><a href="../Assignments/Assignments.html" class="nav-link" data-nav-link="assignments"><i class="fa-regular fa-file-lines"></i> Assignments</a></li>
+            <li class="nav-item">
+</li>
+            <li class="nav-item"><a href="../Grades/grades.html" class="nav-link" data-nav-link="grades"><i class="fa-solid fa-award"></i> Grades</a></li>
+        </ul>
+
+        <div class="lectures-label"><i class="fa-solid fa-book-open"></i> LECTURES</div>
+
+        <!-- Dynamic Lecture List (Populated by JS) -->
+        <div class="lecture-list" id="lecture-list">
+            <div class="skeleton" style="height:48px; border-radius:6px; margin-bottom:4px;"></div>
+            <div class="skeleton" style="height:48px; border-radius:6px; margin-bottom:4px;"></div>
+            <div class="skeleton" style="height:48px; border-radius:6px; margin-bottom:4px;"></div>
+            <div class="skeleton" style="height:48px; border-radius:6px; margin-bottom:4px;"></div>
+            <div class="skeleton" style="height:48px; border-radius:6px; margin-bottom:4px;"></div>
+            <div class="skeleton" style="height:48px; border-radius:6px; margin-bottom:4px;"></div>
+        </div>
+
+        <div class="sidebar-footer">
+            <a href="../courses.html" class="back-btn">
+                <i class="fa-solid fa-arrow-left-long" style="margin-right:8px"></i>
+                Return to Courses
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        
+        <!-- TOP BAR (Toggle Button) -->
+        <div class="top-bar">
+            <!-- Breadcrumbs or Course Title could go here -->
+            <div class="breadcrumbs">
+                <span id="course-title-crumb">Loading...</span> / <span id="lesson-title-crumb">...</span>
+            </div>
+
+            <button class="theme-toggle-btn" id="themeBtn">
+                <i class="fa-solid fa-sun"></i> <span>Light Mode</span>
+            </button>
+        </div>
+        
+        <!-- Video Player Container -->
+        <div class="video-container">
+            <div class="video-screen">
+                <!-- Video player injected by JavaScript (HTML5 or YouTube iframe) -->
+            </div>
+            
+            <!-- Loading Spinner (Phase 2) -->
+            <div class="loading-spinner" id="loading-spinner"></div>
+            
+            <!-- Timeline Preview (Phase 2) -->
+            <div class="timeline-preview" id="timeline-preview">0:00</div>
+            
+            <!-- Caption Display (Phase 2) -->
+            <div class="caption-display" id="caption-display"></div>
+            
+            <!-- Custom Video Controls Overlay -->
+            <div class="video-controls">
+                <div class="progress-track" id="progress-track-element">
+                    <div class="progress-bar"></div>
+                </div>
+                <div class="controls-row">
+                    <div class="controls-left">
+                        <button class="control-btn" title="Play/Pause"><i class="fa-solid fa-pause"></i></button>
+                        <button class="control-btn" title="Mute/Unmute"><i class="fa-solid fa-volume-high"></i></button>
+                        <div class="time-display">
+                            <span id="current-time">0:00</span> / <span id="total-time">0:00</span>
+                        </div>
+                    </div>
+                    <div class="controls-right">
+                        <button class="control-btn quality-toggle-btn" title="Video Quality" id="quality-btn"><i class="fa-solid fa-cog"></i> <span>Auto</span></button>
+                        <div class="quality-menu" id="quality-menu"></div>
+                        <button class="control-btn" title="Captions" id="caption-btn"><i class="fa-solid fa-closed-captioning"></i></button>
+                        <button class="control-btn" title="Settings"><i class="fa-solid fa-gear"></i></button>
+                        <button class="control-btn" title="Fullscreen"><i class="fa-solid fa-expand"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lesson Meta Data -->
+        <div class="lesson-meta">
+            <h1 id="lesson-title-main">Loading...</h1>
+            <div class="meta-row">
+                <span id="lesson-duration">Duration: 00:00</span>
+                <span class="status-badge" id="lesson-status">
+                    <i class="fa-solid fa-circle-check"></i> Completed
+                </span>
+            </div>
+
+            <section class="lecture-videos-panel" id="lecture-videos-panel" hidden aria-label="Lecture videos">
+                <h2 class="lecture-videos-heading">Lecture Videos</h2>
+                <div class="lecture-videos-list" id="lecture-videos-list"></div>
+            </section>
+            
+            <!-- Navigation Buttons -->
+            <div class="nav-buttons">
+                <button class="nav-btn prev" id="prev-btn">
+                    <i class="fa-solid fa-backward-step"></i> <span id="prev-btn-text">Previous</span>
+                </button>
+                <button class="nav-btn next" id="next-btn">
+                    <span id="next-btn-text">Next</span> <i class="fa-solid fa-forward-step"></i>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+        <script src="../../../react-bootstrap.js"></script>
+    <script src="../courseData.js"></script>
+    <script src="./videos.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

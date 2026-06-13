@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assignments</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+
+    <!-- Preserve courseId in navigation links -->
+    <script>
+    (function () {
+        const params = new URLSearchParams(window.location.search);
+        const courseId = params.get('courseId') || localStorage.getItem('selectedCourseId');
+        if (courseId) {
+            localStorage.setItem('selectedCourseId', courseId);
+        }
+
+        function updateLinks() {
+            const storedCourseId = localStorage.getItem('selectedCourseId');
+            if (!storedCourseId) return;
+
+            function withCourseId(path) {
+                if (path.includes('courseId=')) return path;
+                const separator = path.includes('?') ? '&' : '?';
+                return `${path}${separator}courseId=${encodeURIComponent(storedCourseId)}`;
+            }
+
+            const navLinks = [
+                { key: "courseContent", path: "../Course Description/courseContent.html" },
+                { key: "videos", path: "../Videos/videos.html" },
+                { key: "assignments", path: "./Assignments.html" },
+                { key: "grades", path: "../Grades/grades.html" },
+            ];
+
+            navLinks.forEach(({ key, path }) => {
+                const el = document.querySelector(`[data-nav-link="${key}"]`);
+                if (el) el.setAttribute("href", withCourseId(path));
+            });
+
+            const backBtn = document.querySelector(".back-btn");
+            if (backBtn) backBtn.setAttribute("href", withCourseId("../courses.html"));
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', updateLinks);
+        } else {
+            updateLinks();
+        }
+    })();
+    </script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CSS -->
+    <link rel="stylesheet" href="./Assignments.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>Course Content</h2>
+            <div class="sidebar-progress">
+                <span class="progress-text">2 of 8 lectures completed</span>
+                <div class="progress-bar-container">
+                    <div class="progress-fill" style="width: 25%"></div>
+                </div>
+            </div>
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="../Course%20Description/courseContent.html" class="nav-link" data-nav-link="courseContent">
+                    <i class="fa-solid fa-book-open"></i> Course Overview
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="../Videos/videos.html" class="nav-link" data-nav-link="videos">
+                    <i class="fa-solid fa-video"></i> Videos
+                </a>
+            </li>
+            <li class="nav-item">
+                <!-- Active Class on Assignments -->
+                <a href="./Assignments.html" class="nav-link active" data-nav-link="assignments">
+                    <i class="fa-regular fa-file-lines"></i> Assignments
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="../Grades/grades.html" class="nav-link" data-nav-link="grades">
+                    <i class="fa-solid fa-award"></i> Grades
+                </a>
+            </li>
+        </ul>
+
+        <div class="sidebar-footer">
+        <a href="../courses.html" class="back-btn">
+                <i class="fa-solid fa-arrow-left-long" style="margin-right:8px"></i>
+                    Return to Courses
+        </a>
+            <div class="course-meta">
+                <h4>Loading course...</h4>
+                <span>Fall 2024 • Week 4</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        
+        <!-- TOP BAR (Toggle Button) -->
+        <div class="top-bar">
+            <!-- Breadcrumb or Spacer -->
+            <div class="breadcrumbs"></div> 
+            
+            <button class="theme-toggle-btn" id="themeBtn" type="button" aria-label="Toggle theme">
+                <i class="fa-solid fa-sun"></i> <span>Light Mode</span>
+            </button>
+        </div>
+
+        <!-- Assignments Header Area -->
+        <div class="page-header">
+            <div class="header-top-row">
+                <div class="header-titles">
+                    <h1>Assignments</h1>
+                    <p id="course-term">Loading course...</p>
+                </div>
+                <div class="header-stats">
+                    <div class="stat-line">
+                        <span id="completed-count">0 of 0 completed</span>
+                    </div>
+                    <div class="stat-line secondary">
+                        <i class="fa-solid fa-medal"></i> 
+                        <span id="points-count">0 / 0 points earned</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Large Progress Bar -->
+            <div class="header-progress-track">
+                <div class="header-progress-fill" id="overall-progress" role="progressbar" aria-label="Assignment progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="width: 0%"></div>
+            </div>
+        </div>
+        <div id="assignments-api-notice" role="status" aria-live="polite" hidden style="margin: 12px 0 18px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-secondary); color: var(--text-secondary); font-size: 13px;"></div>
+
+        <!-- Filter Tabs -->
+        <div class="filter-tabs">
+            <button class="filter-btn active" type="button" data-filter="all" aria-pressed="true">All</button>
+            <button class="filter-btn" type="button" data-filter="pending" aria-pressed="false">Pending</button>
+            <button class="filter-btn" type="button" data-filter="submitted" aria-pressed="false">Submitted</button>
+            <button class="filter-btn" type="button" data-filter="graded" aria-pressed="false">Graded</button>
+        </div>
+
+        <!-- Assignments List Container (Dynamic) -->
+        <div class="assignments-list" id="assignments-container" role="region" aria-live="polite" aria-label="Assignments list">
+            <div class="skeleton-card">
+                <div class="skeleton" style="width: 55%; height: 20px;"></div>
+                <div class="skeleton" style="width: 90%; height: 14px; margin-top: 14px;"></div>
+                <div class="skeleton" style="width: 65%; height: 14px;"></div>
+                <div class="skeleton" style="width: 40%; height: 14px;"></div>
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <div class="skeleton" style="width: 45%; height: 14px;"></div>
+                    <div class="skeleton" style="width: 80px; height: 34px; border-radius: 6px;"></div>
+                </div>
+            </div>
+            <div class="skeleton-card">
+                <div class="skeleton" style="width: 50%; height: 20px;"></div>
+                <div class="skeleton" style="width: 85%; height: 14px; margin-top: 14px;"></div>
+                <div class="skeleton" style="width: 60%; height: 14px;"></div>
+                <div class="skeleton" style="width: 35%; height: 14px;"></div>
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <div class="skeleton" style="width: 50%; height: 14px;"></div>
+                    <div class="skeleton" style="width: 80px; height: 34px; border-radius: 6px;"></div>
+                </div>
+            </div>
+            <div class="skeleton-card">
+                <div class="skeleton" style="width: 60%; height: 20px;"></div>
+                <div class="skeleton" style="width: 75%; height: 14px; margin-top: 14px;"></div>
+                <div class="skeleton" style="width: 55%; height: 14px;"></div>
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <div class="skeleton" style="width: 40%; height: 14px;"></div>
+                    <div class="skeleton" style="width: 80px; height: 34px; border-radius: 6px;"></div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+        <script src="../../../react-bootstrap.js"></script>
+    <script src="../courseData.js"></script>
+    <script src="./Assignments.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

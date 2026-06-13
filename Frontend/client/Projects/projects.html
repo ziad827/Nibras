@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NiBras - Projects</title>
+    <script src="../services/auth-guard.js" data-login="../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+    <link rel="stylesheet" href="projects.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="../Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo">
+        </div>
+        
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            <li class="nav-item"><a href="./projects.html" class="nav-link active"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../CLI/cli.html" class="nav-link"><i class="fa-solid fa-terminal"></i> CLI</a></li>
+            <li class="nav-item"><a href="../Competitions/Contests/contest.html" class="nav-link"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <li class="nav-item"><a href="../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <li class="nav-item"><a href="../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+
+        <div class="user-profile">
+            <div class="avatar-circle">U</div>
+            <div class="user-info">
+                <h4>usa</h4>
+                <span>Student</span>
+            </div>
+        </div>
+        <div class="reputation-box">
+            Reputation <span class="rep-badge">0</span>
+        </div>
+        <button class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <!-- TOP HEADER -->
+        <header class="top-header">
+            <nav class="top-nav">
+                <a href="./projects.html" class="nav-tab active">Projects</a>
+                <a href="./catalog.html" class="nav-tab">Catalog</a>
+                <a href="./planner.html" class="nav-tab">Planner</a>
+            </nav>
+            <div class="header-actions">
+                <button id="theme-toggle" class="icon-btn"><i class="fas fa-moon"></i></button>
+                <button class="icon-btn"><i class="fas fa-bell"></i></button>
+                <div class="profile-circle-small">U</div>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            <div id="projects-api-notice" style="padding: 1rem; text-align: center; color: var(--text-secondary); display: none;"></div>
+
+            <!-- COURSE SELECTOR (Always Visible) -->
+            <div class="course-selector-bar" id="course-selector-bar">
+                <label>COURSE</label>
+                <select id="course-select" style="flex:1;min-width:200px;padding:0.8rem;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-primary);font-size:0.85rem;font-weight:500;">
+                    <option value="">Loading courses...</option>
+                </select>
+                <span class="available-count" id="available-count"></span>
+            </div>
+
+            <!-- PROJECT HERO SECTION -->
+            <section class="project-hero" id="projects-hero" style="display:none">
+                <div class="hero-text">
+                    <span class="course-code" id="hero-course-code">CS 106A · YEAR 1 · FRESHMAN</span>
+                    <h1 id="hero-title">Programming Methodology</h1>
+                    <p id="hero-subtitle">Track milestones, submit work, and monitor your progress.</p>
+                </div>
+                <div class="hero-stats-card">
+                    <div class="quick-stats">
+                        <div class="stat-item"><strong id="stat-sections">0</strong><span>SECTIONS</span></div>
+                        <div class="stat-item"><strong id="stat-completed">0</strong><span>COMPLETED</span></div>
+                        <div class="stat-item accent"><strong id="stat-complete">0%</strong><span>COMPLETE</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- OVERALL PROGRESS BAR -->
+            <div class="overall-progress-container" id="progress-container" style="display:none">
+                <div class="progress-header">
+                    <span id="progress-title">CS 106A — Programming Methodology</span>
+                    <div class="progress-tags">
+                        <span class="tag-gray" id="progress-level">Freshman</span>
+                        <span class="tag-outline" id="progress-status">Published</span>
+                        <span class="progress-pct" id="progress-pct">0%</span>
+                    </div>
+                </div>
+                <div class="progress-track-main">
+                    <div class="progress-fill-main" id="progress-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <!-- MAIN GRID LAYOUT -->
+            <div class="project-grid" id="project-grid" style="display:none">
+                <!-- LEFT COLUMN -->
+                <div class="grid-left">
+                    <!-- Intro Card -->
+                    <div class="project-card" id="intro-card">
+                        <span class="badge-published" id="project-badge">PUBLISHED</span>
+                        <p class="project-desc" id="project-desc">Introduction to programming using Python. Covers variables, control flow, functions, and object-oriented programming. The entry point to the Stanford CS curriculum.</p>
+                        <div class="project-meta" id="project-meta">
+                            <span class="meta-pill">WEIGHT <strong id="meta-weight">100 pts rubric</strong></span>
+                            <span class="meta-pill">TYPE <strong id="meta-type">Individual</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Milestones -->
+                    <div class="milestones-section">
+                        <div class="section-title">
+                            <h3>Milestones</h3>
+                            <span class="count-text" id="milestone-count">0 / 0 complete</span>
+                        </div>
+                        <div class="milestone-list" id="milestone-list">
+                            <div class="skeleton-milestone">
+                                <div class="skeleton skeleton-circle"></div>
+                                <div class="skeleton-lines">
+                                    <div class="skeleton" style="width: 60%; height: 16px;"></div>
+                                    <div class="skeleton" style="width: 40%; height: 12px;"></div>
+                                </div>
+                            </div>
+                            <div class="skeleton-milestone">
+                                <div class="skeleton skeleton-circle"></div>
+                                <div class="skeleton-lines">
+                                    <div class="skeleton" style="width: 55%; height: 16px;"></div>
+                                    <div class="skeleton" style="width: 35%; height: 12px;"></div>
+                                </div>
+                            </div>
+                            <div class="skeleton-milestone">
+                                <div class="skeleton skeleton-circle"></div>
+                                <div class="skeleton-lines">
+                                    <div class="skeleton" style="width: 65%; height: 16px;"></div>
+                                    <div class="skeleton" style="width: 45%; height: 12px;"></div>
+                                </div>
+                            </div>
+                            <div class="skeleton-milestone">
+                                <div class="skeleton skeleton-circle"></div>
+                                <div class="skeleton-lines">
+                                    <div class="skeleton" style="width: 50%; height: 16px;"></div>
+                                    <div class="skeleton" style="width: 30%; height: 12px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Final Submission -->
+                    <div class="project-card final-submission">
+                        <div class="card-header-row">
+                            <h3>Final Submission</h3>
+                            <span class="status-open" id="final-status">Open</span>
+                        </div>
+                        <p id="final-desc">Submit your final project for grading. Provide your GitHub repository link below.</p>
+                        <button class="btn-submit-gradient" onclick="openSubmissionModal()">
+                            <i class="fas fa-upload"></i> Submit Final Project
+                        </button>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN -->
+                <div class="grid-right">
+                    <!-- Academic Standing -->
+                    <div class="project-card">
+                        <div class="card-header-row">
+                            <h3>Academic Standing</h3>
+                            <span class="tag-gray" id="standing-label">Year 1 · Freshman</span>
+                        </div>
+                        <div class="standing-tracker" id="standing-tracker">
+                            <div class="step active"><span>1</span><p>Yr 1 Freshman</p></div>
+                            <div class="step"><span>2</span><p>Yr 2 Sophomore</p></div>
+                            <div class="step"><span>3</span><p>Yr 3 Junior</p></div>
+                            <div class="step"><span>4</span><p>Yr 4 Senior</p></div>
+                        </div>
+                        <p class="standing-hint" id="standing-hint">Complete all Year 1 · Freshman projects to advance to Year 2 · Sophomore.</p>
+                    </div>
+
+                    <!-- Detailed Progress -->
+                    <div class="project-card">
+                        <div class="card-header-row">
+                            <h3>Progress</h3>
+                            <span class="progress-pct-large" id="progress-pct-large">0%</span>
+                        </div>
+                        <div class="progress-legend">
+                            <span><i class="fas fa-circle" style="color: #22c55e"></i> Done (<span id="legend-approved">0</span>)</span>
+                            <span><i class="fas fa-circle" style="color: #a855f7"></i> In Progress (<span id="legend-review">0</span>)</span>
+                            <span><i class="fas fa-circle" style="color: #94a3b8"></i> Remaining (<span id="legend-open">0</span>)</span>
+                        </div>
+                        <div class="progress-grid-stats">
+                            <div class="stat-box">
+                                <label>STATUS</label>
+                                <strong id="stat-time">—</strong>
+                            </div>
+                            <div class="stat-box">
+                                <label>DONE</label>
+                                <strong id="stat-approved-val">0 / 0</strong>
+                            </div>
+                            <div class="stat-box">
+                                <label>IN PROGRESS</label>
+                                <strong id="stat-review-val">0</strong>
+                            </div>
+                            <div class="stat-box">
+                                <label>REMAINING</label>
+                                <strong id="stat-open-val">0</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grading Breakdown -->
+                    <div class="project-card">
+                        <h3>Grading Breakdown</h3>
+                        <div class="grading-item">
+                            <div class="grade-label"><span>Correctness</span><span>50%</span></div>
+                            <div class="progress-track"><div class="progress-fill" style="width: 50%;"></div></div>
+                        </div>
+                        <div class="grading-item">
+                            <div class="grade-label"><span>Code Quality & Decomposition</span><span>30%</span></div>
+                            <div class="progress-track"><div class="progress-fill" style="width: 30%;"></div></div>
+                        </div>
+                        <div class="grading-item">
+                            <div class="grade-label"><span>Write-up & Explanation</span><span>20%</span></div>
+                            <div class="progress-track"><div class="progress-fill" style="width: 20%;"></div></div>
+                        </div>
+                    </div>
+
+                    <!-- Resources -->
+                    <div class="project-card resources-card">
+                        <h3>Resources</h3>
+                        <div class="empty-state">
+                            <i class="fas fa-link"></i>
+                            <p>No resources linked for this project.</p>
+                        </div>
+                    </div>
+
+                    <!-- Webhook Activity Feed -->
+                    <div class="project-card webhook-card">
+                        <div class="card-header-row">
+                            <h3>Webhook Activity</h3>
+                            <span class="webhook-badge-live" id="webhook-badge"><i class="fa-solid fa-circle"></i> Live</span>
+                        </div>
+                        <div class="webhook-feed" id="webhook-feed">
+                            <div class="skeleton-webhook">
+                                <div class="skeleton skeleton-icon"></div>
+                                <div class="skeleton-wh-body">
+                                    <div class="skeleton" style="width: 65%; height: 14px;"></div>
+                                    <div class="skeleton" style="width: 40%; height: 11px;"></div>
+                                    <div class="skeleton" style="width: 25%; height: 10px;"></div>
+                                </div>
+                            </div>
+                            <div class="skeleton-webhook">
+                                <div class="skeleton skeleton-icon"></div>
+                                <div class="skeleton-wh-body">
+                                    <div class="skeleton" style="width: 55%; height: 14px;"></div>
+                                    <div class="skeleton" style="width: 50%; height: 11px;"></div>
+                                    <div class="skeleton" style="width: 30%; height: 10px;"></div>
+                                </div>
+                            </div>
+                            <div class="skeleton-webhook">
+                                <div class="skeleton skeleton-icon"></div>
+                                <div class="skeleton-wh-body">
+                                    <div class="skeleton" style="width: 70%; height: 14px;"></div>
+                                    <div class="skeleton" style="width: 35%; height: 11px;"></div>
+                                    <div class="skeleton" style="width: 20%; height: 10px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="projects-empty" style="display:none;text-align:center;padding:4rem 2rem;color:var(--text-secondary);">
+                <i class="fas fa-folder-open" style="font-size:3rem;margin-bottom:1rem;display:block;"></i>
+                <h3 style="margin-bottom:0.5rem;">No Projects Found</h3>
+                <p>Select a course from the dropdown to view projects.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Submission Modal -->
+    <div class="modal-overlay" id="submissionModal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Submit Final Project</h2>
+                <button class="close-btn" onclick="closeSubmissionModal()" type="button">&times;</button>
+            </div>
+            <form id="finalSubmitForm">
+                <div id="milestone-form-content">
+                    <div class="form-group">
+                        <label for="submission_type">Submission Type</label>
+                        <select name="submission_type" id="submission_type" required>
+                            <option value="github">GitHub Repository Link</option>
+                            <option value="link">External Link</option>
+                            <option value="text">Text</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="resource_link">URL / Repo / Text</label>
+                        <input type="text" name="resource_link" id="resource_link" placeholder="https://github.com/..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="notes">Notes to Reviewer (Optional)</label>
+                        <textarea name="notes" id="notes" rows="4" placeholder="Any specific areas you want feedback on?"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div id="submission-status-message" role="status" aria-live="polite" style="flex:1;font-size:12px;color:var(--text-secondary);"></div>
+                    <button type="submit" id="submit-final-btn" class="btn btn-primary">Submit Project</button>
+                    <button type="button" class="btn btn-outline" onclick="closeSubmissionModal()">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../react-page-utils.js"></script>
+    <script>
+        if (window.NibrasShared?.session?.updateUserInfoDisplay) {
+            window.NibrasShared.session.updateUserInfoDisplay();
+        }
+    </script>
+    <script src="../config.js"></script>
+    <script src="../services/api.js"></script>
+    <script src="../react-bootstrap.js"></script>
+    <script src="../Courses/courseData.js"></script>
+    <script src="../Courses/Projects/projectsApi.js"></script>
+    <script src="./projects.js"></script>
+    <script src="../services/gamification-ui.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

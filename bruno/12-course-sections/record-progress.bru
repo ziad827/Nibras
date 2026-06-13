@@ -1,0 +1,22 @@
+meta {
+  name: Record Progress
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{trackingBaseUrl}}/v1/tracking/videos/{{videoId}}/progress
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{trackingToken}}
+}
+
+body:json {
+  {
+    "watched": true,
+    "watchedProgress": 1
+  }
+}

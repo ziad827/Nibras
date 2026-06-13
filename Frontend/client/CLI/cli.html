@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NiBras - CLI Guide</title>
+    <script>
+    (function () { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
+    </script>
+    <link rel="stylesheet" href="cli.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo-area"><img src="../Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo"></div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            <li class="nav-item"><a href="../Projects/projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="./cli.html" class="nav-link active"><i class="fa-solid fa-terminal"></i> CLI</a></li>
+            <li class="nav-item"><a href="../Competitions/Contests/contest.html" class="nav-link"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <li class="nav-item"><a href="../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <li class="nav-item"><a href="../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+        <div class="user-profile"><div class="avatar-circle">U</div><div class="user-info"><h4>User</h4><span>Student</span></div></div>
+        <div class="reputation-box">Reputation <span class="rep-badge">0</span></div>
+        <a href="../Login/loginPage/login.html" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="search-bar-global"><i class="fa-solid fa-magnifying-glass"></i><input type="text" placeholder="Search CLI commands..."></div>
+            <div class="header-actions"><button id="theme-toggle" class="icon-btn"><i class="fa-regular fa-moon"></i></button><button class="icon-btn"><i class="fa-regular fa-bell"></i></button><div class="profile-circle-small">U</div></div>
+        </header>
+
+        <div class="content-wrapper">
+            <div class="cli-header">
+                <h1><i class="fa-solid fa-terminal" style="color:var(--accent-blue);margin-right:10px;"></i> CLI Setup Guide</h1>
+                <p>Install the Nibras CLI, authenticate with GitHub, and submit your first project — step by step.</p>
+                <div class="cli-progress"><span id="cli-step-count">0</span> / 10 done</div>
+            </div>
+
+            <div class="cli-steps" id="cli-steps">
+
+                <!-- Step 01 -->
+                <div class="cli-step" data-step="1">
+                    <div class="step-head" onclick="toggleStep(1)"><span class="step-num">01</span><div class="step-info"><h3>Prerequisites</h3><p>Node.js ≥ 18, npm ≥ 9, and git</p></div><span class="step-check" id="check-1"><i class="fa-regular fa-circle"></i></span></div>
+                    <div class="step-body" id="body-1">
+                        <p>You need <strong>Node.js ≥ 18</strong>, <strong>npm ≥ 9</strong>, and <strong>git</strong> before installing the CLI. Follow the steps for your OS.</p>
+                        <div class="video-embed" style="margin-bottom:1rem;position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;"><iframe style="position:absolute;top:0;left:0;width:100%;height:100%;" src="https://www.youtube.com/embed/EPtpi7PvtII" title="Install Node.js, NPM &amp; Git" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+
+                        <div class="os-tabs"><button class="os-tab active" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" onclick="switchOs('windows', this)">Windows</button></div>
+
+                        <!-- macOS -->
+                        <div class="os-content macos">
+                            <p style="font-size:0.9rem;margin-bottom:10px;"><strong>① Install Node.js ≥ 18 + npm</strong></p>
+                            <div class="code-block"><pre><code># Recommended — nvm (no sudo, no permission issues)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.zshrc          # zsh default on macOS 10.15+ — use ~/.bashrc for bash
+nvm install --lts
+nvm use --lts
+nvm alias default node
+
+# Alternative — Homebrew
+# brew install node</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            <div class="note-box" style="background:rgba(34,197,94,0.1);border-left:4px solid #22c55e;padding:0.75rem 1rem;border-radius:8px;margin-bottom:12px;font-size:0.85rem;color:var(--text-secondary);">nvm installs Node.js entirely in your home directory — no <code>sudo</code> or permission fixes ever needed. If you already have a system Node.js and hit <code>EACCES</code>, see step 10.</div>
+                            <p style="font-size:0.9rem;margin:12px 0 8px;"><strong>② Install Git</strong></p>
+                            <div class="code-block"><pre><code># Xcode Command Line Tools (built-in to macOS)
+xcode-select --install
+
+# Or via Homebrew:
+# brew install git</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            <p style="font-size:0.9rem;margin:12px 0 8px;"><strong>③ Verify all three tools</strong></p>
+                            <div class="code-block"><pre><code>node --version   # must be v18.x or higher
+npm --version    # must be 9.x or higher
+git --version</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            <p style="font-size:0.85rem;color:var(--text-secondary);">All three commands must return version numbers. If any fails, revisit the install step above and open a <strong>new terminal</strong> after installing.</p>
+                        </div>
+
+                        <!-- Linux -->
+                        <div class="os-content linux" style="display:none;">
+                            <p style="font-size:0.9rem;margin-bottom:10px;"><strong>① Install Node.js ≥ 18 + npm</strong></p>
+                            <div class="code-block"><pre><code># Recommended — nvm (no sudo, no permission issues)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc         # or ~/.zshrc if you use zsh
+nvm install --lts
+nvm use --lts
+nvm alias default node
+
+# Alternative — apt (Ubuntu/Debian)
+# curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+# sudo apt-get install -y nodejs</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            <div class="note-box" style="background:rgba(34,197,94,0.1);border-left:4px solid #22c55e;padding:0.75rem 1rem;border-radius:8px;margin-bottom:12px;font-size:0.85rem;color:var(--text-secondary);">nvm installs Node.js entirely in your home directory — no <code>sudo</code> or permission fixes ever needed. If you already have a system Node.js and hit <code>EACCES</code>, see step 10.</div>
+                            <p style="font-size:0.9rem;margin:12px 0 8px;"><strong>② Install Git</strong></p>
+                            <div class="code-block"><pre><code># Debian / Ubuntu
+sudo apt-get install -y git
+
+# Fedora / RHEL
+# sudo dnf install -y git
+
+# Arch Linux
+# sudo pacman -S git</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            <p style="font-size:0.9rem;margin:12px 0 8px;"><strong>③ Verify all three tools</strong></p>
+                            <div class="code-block"><pre><code>node --version   # must be v18.x or higher
+npm --version    # must be 9.x or higher
+git --version</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            <p style="font-size:0.85rem;color:var(--text-secondary);">All three commands must return version numbers. If any fails, revisit the install step above and open a <strong>new terminal</strong> after installing.</p>
+                        </div>
+
+                        <!-- Windows -->
+                        <div class="os-content windows" style="display:none;">
+                            <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;">
+                                <strong style="color:#22c55e;">Recommended For Windows</strong>
+                                <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:6px;">Use one shell and keep using it.</p>
+                            </div>
+
+                            <div class="win-tabs" style="display:flex;gap:8px;margin-bottom:12px;">
+                                <button class="os-tab active" onclick="switchWinShell('powershell', this)">PowerShell</button>
+                                <button class="os-tab" onclick="switchWinShell('gitbash', this)">Git Bash</button>
+                            </div>
+
+                            <div class="win-shell powershell">
+                                <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:10px;">Open Windows Terminal and choose <strong>PowerShell</strong>. Install Node.js, then install Git. Close that terminal and open a <strong>new</strong> PowerShell window. Run the verify commands below before installing <code>nibras</code>.</p>
+                            </div>
+                            <div class="win-shell gitbash" style="display:none;">
+                                <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:10px;">Open Windows Terminal and choose <strong>Git Bash</strong>. Install Node.js, then install Git. Close that terminal and open a <strong>new</strong> Git Bash window. Run the verify commands below before installing <code>nibras</code>.</p>
+                            </div>
+
+                            <p style="font-size:0.9rem;margin-bottom:10px;"><strong>① Install Node.js ≥ 18 + npm</strong></p>
+                            <div class="code-block win-shell powershell"><pre><code># Option A — winget (Windows 10 1709+ / Windows 11)
+winget install OpenJS.NodeJS.LTS
+
+# Option B — download the official .msi from nodejs.org
+# (includes npm, adds Node.js to PATH automatically)</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            <div class="code-block win-shell gitbash" style="display:none;"><pre><code># Option A — winget (Windows 10 1709+ / Windows 11)
+winget install OpenJS.NodeJS.LTS
+
+# Option B — download the official .msi from nodejs.org
+# (includes npm, adds Node.js to PATH automatically)</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            <div class="note-box" style="background:rgba(245,158,11,0.1);border-left:4px solid #f59e0b;padding:0.75rem 1rem;border-radius:8px;margin-bottom:12px;font-size:0.85rem;color:var(--text-secondary);">After installing, close and reopen your terminal so the updated PATH takes effect before running npm.</div>
+
+                            <p style="font-size:0.9rem;margin:12px 0 8px;"><strong>② Install Git</strong></p>
+                            <div class="code-block"><pre><code>winget install Git.Git</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">Or download the installer from <strong>git-scm.com/download/win</strong>. During setup, select "Git from the command line and also from 3rd-party software".</p>
+
+                            <p style="font-size:0.9rem;margin:12px 0 8px;"><strong>③ Verify all three tools</strong></p>
+                            <div class="code-block"><pre><code>node --version   # must be v18.x or higher
+npm --version    # must be 9.x or higher
+git --version</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">All three commands must return version numbers. If any fails, revisit the install step above and open a <strong>new terminal</strong> after installing.</p>
+
+                            <p style="font-size:0.9rem;margin:12px 0 8px;"><strong>④ Allow PowerShell scripts (if blocked)</strong></p>
+                            <div class="note-box" style="background:rgba(245,158,11,0.1);border-left:4px solid #f59e0b;padding:0.75rem 1rem;border-radius:8px;margin-bottom:12px;font-size:0.85rem;color:var(--text-secondary);">
+                                <div class="code-block" style="margin-top:8px;margin-bottom:8px;"><pre><code>Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                                Skip this step if <code>npm --version</code> already runs without error.
+                            </div>
+                        </div>
+
+                        <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px;padding:1rem;background:var(--bg-body);border-radius:8px;border:1px solid var(--border-color);">
+                            <span><i class="fa-regular fa-circle" style="color:var(--text-tertiary);margin-right:8px;"></i> Node.js ≥ 18 — <code>node --version</code> returns v18 or higher</span>
+                            <span><i class="fa-regular fa-circle" style="color:var(--text-tertiary);margin-right:8px;"></i> npm ≥ 9 — <code>npm --version</code> returns 9 or higher</span>
+                            <span><i class="fa-regular fa-circle" style="color:var(--text-tertiary);margin-right:8px;"></i> Git — <code>git --version</code> returns any version</span>
+                            <span><i class="fa-regular fa-circle" style="color:var(--text-tertiary);margin-right:8px;"></i> GitHub account — you will authenticate with GitHub OAuth in step 03</span>
+                        </div>
+                        <button class="btn-mark-done" onclick="markStep(1)">Mark as complete</button>
+                    </div>
+                </div>
+
+                <!-- Step 02 -->
+                <div class="cli-step" data-step="2">
+                    <div class="step-head" onclick="toggleStep(2)"><span class="step-num">02</span><div class="step-info"><h3>Install the CLI</h3><p>Install the current CLI release globally</p></div><span class="step-check" id="check-2"><i class="fa-regular fa-circle"></i></span></div>
+                    <div class="step-body" id="body-2">
+                        <p>Install the CLI directly from the GitHub release. This makes the <code>nibras</code> command available everywhere in your terminal.</p>
+
+                        <div class="note-box" style="background:rgba(59,130,246,0.1);border-left:4px solid #3b82f6;padding:0.75rem 1rem;border-radius:8px;margin-bottom:12px;font-size:0.85rem;color:var(--text-secondary);">
+                            <strong>Local full-service repo:</strong> from the Nibras monorepo root run
+                            <code>npm run build:cli:package && npm link</code> to install the in-repo CLI against the gateway at <code>http://localhost:8080</code>.
+                        </div>
+
+                        <div class="os-tabs"><button class="os-tab active" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" onclick="switchOs('windows', this)">Windows</button></div>
+
+                        <div class="os-content macos">
+                            <div class="code-block"><pre><code>npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:12px;">If the install fails with <code>EEXIST</code> or <code>ENOTDIR</code>, you have a stale global link. Remove it and reinstall:</p>
+                            <div class="code-block"><pre><code>npm uninstall -g nibras @nibras/cli || true
+rm -f "$(npm config get prefix)/bin/nibras"
+rm -rf "$(npm root -g)/nibras" "$(npm root -g)/@nibras/cli"
+npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                        </div>
+                        <div class="os-content linux" style="display:none;">
+                            <div class="code-block"><pre><code>npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:12px;">If the install fails with <code>EEXIST</code> or <code>ENOTDIR</code>, you have a stale global link. Remove it and reinstall:</p>
+                            <div class="code-block"><pre><code>npm uninstall -g nibras @nibras/cli || true
+rm -f "$(npm config get prefix)/bin/nibras"
+rm -rf "$(npm root -g)/nibras" "$(npm root -g)/@nibras/cli"
+npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                        </div>
+                        <div class="os-content windows" style="display:none;">
+                            <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:10px;">Run this in the <strong>same Git Bash window</strong> you verified above. If <code>nibras</code> is not recognized afterwards, close the terminal and open a fresh one before troubleshooting anything else.</p>
+                            <div class="code-block"><pre><code>npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                        </div>
+
+                        <p>Verify: <code>nibras --version</code> should start with <code>v1.0.2</code>, for example <code>v1.0.2</code>.</p>
+                        <p style="margin-top:10px;font-size:0.85rem;color:var(--text-secondary);">To reinstall later: <code>nibras update --version v1.0.2</code>. To remove the CLI: <code>nibras uninstall</code>.<br>Use <code>nibras update --check</code> to compare your installed version against the latest GitHub release before updating.</p>
+
+                        <div class="os-content windows" style="display:none;margin-top:12px;">
+                            <div class="note-box" style="background:rgba(220,38,38,0.1);border-left:4px solid #ef4444;padding:0.75rem 1rem;border-radius:8px;font-size:0.85rem;color:var(--text-secondary);">
+                                <strong>If the install fails with <code>EEXIST</code> or <code>ENOTDIR</code></strong>, you have a stale global link. Remove it and reinstall:
+                                <div style="display:flex;gap:8px;margin-top:8px;">
+                                    <button class="os-tab active" onclick="var p=this.parentElement.parentElement;p.querySelectorAll('.cleanup-shell').forEach(function(c){c.style.display='none'});p.querySelector('.cleanup-shell.powershell').style.display='';p.querySelectorAll('.os-tab').forEach(function(t){t.classList.remove('active')});this.classList.add('active')">PowerShell</button>
+                                    <button class="os-tab" onclick="var p=this.parentElement.parentElement;p.querySelectorAll('.cleanup-shell').forEach(function(c){c.style.display='none'});p.querySelector('.cleanup-shell.gitbash').style.display='';p.querySelectorAll('.os-tab').forEach(function(t){t.classList.remove('active')});this.classList.add('active')">Git Bash</button>
+                                </div>
+                                <div class="code-block cleanup-shell powershell" style="margin-top:8px;"><pre><code>npm uninstall -g nibras @nibras/cli
+Remove-Item "$((npm config get prefix).Trim())\nibras.cmd" -Force -ErrorAction SilentlyContinue
+Remove-Item "$((npm config get prefix).Trim())\nibras" -Force -ErrorAction SilentlyContinue
+Remove-Item "$((npm root -g).Trim())\nibras" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "$((npm root -g).Trim())\@nibras\cli" -Recurse -Force -ErrorAction SilentlyContinue
+npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                                <div class="code-block cleanup-shell gitbash" style="display:none;margin-top:8px;"><pre><code>npm uninstall -g nibras @nibras/cli || true
+prefix="$(npm config get prefix)"
+rm -f "$prefix/nibras" "$prefix/nibras.cmd"
+rm -rf "$(npm root -g)/nibras" "$(npm root -g)/@nibras/cli"
+npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                        </div>
+                        <button class="btn-mark-done" onclick="markStep(2)">Mark as complete</button>
+                    </div>
+                </div>
+
+                <!-- Step 03 -->
+                <div class="cli-step" data-step="3">
+                    <div class="step-head" onclick="toggleStep(3)"><span class="step-num">03</span><div class="step-info"><h3>Authenticate with GitHub</h3><p>Log in with your GitHub account</p></div><span class="step-check" id="check-3"><i class="fa-regular fa-circle"></i></span></div>
+                    <div class="step-body" id="body-3">
+                        <p>Use an explicit <code>--api-base-url</code> for hosted onboarding so the CLI targets this deployment instead of the local dev default at <code>http://127.0.0.1:4848</code>. The login flow prints a one-time URL and short code, then tries to open the browser automatically unless you pass <code>--no-open</code>.</p>
+
+                        <div class="os-tabs"><button class="os-tab active" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" onclick="switchOs('windows', this)">Windows</button></div>
+
+                        <div class="os-content windows" style="display:none;">
+                            <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:10px;">On Windows, the most common path is: run the login command in <strong>Git Bash</strong>, let the browser open, approve GitHub, then return to the same terminal window and wait for the success box.</p>
+                            <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:10px;">If the browser does not open, rerun with <code>nibras login --api-base-url https://nibras-api.fly.dev --no-open</code> and paste the printed URL into any browser manually.</p>
+                        </div>
+
+                        <div class="code-block"><pre><code>nibras login --api-base-url https://nibras-api.fly.dev</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+
+                        <div class="term-output" style="background:#1e1e1e;border-radius:8px;padding:1rem;margin:12px 0;font-family:monospace;font-size:0.8rem;color:#ccc;line-height:1.6;"><pre style="margin:0;white-space:pre-wrap;">
+╭──────────────────────────────────────────────────────────────╮
+│  ℹ  Authorize this device                                   │
+│  Open in browser: https://nibras-web.fly.dev/dev/approve?...│
+│  Code:            ABCD-1234                                 │
+│  Browser launch: automatic                                  │
+╰──────────────────────────────────────────────────────────────╯
+  ⠋ Waiting for browser authorization…
+╭─────────────────────────────────────────╮
+│  ✓  Authenticated as Zied               │
+│  User:    Zied                          │
+│  GitHub:  Zied                          │
+│  API:     https://nibras-api.fly.dev    │
+╰─────────────────────────────────────────╯</pre></div>
+
+                        <p>After login, verify with <code>nibras whoami</code> to confirm the active session and linked GitHub account.</p>
+                        <p style="font-size:0.85rem;color:var(--text-secondary);">Credentials are saved in <code>~/Library/Application Support/nibras/config.json</code> (macOS), <code>~/.config/nibras/config.json</code> (Linux), or <code>%APPDATA%\nibras\config.json</code> (Windows).</p>
+                        <button class="btn-mark-done" onclick="markStep(3)">Mark as complete</button>
+                    </div>
+                </div>
+
+                <!-- Step 04 -->
+                <div class="cli-step" data-step="4">
+                    <div class="step-head" onclick="toggleStep(4)"><span class="step-num">04</span><div class="step-info"><h3>Create a Course</h3><p>Set up your course and projects on the web dashboard</p></div><span class="step-check" id="check-4"><i class="fa-regular fa-circle"></i></span></div>
+                    <div class="step-body" id="body-4">
+                        <p>Before students can use the CLI, create a course and at least one project from the web dashboard.</p>
+                        <ol style="margin:1rem 0;padding-left:1.5rem;font-size:0.9rem;color:var(--text-secondary);line-height:1.8;">
+                            <li>Go to <strong>Instructor → New Course</strong></li>
+                            <li>Enter the course code (e.g. <code>cs101</code>), title, and term</li>
+                            <li>Add a project with an allowed file path pattern</li>
+                            <li>Copy the project key (e.g. <code>cs101/assignment-1</code>)</li>
+                        </ol>
+                        <button class="btn-mark-done" onclick="markStep(4)">Mark as complete</button>
+                    </div>
+                </div>
+                <div class="cli-step" data-step="5">
+                    <div class="step-head" onclick="toggleStep(5)"><span class="step-num">05</span><div class="step-info"><h3>Set Up a Project</h3><p>Bootstrap a local project from a project key</p></div><span class="step-check" id="check-5"><i class="fa-regular fa-circle"></i></span></div>
+                    <div class="step-body" id="body-5">
+                        <p>Run <code>nibras setup</code> with your project key. This creates the project manifest and starter files.</p>
+
+                        <div class="code-block"><pre><code>nibras setup --project your-course/project-key</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+
+                        <div class="os-tabs"><button class="os-tab active" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" onclick="switchOs('windows', this)">Windows</button></div>
+
+                        <div class="os-content macos">
+                            <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;">Specify a target directory: <code>nibras setup --project cs101/a1 --dir ~/projects/a1</code></p>
+                            <div class="term-output" style="background:#1e1e1e;border-radius:8px;padding:1rem;margin:12px 0;font-family:monospace;font-size:0.8rem;color:#ccc;line-height:1.6;"><pre style="margin:0;white-space:pre-wrap;">
+  ⠋ Setting up project cs101/assignment-1…
+  ⠋ Writing project manifest…
+  ✓ Project set up
+
+╭────────────────────────────────────────────╮
+│  ✓  Project ready: cs101/assignment-1      │
+│  Project: cs101/assignment-1               │
+│  Repo:    nibras-platform/cs101-Zied       │
+│  Next steps:                               │
+│    nibras task    — view task instructions │
+│    nibras test    — run local tests        │
+│    nibras submit  — submit your solution   │
+╰────────────────────────────────────────────╯</pre></div>
+                            <p style="font-size:0.85rem;color:var(--text-secondary);">For bundle-backed projects, setup may download starter files and create the initial commit. If the target directory already has <code>.git</code>, setup refreshes the <code>.nibras</code> metadata instead of re-extracting starter files.</p>
+                        </div>
+                        <div class="os-content linux" style="display:none;">
+                            <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;">Specify a target directory: <code>nibras setup --project cs101/a1 --dir ~/projects/a1</code></p>
+                            <div class="term-output" style="background:#1e1e1e;border-radius:8px;padding:1rem;margin:12px 0;font-family:monospace;font-size:0.8rem;color:#ccc;line-height:1.6;"><pre style="margin:0;white-space:pre-wrap;">
+  ⠋ Setting up project cs101/assignment-1…
+  ⠋ Writing project manifest…
+  ✓ Project set up
+
+╭────────────────────────────────────────────╮
+│  ✓  Project ready: cs101/assignment-1      │
+│  Project: cs101/assignment-1               │
+│  Repo:    nibras-platform/cs101-Zied       │
+│  Next steps:                               │
+│    nibras task    — view task instructions │
+│    nibras test    — run local tests        │
+│    nibras submit  — submit your solution   │
+╰────────────────────────────────────────────╯</pre></div>
+                            <p style="font-size:0.85rem;color:var(--text-secondary);">For bundle-backed projects, setup may download starter files and create the initial commit. If the target directory already has <code>.git</code>, setup refreshes the <code>.nibras</code> metadata instead of re-extracting starter files.</p>
+                        </div>
+                        <div class="os-content windows" style="display:none;">
+                            <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;">Specify a target directory: <code>nibras setup --project cs101/a1 --dir /c/projects/a1</code></p>
+                        </div>
+
+                        <p>View the task instructions: <code>nibras task</code></p>
+
+                        <div class="term-output" style="background:#1e1e1e;border-radius:8px;padding:1rem;margin:12px 0;font-family:monospace;font-size:0.8rem;color:#ccc;line-height:1.6;"><pre style="margin:0;white-space:pre-wrap;">
+  ⠋ Setting up project cs101/assignment-1…
+  ⠋ Writing project manifest…
+  ✓ Project set up
+
+╭────────────────────────────────────────────╮
+│  ✓  Project ready: cs101/assignment-1      │
+│  Project: cs101/assignment-1               │
+│  Next steps:                               │
+│    nibras task    — view task instructions │
+│    nibras test    — run local tests        │
+│    nibras submit  — submit your solution   │
+╰────────────────────────────────────────────╯</pre></div>
+
+                        <button class="btn-mark-done" onclick="markStep(5)">Mark as complete</button>
+                    </div>
+                </div>
+
+                <!-- Step 05 -->
+                <div class="cli-step" data-step="6">
+                    <div class="step-head" onclick="toggleStep(6)"><span class="step-num">06</span><div class="step-info"><h3>Run Tests Locally</h3><p>Run the project test suite</p></div><span class="step-check" id="check-6"><i class="fa-regular fa-circle"></i></span></div>
+                    <div class="step-body" id="body-6">
+                        <p>Use <code>nibras test</code> to run the manifest-configured test command for your OS. Pass <code>--previous</code> only when the project manifest supports it.</p>
+                        <div class="code-block"><pre><code>nibras test
+nibras test --previous   # include previous milestone tests</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                        <p style="font-size:0.85rem;color:var(--text-secondary);">A non-zero exit means the configured test command failed. Projects that do not opt in to previous-milestone runs will reject <code>--previous</code>.</p>
+                        <button class="btn-mark-done" onclick="markStep(6)">Mark as complete</button>
+                    </div>
+                </div>
+
+                <!-- Step 06 -->
+                <div class="cli-step" data-step="7">
+                    <div class="step-head" onclick="toggleStep(7)"><span class="step-num">07</span><div class="step-info"><h3>Submit Your Work</h3><p>Stage, commit, push, and verify</p></div><span class="step-check" id="check-7"><i class="fa-regular fa-circle"></i></span></div>
+                    <div class="step-body" id="body-7">
+                        <p><code>nibras submit</code> runs the configured local test command, stages only allowed files, creates a commit, pushes to <code>origin</code>, registers the submission, and polls for server-side verification.</p>
+                        <div class="code-block"><pre><code>nibras submit</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+
+                        <div class="term-output" style="background:#1e1e1e;border-radius:8px;padding:1rem;margin:12px 0;font-family:monospace;font-size:0.8rem;color:#ccc;line-height:1.6;"><pre style="margin:0;white-space:pre-wrap;">
+  Running tests: npm test
+  ✓ Staged 3 files
+  ✓ Pushed commit a3f7c1d
+  Verifying  ████████████████░░░░  80%
+
+╭──────────────────────────────╮
+│  ✓  Submission passed        │
+│  Status:  passed             │
+╰──────────────────────────────╯</pre></div>
+
+                        <div class="note-box" style="background:rgba(59,130,246,0.1);border-left:4px solid var(--accent-blue);padding:0.75rem 1rem;border-radius:8px;font-size:0.85rem;color:var(--text-secondary);">
+                            Only files matching <code>submission.allowedPaths</code> in your manifest are included — students can't accidentally submit test or grading files.<br><br>
+                            A failing local test run does not abort submission. The CLI records the local result and server-side verification continues regardless.
+                        </div>
+                        <button class="btn-mark-done" onclick="markStep(7)">Mark as complete</button>
+                    </div>
+                </div>
+
+                <!-- Step 08 -->
+                <div class="cli-step" data-step="8">
+                    <div class="step-head" onclick="toggleStep(8)"><span class="step-num">08</span><div class="step-info"><h3>Check Status</h3><p>Diagnostic commands</p></div><span class="step-check" id="check-8"><i class="fa-regular fa-circle"></i></span></div>
+                    <div class="step-body" id="body-8">
+                        <p>Two diagnostic commands are available at any time:</p>
+                        <div class="code-block"><pre><code>nibras ping    # check API, auth, GitHub, GitHub App, and project status
+nibras whoami  # show signed-in user and linked GitHub account</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                        <p><code>nibras ping</code> is the fastest way to diagnose any problem — run it first. When run inside a project directory it also shows the project key and <code>origin</code> remote.</p>
+                        <button class="btn-mark-done" onclick="markStep(8)">Mark as complete</button>
+                    </div>
+                </div>
+
+                <!-- Step 09 -->
+                <div class="cli-step" data-step="9">
+                    <div class="step-head" onclick="toggleStep(9)"><span class="step-num">09</span><div class="step-info"><h3>Share with Students</h3><p>Help students get started with the CLI</p></div><span class="step-check" id="check-9"><i class="fa-regular fa-circle"></i></span></div>
+                    <div class="step-body" id="body-9">
+                        <p>Students follow the same flow: install the CLI, run <code>nibras login --api-base-url &lt;api-url&gt;</code>, and <code>nibras setup --project &lt;key&gt;</code>. Share the project key with your class.</p>
+
+                        <div class="os-content windows" style="display:block;">
+                            <div class="note-box" style="background:rgba(34,197,94,0.1);border-left:4px solid #22c55e;padding:0.75rem 1rem;border-radius:8px;font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">
+                                Windows students can use either <strong>PowerShell</strong> or <strong>Git Bash</strong>. Match any troubleshooting snippets to the shell they actually use.
+                            </div>
+                        </div>
+
+                        <p style="font-weight:600;margin-bottom:8px;">Student quick-start</p>
+                        <div class="code-block"><pre><code>npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz
+nibras --version
+nibras login --api-base-url https://nibras-api.fly.dev
+nibras setup --project cs101/assignment-1
+nibras test
+nibras submit</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+
+                        <p style="font-weight:600;margin:16px 0 8px;">Student email template</p>
+                        <div class="code-block" style="background:var(--bg-body);border:1px solid var(--border-color);"><pre style="color:var(--text-primary);font-family:inherit;white-space:pre-wrap;">Subject: Getting started with Nibras CLI – cs101/assignment-1
+
+Hi everyone,
+
+To submit your assignments, you'll use the Nibras CLI tool. Here's how:
+
+1. Install the CLI:
+   npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz
+
+2. Log in with your GitHub account:
+   nibras login --api-base-url https://nibras-api.fly.dev
+
+3. Set up the project:
+   nibras setup --project cs101/assignment-1
+
+4. View the task instructions:
+   nibras task
+
+5. Run tests locally:
+   nibras test
+
+6. Submit your work:
+   nibras submit
+
+If you run into any issues, run `nibras ping` and share the output with me.
+
+Good luck!</pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+
+                        <button class="btn-mark-done" onclick="markStep(9)">Mark as complete</button>
+                    </div>
+                </div>
+
+                <!-- Step 10 -->
+                <div class="cli-step" data-step="10">
+                    <div class="step-head" onclick="toggleStep(10)"><span class="step-num">10</span><div class="step-info"><h3>Troubleshooting</h3><p>Common issues and fixes</p></div><span class="step-check" id="check-10"><i class="fa-regular fa-circle"></i></span></div>
+                    <div class="step-body" id="body-10">
+                        <p>Start with <code>nibras ping</code> — it checks API reachability, auth, GitHub linkage, and App install status in one command. Use the OS tab below to filter fixes for your platform.</p>
+
+                        <div class="os-tabs"><button class="os-tab active" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" onclick="switchOs('windows', this)">Windows</button></div>
+
+                        <!-- macOS Troubleshooting -->
+                        <div class="os-content macos">
+                            <div class="troubleshoot-item">
+                                <strong>"nibras: command not found" after install</strong>
+                                <p>The npm global bin directory is not in PATH, or the terminal was not restarted after install.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>npm config get prefix
+# Add the bin folder to PATH:
+export PATH="$(npm config get prefix)/bin:$PATH"
+# Make it permanent — append to ~/.zshrc</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                                <p>With nvm, the global bin is always in PATH automatically — no manual steps.</p>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"EACCES: permission denied" on global install</strong>
+                                <p>System Node.js requires root to write to the global npm directory. Never use <code>sudo npm install -g</code>.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code># Recommended: switch to nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.zshrc && nvm install --lts && nvm use --lts
+npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz
+
+# Alternative: fix the npm global prefix without sudo
+mkdir -p ~/.npm-global && npm config set prefix '~/.npm-global'
+export PATH="$HOME/.npm-global/bin:$PATH"</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"EEXIST" or "ENOTDIR" — stale global link</strong>
+                                <p>An older Nibras install left behind a broken symlink or directory.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>npm uninstall -g nibras @nibras/cli || true
+rm -f "$(npm config get prefix)/bin/nibras"
+rm -rf "$(npm root -g)/nibras" "$(npm root -g)/@nibras/cli"
+npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"AUTH_REQUIRED" or "INVALID_SESSION"</strong>
+                                <p>Session token expired, revoked, or wrong API URL saved.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>nibras login --api-base-url https://nibras-api.fly.dev</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"remote: Repository not found" or push rejected</strong>
+                                <p>GitHub App not installed on the account, or the student repository was not created.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>nibras ping
+# Check the GitHub App install status in the output above.
+# Follow the install link if the App shows as "not installed".</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>Browser did not open during login</strong>
+                                <p>The CLI could not launch the system browser automatically.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>nibras login --api-base-url https://nibras-api.fly.dev --no-open
+# Copy the printed URL and paste it into any browser manually.</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                        </div>
+
+                        <!-- Linux Troubleshooting -->
+                        <div class="os-content linux" style="display:none;">
+                            <div class="troubleshoot-item">
+                                <strong>"nibras: command not found" after install</strong>
+                                <p>The npm global bin directory is not in PATH, or the terminal was not restarted after install.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>npm config get prefix
+export PATH="$(npm config get prefix)/bin:$PATH"
+# Make it permanent — append to ~/.bashrc or ~/.zshrc</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                                <p>With nvm, the global bin is always in PATH automatically — no manual steps.</p>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"EACCES: permission denied" on global install</strong>
+                                <p>System Node.js requires root to write to the global npm directory. Never use <code>sudo npm install -g</code>.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code># Recommended: switch to nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc && nvm install --lts && nvm use --lts
+npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz
+
+# Alternative: fix the npm global prefix without sudo
+mkdir -p ~/.npm-global && npm config set prefix '~/.npm-global'
+export PATH="$HOME/.npm-global/bin:$PATH"</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"EEXIST" or "ENOTDIR" — stale global link</strong>
+                                <p>An older Nibras install left behind a broken symlink or directory.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>npm uninstall -g nibras @nibras/cli || true
+rm -f "$(npm config get prefix)/bin/nibras"
+rm -rf "$(npm root -g)/nibras" "$(npm root -g)/@nibras/cli"
+npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"AUTH_REQUIRED" or "INVALID_SESSION"</strong>
+                                <p>Session token expired, revoked, or wrong API URL saved.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>nibras login --api-base-url https://nibras-api.fly.dev</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"remote: Repository not found" or push rejected</strong>
+                                <p>GitHub App not installed on the account, or the student repository was not created.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>nibras ping
+# Check the GitHub App install status in the output above.
+# Follow the install link if the App shows as "not installed".</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>Browser did not open during login</strong>
+                                <p>The CLI could not launch the system browser automatically.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>nibras login --api-base-url https://nibras-api.fly.dev --no-open
+# Copy the printed URL and paste it into any browser manually.</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                        </div>
+
+                        <!-- Windows Troubleshooting -->
+                        <div class="os-content windows" style="display:none;">
+                            <div class="troubleshoot-item">
+                                <strong>"nibras: command not found" after install</strong>
+                                <p>The npm global bin directory is not in PATH, or the terminal was not restarted after install.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code># Close and reopen PowerShell first, then:
+npm config get prefix
+# Add to user PATH permanently:
+$p = (npm config get prefix).Trim()
+[Environment]::SetEnvironmentVariable("Path","$([Environment]::GetEnvironmentVariable('Path','User'));$p","User")
+# Open a new terminal.</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                                <p>With nvm, the global bin is always in PATH automatically — no manual steps.</p>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"EEXIST" or "ENOTDIR" — stale global link</strong>
+                                <p>An older Nibras install left behind a broken symlink or directory.</p>
+                                <div class="win-tabs" style="display:flex;gap:8px;margin-bottom:8px;">
+                                    <button class="os-tab active" onclick="var p=this.parentElement.parentElement;p.querySelectorAll('.win-tb-shell').forEach(function(c){c.style.display='none'});p.querySelector('.win-tb-shell.ps').style.display='';p.querySelectorAll('.win-tabs .os-tab').forEach(function(t){t.classList.remove('active')});this.classList.add('active')">PowerShell</button>
+                                    <button class="os-tab" onclick="var p=this.parentElement.parentElement;p.querySelectorAll('.win-tb-shell').forEach(function(c){c.style.display='none'});p.querySelector('.win-tb-shell.gb').style.display='';p.querySelectorAll('.win-tabs .os-tab').forEach(function(t){t.classList.remove('active')});this.classList.add('active')">Git Bash</button>
+                                </div>
+                                <div class="code-block win-tb-shell ps"><pre><code>npm uninstall -g nibras @nibras/cli
+Remove-Item "$((npm config get prefix).Trim())\nibras.cmd" -Force -ErrorAction SilentlyContinue
+Remove-Item "$((npm config get prefix).Trim())\nibras" -Force -ErrorAction SilentlyContinue
+Remove-Item "$((npm root -g).Trim())\nibras" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "$((npm root -g).Trim())\@nibras\cli" -Recurse -Force -ErrorAction SilentlyContinue
+npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                                <div class="code-block win-tb-shell gb" style="display:none;"><pre><code>npm uninstall -g nibras @nibras/cli || true
+rm -f "$(npm config get prefix)/bin/nibras"
+rm -rf "$(npm root -g)/nibras" "$(npm root -g)/@nibras/cli"
+npm install -g https://github.com/NibrasPlatform/nibras-cli/releases/download/v1.0.2/nibras-cli-1.0.2.tgz</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"execution of scripts is disabled on this system"</strong>
+                                <p>PowerShell execution policy is set to Restricted.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code># Run once in PowerShell as Administrator:
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                                <p>Only needs to be done once per machine.</p>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"AUTH_REQUIRED" or "INVALID_SESSION"</strong>
+                                <p>Session token expired, revoked, or wrong API URL saved.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>nibras login --api-base-url https://nibras-api.fly.dev</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"remote: Repository not found" or push rejected</strong>
+                                <p>GitHub App not installed on the account, or the student repository was not created.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>nibras ping
+# Check the GitHub App install status in the output above.
+# Follow the install link if the App shows as "not installed".</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>Browser did not open during login</strong>
+                                <p>The CLI could not launch the system browser automatically.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>nibras login --api-base-url https://nibras-api.fly.dev --no-open
+# Copy the printed URL and paste it into any browser manually.</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <strong>"LF will be replaced by CRLF" warnings</strong>
+                                <p>Git is converting Unix line endings to Windows-style on checkout.</p>
+                                <div class="code-block" style="margin-top:8px;"><pre><code>git config --global core.autocrlf input</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
+                                <p>These warnings are cosmetic and do not affect submission results. Run the command above once to suppress them globally.</p>
+                            </div>
+                        </div>
+
+                        <div class="note-box" style="background:rgba(59,130,246,0.1);border-left:4px solid var(--accent-blue);padding:0.75rem 1rem;border-radius:8px;font-size:0.85rem;color:var(--text-secondary);margin-top:16px;">
+                            Still stuck? Run <code>nibras ping</code>, copy the full output, and share it with your instructor or open an issue at <strong>github.com/nibras-platform/nibras-cli</strong>.
+                        </div>
+                        <button class="btn-mark-done" onclick="markStep(10)">Mark as complete</button>
+                    </div>
+                </div>
+
+            </div>
+            <!-- CLI Command Reference -->
+            <div class="cli-ref" style="margin-top:1.5rem;">
+                <h2 style="font-size:1.2rem;margin-bottom:1rem;">CLI Command Reference</h2>
+                <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:1.5rem;">Use this appendix for commands outside the main onboarding path or when you need the full CLI surface at a glance.</p>
+
+                <h4 style="margin-bottom:12px;font-size:1rem;">Core workflow</h4>
+                <div class="ref-item"><div class="ref-cmd">nibras login --api-base-url &lt;api-url&gt;</div><div class="ref-desc">Start hosted device login against a specific Nibras deployment. Use the explicit API URL for hosted onboarding. The CLI default remains the local dev API.</div></div>
+                <div class="ref-item"><div class="ref-cmd">nibras setup --project &lt;key&gt;</div><div class="ref-desc">Bootstrap or refresh a local project.</div></div>
+                <div class="ref-item"><div class="ref-cmd">nibras task</div><div class="ref-desc">Print cached task text or fetch it if missing.</div></div>
+                <div class="ref-item"><div class="ref-cmd">nibras test</div><div class="ref-desc">Run the manifest test command.</div></div>
+                <div class="ref-item"><div class="ref-cmd">nibras submit</div><div class="ref-desc">Test, stage allowed files, commit, push, and wait for verification.</div></div>
+
+                <h4 style="margin:1.5rem 0 12px;font-size:1rem;">Discovery</h4>
+                <div class="ref-item"><div class="ref-cmd">nibras list</div><div class="ref-desc">List all enrolled courses and their projects.</div></div>
+                <div class="ref-item"><div class="ref-cmd">nibras status</div><div class="ref-desc">Show recent submissions with live status badges.</div></div>
+
+                <h4 style="margin:1.5rem 0 12px;font-size:1rem;">Session and diagnostics</h4>
+                <div class="ref-item"><div class="ref-cmd">nibras whoami</div><div class="ref-desc">Show the signed-in user and linked GitHub account.</div></div>
+                <div class="ref-item"><div class="ref-cmd">nibras ping</div><div class="ref-desc">Show API, auth, GitHub, GitHub App, and project status. Inside a project, it also reports the project key and origin remote.</div></div>
+                <div class="ref-item"><div class="ref-cmd">nibras logout</div><div class="ref-desc">Clear the local session.</div></div>
+
+                <h4 style="margin:1.5rem 0 12px;font-size:1rem;">Install lifecycle</h4>
+                <div class="ref-item"><div class="ref-cmd">nibras update --version &lt;tag&gt;</div><div class="ref-desc">Reinstall a pinned published CLI release. Use <code>nibras update --check</code> to compare the installed CLI against the latest GitHub release.</div></div>
+                <div class="ref-item"><div class="ref-cmd">nibras update --force --version &lt;tag&gt;</div><div class="ref-desc">Force reinstall the same pinned tag.</div></div>
+                <div class="ref-item"><div class="ref-cmd">nibras uninstall</div><div class="ref-desc">Remove the global CLI install and keep local config.</div></div>
+
+                <h4 style="margin:1.5rem 0 12px;font-size:1rem;">Advanced / compatibility</h4>
+                <div class="ref-item"><div class="ref-cmd">nibras update-buildpack --node &lt;version&gt;</div><div class="ref-desc">Edit the Node buildpack version in <code>.nibras/project.json</code>. Advanced manifest maintenance only; standard students usually do not need this.</div></div>
+                <div class="ref-item"><div class="ref-cmd">nibras legacy ...</div><div class="ref-desc">Run the older CLI entrypoint for compatibility. Compatibility-only. It is not part of the hosted default workflow.</div></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../react-page-utils.js"></script>
+    <script>if (window.NibrasShared?.session?.updateUserInfoDisplay) window.NibrasShared.session.updateUserInfoDisplay();</script>
+    <script src="../config.js"></script>
+    <script src="../services/api.js"></script>
+    <script src="../react-bootstrap.js"></script>
+    <script src="./cli.js"></script>
+    <script src="../services/gamification-ui.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

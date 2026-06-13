@@ -1,0 +1,1688 @@
+/* Instructor Projects Page */
+/* Extends projects.css — adds course selector bar + management panel styles */
+
+/* ── Breadcrumb ────────────────────────────────────── */
+.inst-proj-breadcrumb {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+.inst-proj-breadcrumb a {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+.inst-proj-breadcrumb a:hover {
+    text-decoration: underline;
+}
+.inst-proj-breadcrumb .breadcrumb-sep {
+    margin: 0 0.5rem;
+    color: var(--text-tertiary);
+}
+
+/* ── Page Header ───────────────────────────────────── */
+.inst-proj-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+.inst-proj-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+}
+.inst-proj-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin: 0.25rem 0 0;
+}
+.inst-proj-header-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* ── Course Selector Bar ───────────────────────────── */
+.inst-proj-selector-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+.inst-proj-selector-bar label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+.inst-proj-selector-bar select {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    outline: none;
+}
+.inst-proj-selector-bar select:focus {
+    border-color: var(--accent-blue);
+}
+
+/* ── Stats Row ─────────────────────────────────────── */
+.inst-proj-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+.inst-proj-stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    box-shadow: var(--shadow);
+}
+.inst-proj-stat-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.inst-proj-stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── Two-Column Grid ───────────────────────────────── */
+.inst-proj-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 1rem;
+}
+@media (max-width: 900px) {
+    .inst-proj-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Panels ────────────────────────────────────────── */
+.inst-proj-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.inst-proj-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+}
+.inst-proj-panel-header h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0;
+}
+.inst-proj-panel-count {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+.inst-proj-panel-link {
+    background: none;
+    border: none;
+    color: var(--accent-blue);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0;
+}
+.inst-proj-panel-link:hover {
+    text-decoration: underline;
+}
+.inst-proj-loading {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+/* ── Project List ──────────────────────────────────── */
+.inst-proj-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.inst-proj-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    cursor: pointer;
+    background: var(--bg-body);
+}
+.inst-proj-row:hover {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+.inst-proj-row .inst-proj-info {
+    flex: 1;
+    min-width: 0;
+}
+.inst-proj-row .inst-proj-info strong {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+}
+.inst-proj-row .inst-proj-meta {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+.inst-proj-row .inst-proj-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+.inst-proj-action-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background 0.15s, color 0.15s;
+}
+.inst-proj-action-btn:hover {
+    background: var(--tag-bg);
+    color: var(--text-primary);
+}
+.inst-proj-action-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+/* ── Status Badges ──────────────────────────────────── */
+.inst-proj-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+}
+.inst-proj-status-badge.status-draft {
+    background: var(--tag-bg);
+    color: var(--text-tertiary);
+}
+.inst-proj-status-badge.status-published {
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.25);
+    color: #16a34a;
+}
+.inst-proj-status-badge.status-archived {
+    background: rgba(148, 163, 184, 0.08);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    color: var(--text-tertiary);
+}
+.inst-proj-status-badge.status-pending {
+    background: rgba(251, 191, 36, 0.12);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    color: #b45309;
+}
+.inst-proj-status-badge.status-approved {
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.25);
+    color: #16a34a;
+}
+.inst-proj-status-badge.status-needs-changes {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #dc2626;
+}
+
+/* ── Review Queue ───────────────────────────────────── */
+.inst-proj-review-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.inst-proj-review-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-body);
+}
+.inst-proj-review-item .review-item-info {
+    flex: 1;
+    min-width: 0;
+}
+.inst-proj-review-item .review-item-info strong {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.inst-proj-review-item .review-item-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.1rem;
+}
+.inst-proj-review-item .review-item-meta span {
+    margin-right: 0.75rem;
+}
+.inst-proj-review-btn {
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--accent-blue);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+.inst-proj-review-btn:hover {
+    background: var(--tag-bg);
+}
+.inst-proj-review-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+/* ── Submissions Table ─────────────────────────────── */
+.inst-proj-table-wrapper {
+    overflow-x: auto;
+}
+.inst-proj-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.inst-proj-table th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+.inst-proj-table td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+.inst-proj-table tr:last-child td {
+    border-bottom: none;
+}
+.inst-proj-table .sub-student {
+    font-weight: 600;
+}
+.inst-proj-table .sub-mono {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* ── MODALS (reused from instructor-course-detail) ──── */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 1rem;
+}
+.modal-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.modal-container.modal-lg {
+    max-width: 680px;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+.modal-close:hover {
+    background: var(--tag-bg);
+    color: var(--text-primary);
+}
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+/* ── Form Elements ──────────────────────────────────── */
+.form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.form-group label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.form-group input,
+.form-group textarea,
+.form-group select {
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+}
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+.form-group textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.75rem;
+}
+@media (max-width: 600px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+.form-error {
+    padding: 0.6rem 0.75rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 6px;
+    color: #dc2626;
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+}
+
+/* ── Dynamic Rows ───────────────────────────────────── */
+.dynamic-section {
+    margin-bottom: 1.25rem;
+}
+.dynamic-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+.dynamic-section-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.btn-add-row {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent-blue);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    transition: background 0.12s;
+}
+.btn-add-row:hover {
+    background: rgba(37, 99, 235, 0.1);
+}
+.dynamic-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+.dynamic-row input {
+    padding: 0.45rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    outline: none;
+}
+.dynamic-row input:focus {
+    border-color: var(--accent-blue);
+}
+.dynamic-row.ms-row-full {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.5rem;
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+.dynamic-row.ms-row-full input {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.78rem;
+}
+.dynamic-row-unit {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+.btn-remove-row {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    line-height: 1;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: color 0.12s, background 0.12s;
+}
+.btn-remove-row:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* ── Review Info ────────────────────────────────────── */
+.review-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.75rem;
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 1rem;
+}
+.review-info-row {
+    font-size: 0.85rem;
+}
+.review-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-right: 0.5rem;
+}
+.review-status-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.review-status-option {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+}
+.review-status-label {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* ── Empty State ────────────────────────────────────── */
+.inst-proj-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2.5rem 1rem;
+    text-align: center;
+}
+.inst-proj-empty i {
+    font-size: 2rem;
+    color: var(--text-tertiary);
+}
+.inst-proj-empty p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+/* ── Enhanced UI: Search Bar ─────────────────────────── */
+.inst-proj-header-actions + * .search-bar-global,
+.main-content .top-header .search-bar-global {
+    position: relative;
+    width: 400px;
+    transition: width 0.25s ease;
+}
+.main-content .top-header .search-bar-global:focus-within {
+    width: 440px;
+}
+.main-content .top-header .search-bar-global i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-tertiary);
+    font-size: 0.9rem;
+    transition: color 0.2s;
+    pointer-events: none;
+    z-index: 1;
+}
+.main-content .top-header .search-bar-global:focus-within i {
+    color: var(--accent-blue);
+}
+.main-content .top-header .search-bar-global input {
+    width: 100%;
+    padding: 0.6rem 1rem 0.6rem 2.4rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+    outline: none;
+    font-size: 0.85rem;
+    transition: all 0.25s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.main-content .top-header .search-bar-global input:hover {
+    border-color: var(--text-tertiary);
+    background-color: var(--bg-card);
+}
+.main-content .top-header .search-bar-global input:focus {
+    border-color: var(--accent-blue);
+    background-color: var(--bg-card);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12), 0 2px 8px rgba(0,0,0,0.06);
+}
+.main-content .top-header .search-bar-global input::placeholder {
+    color: var(--text-tertiary);
+    font-weight: 400;
+    transition: color 0.2s;
+}
+.main-content .top-header .search-bar-global input:focus::placeholder {
+    color: var(--text-secondary);
+}
+
+/* ── Enhanced UI: Buttons ────────────────────────────── */
+.inst-proj-header-actions .inst-primary-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1.25rem;
+    border: none;
+    background: var(--accent-blue);
+    color: #fff;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.15);
+    letter-spacing: 0.01em;
+    position: relative;
+    overflow: hidden;
+}
+.inst-proj-header-actions .inst-primary-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 50%);
+    pointer-events: none;
+}
+.inst-proj-header-actions .inst-primary-btn:hover {
+    background: var(--accent-blue-hover, #1d4ed8);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+}
+.inst-proj-header-actions .inst-primary-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.2);
+    transition-duration: 0.05s;
+}
+.inst-proj-header-actions .inst-primary-btn i {
+    font-size: 0.9rem;
+    transition: transform 0.2s ease;
+}
+.inst-proj-header-actions .inst-primary-btn:hover i {
+    transform: scale(1.1);
+}
+
+/* Templates secondary button */
+#btn-manage-templates {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    box-shadow: none;
+    font-weight: 500;
+}
+#btn-manage-templates::after {
+    display: none;
+}
+#btn-manage-templates:hover {
+    background: var(--tag-bg);
+    border-color: var(--text-tertiary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+#btn-manage-templates i {
+    color: var(--accent-blue);
+}
+
+/* Modal primary button */
+.modal-footer .inst-primary-btn {
+    padding: 0.5rem 1.25rem;
+    border: none;
+    background: var(--accent-blue);
+    color: #fff;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.15);
+}
+.modal-footer .inst-primary-btn:hover {
+    background: var(--accent-blue-hover, #1d4ed8);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+.modal-footer .inst-primary-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.modal-footer .inst-view-btn {
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.modal-footer .inst-view-btn:hover {
+    background: var(--tag-bg);
+    border-color: var(--text-tertiary);
+    color: var(--text-primary);
+}
+
+/* Review button in queue */
+.inst-proj-review-btn {
+    padding: 0.4rem 0.85rem;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--accent-blue);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+.inst-proj-review-btn:hover {
+    background: var(--accent-blue);
+    color: #fff;
+    border-color: var(--accent-blue);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+}
+
+/* Project action buttons */
+.inst-proj-action-btn {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.18s ease;
+}
+.inst-proj-action-btn:hover {
+    background: var(--tag-bg);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+    transform: translateY(-1px);
+}
+.inst-proj-action-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.08);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+/* Course selector bar */
+.inst-proj-selector-bar select {
+    transition: all 0.2s ease;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+}
+.inst-proj-selector-bar select:hover {
+    border-color: var(--text-tertiary);
+    background-color: var(--bg-card);
+}
+.inst-proj-selector-bar select:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* Filter buttons */
+.modal-body .inst-filter-btn,
+.inst-proj-panel .inst-filter-btn {
+    padding: 0.35rem 0.85rem;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.modal-body .inst-filter-btn:hover,
+.inst-proj-panel .inst-filter-btn:hover {
+    background: var(--tag-bg);
+    color: var(--text-primary);
+    border-color: var(--text-tertiary);
+}
+.modal-body .inst-filter-active,
+.inst-proj-panel .inst-filter-active {
+    background: var(--accent-blue);
+    color: #fff;
+    border-color: var(--accent-blue);
+}
+.modal-body .inst-filter-active:hover,
+.inst-proj-panel .inst-filter-active:hover {
+    background: var(--accent-blue-hover, #1d4ed8);
+    color: #fff;
+}
+
+/* ── Tab Bar ──────────────────────────────────────────── */
+.tab-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1.25rem;
+    border-bottom: 2px solid var(--border-color);
+    background: var(--bg-card);
+    border-radius: 8px 8px 0 0;
+    overflow: hidden;
+}
+.tab-btn {
+    padding: 0.7rem 1.5rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.tab-btn:hover {
+    color: var(--text-primary);
+    background: var(--tag-bg);
+}
+.tab-btn.active {
+    color: var(--accent-blue);
+    border-bottom-color: var(--accent-blue);
+    background: transparent;
+}
+.tab-panel {
+    display: none;
+}
+.tab-panel.active {
+    display: block;
+}
+
+/* ── Grading Tab Overrides ──────────────────────────── */
+#tab-grading .selector-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+#tab-grading .selector-bar label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+#tab-grading .selector-bar select {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    outline: none;
+}
+#tab-grading .selector-bar select:focus {
+    border-color: var(--accent-blue);
+}
+#tab-grading .course-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+#tab-grading .grade-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+#tab-grading .grade-stats .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+#tab-grading .grade-stats .stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+#tab-grading .grade-stats .stat-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+#tab-grading .table-wrapper {
+    overflow-x: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0;
+    margin-bottom: 1rem;
+}
+#tab-grading .submissions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+#tab-grading .submissions-table th {
+    text-align: left;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-body);
+}
+#tab-grading .submissions-table td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+#tab-grading .submissions-table tr:last-child td {
+    border-bottom: none;
+}
+#tab-grading .team-name {
+    font-weight: 600;
+}
+
+#tab-grading .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 3rem 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+#tab-grading .empty-state i {
+    font-size: 2.5rem;
+    color: var(--text-tertiary);
+}
+
+/* ── Grading Modal (within projects page) ────────────── */
+#grade-detail-modal .modal-wide {
+    max-width: 800px;
+}
+#grade-detail-modal .detail-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 1.25rem;
+}
+#grade-detail-modal .detail-tab {
+    padding: 0.6rem 1.25rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s ease;
+}
+#grade-detail-modal .detail-tab:hover {
+    color: var(--text-primary);
+    background: var(--tag-bg);
+}
+#grade-detail-modal .detail-tab.active {
+    color: var(--accent-blue);
+    border-bottom-color: var(--accent-blue);
+}
+#grade-detail-modal .detail-panel {
+    display: none;
+}
+#grade-detail-modal .detail-panel.active {
+    display: block;
+}
+
+#grade-detail-modal .milestone-progress {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+#grade-detail-modal .milestone-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+#grade-detail-modal .milestone-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-body);
+}
+#grade-detail-modal .milestone-item.ms-complete {
+    border-color: rgba(52, 211, 153, 0.25);
+}
+#grade-detail-modal .milestone-item.ms-pending {
+    opacity: 0.7;
+}
+#grade-detail-modal .ms-icon {
+    font-size: 1rem;
+    color: var(--text-secondary);
+}
+#grade-detail-modal .ms-complete .ms-icon {
+    color: #16a34a;
+}
+#grade-detail-modal .ms-info {
+    flex: 1;
+}
+#grade-detail-modal .ms-info strong {
+    display: block;
+    font-size: 0.85rem;
+}
+#grade-detail-modal .ms-weight {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+#grade-detail-modal .ms-score {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+#grade-detail-modal .panel-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+#grade-detail-modal .contrib-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+#grade-detail-modal .contrib-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+#grade-detail-modal .contrib-name {
+    width: 120px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+#grade-detail-modal .contrib-bar-track {
+    flex: 1;
+    height: 20px;
+    background: var(--progress-bg);
+    border-radius: 10px;
+    overflow: hidden;
+}
+#grade-detail-modal .contrib-bar-fill {
+    height: 100%;
+    background: var(--accent-blue);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+#grade-detail-modal .contrib-pct {
+    width: 40px;
+    text-align: right;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+#grade-detail-modal .contrib-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+#grade-detail-modal .contrib-table th,
+#grade-detail-modal .contrib-table td {
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+#grade-detail-modal .contrib-table th {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+#grade-detail-modal .adjust-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+#grade-detail-modal .adjust-row label {
+    width: 120px;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+#grade-detail-modal .adjust-slider {
+    flex: 1;
+}
+#grade-detail-modal .adjust-input {
+    width: 60px;
+}
+#grade-detail-modal .adjust-pct {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+#grade-detail-modal .team-members {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+#grade-detail-modal .team-member-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    background: var(--tag-bg);
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+#grade-detail-modal .github-link {
+    font-size: 0.85rem;
+}
+#grade-detail-modal .github-link a {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+#grade-detail-modal .github-link a:hover {
+    text-decoration: underline;
+}
+#grade-detail-modal .commit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+#grade-detail-modal .commit-item {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+#grade-detail-modal .commit-message {
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 0.15rem;
+}
+#grade-detail-modal .commit-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+#grade-detail-modal .panel-section-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+#grade-detail-modal .weighted-row {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+#grade-detail-modal .weighted-top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.35rem;
+}
+#grade-detail-modal .weighted-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+#grade-detail-modal .weighted-pct {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+#grade-detail-modal .weighted-input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+#grade-detail-modal .weighted-input-row label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+#grade-detail-modal .weighted-score-input {
+    width: 70px;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    text-align: center;
+    outline: none;
+}
+#grade-detail-modal .weighted-score-input:focus {
+    border-color: var(--accent-blue);
+}
+#grade-detail-modal .weighted-max {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+#grade-detail-modal .weighted-contribution {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-left: auto;
+}
+#grade-detail-modal .grade-total {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 2px solid var(--border-color);
+}
+#grade-detail-modal .feedback-textarea {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    resize: vertical;
+    outline: none;
+    font-family: inherit;
+}
+#grade-detail-modal .feedback-textarea:focus {
+    border-color: var(--accent-blue);
+}
+#grade-detail-modal .primary-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1.25rem;
+    border: none;
+    background: var(--accent-blue);
+    color: #fff;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+#grade-detail-modal .primary-btn:hover {
+    background: var(--accent-blue-hover, #1d4ed8);
+}
+#grade-detail-modal .form-status {
+    display: inline-block;
+    margin-left: 0.75rem;
+    font-size: 0.8rem;
+}
+#grade-detail-modal .form-status-success {
+    color: #16a34a;
+}
+#grade-detail-modal .form-status-error {
+    color: #dc2626;
+}
+#grade-detail-modal .form-status-info {
+    color: var(--accent-blue);
+}
+#grade-detail-modal .empty-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    padding: 0.5rem 0;
+}
+
+/* ── Status Badges (for grading tab) ─────────────────── */
+#tab-grading .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+#tab-grading .status-badge.status-pending {
+    background: rgba(251, 191, 36, 0.12);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    color: #b45309;
+}
+#tab-grading .status-badge.status-evaluated {
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.25);
+    color: #16a34a;
+}
+#tab-grading .status-badge.status-graded {
+    background: rgba(37, 99, 235, 0.12);
+    border: 1px solid rgba(37, 99, 235, 0.25);
+    color: #2563eb;
+}
+
+#tab-grading .grade-action-btn {
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--accent-blue);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+#tab-grading .grade-action-btn:hover {
+    background: var(--accent-blue);
+    color: #fff;
+    border-color: var(--accent-blue);
+}
+
+/* ── Final Grade Summary ───────────────────────────── */
+.grade-final-summary {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+}
+.grade-final-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.grade-final-header h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+.grade-final-header h3 i {
+    color: var(--accent-blue);
+    margin-right: 8px;
+}
+.grade-final-breakdown {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.grade-final-stat {
+    text-align: center;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+.grade-final-stat-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--accent-blue);
+    display: block;
+}
+.grade-final-stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+.final-adjust-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+}
+.final-adjust-name {
+    width: 120px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.final-adjust-track {
+    flex: 1;
+    height: 10px;
+    background: var(--btn-secondary-bg);
+    border-radius: 5px;
+    overflow: hidden;
+}
+.final-adjust-fill {
+    height: 100%;
+    background: var(--accent-blue);
+    border-radius: 5px;
+}
+.final-adjust-commits {
+    width: 80px;
+    text-align: right;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+.final-adjust-pct {
+    width: 40px;
+    text-align: right;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ===== RECIPE ENHANCEMENTS ===== */
+
+/* Missing keyframes */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.15); }
+    50% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
+}
+
+@keyframes rotateIn {
+    from { transform: rotate(-90deg) scale(0); opacity: 0; }
+    to { transform: rotate(0) scale(1); opacity: 1; }
+}
+
+@keyframes rotating {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Entrance animation classes */
+.animate-in {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-stagger-1 { animation-delay: 0.04s; }
+.animate-stagger-2 { animation-delay: 0.08s; }
+.animate-stagger-3 { animation-delay: 0.12s; }
+.animate-stagger-4 { animation-delay: 0.16s; }
+.animate-stagger-5 { animation-delay: 0.20s; }
+.animate-stagger-6 { animation-delay: 0.24s; }
+.animate-stagger-7 { animation-delay: 0.28s; }
+.animate-stagger-8 { animation-delay: 0.32s; }
+
+/* focus-visible */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+/* Theme toggle rotation for #themeBtn (HTML uses this ID, projects.css has #theme-toggle) */
+#themeBtn i {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+#themeBtn.rotating i {
+    transform: rotate(180deg);
+}
+
+/* Entrance animations on instructor-specific elements */
+.inst-proj-breadcrumb {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.inst-proj-header {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.05s;
+}
+
+.inst-proj-selector-bar {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.1s;
+}
+
+.inst-proj-stats {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.15s;
+}
+
+.tab-bar {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.15s;
+}
+
+/* Stat card hover lift + stagger */
+.inst-proj-stat-card {
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.inst-proj-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.inst-proj-stat-card:nth-child(1) { animation-delay: 0.04s; }
+.inst-proj-stat-card:nth-child(2) { animation-delay: 0.08s; }
+.inst-proj-stat-card:nth-child(3) { animation-delay: 0.12s; }
+.inst-proj-stat-card:nth-child(4) { animation-delay: 0.16s; }
+
+/* Panel entrance */
+.inst-proj-panel {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.inst-proj-panel:nth-child(1) { animation-delay: 0.2s; }
+.inst-proj-panel:nth-child(2) { animation-delay: 0.24s; }
+
+/* Project row entrance + stagger */
+.inst-proj-row {
+    animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.inst-proj-row:nth-child(1) { animation-delay: 0.04s; }
+.inst-proj-row:nth-child(2) { animation-delay: 0.08s; }
+.inst-proj-row:nth-child(3) { animation-delay: 0.12s; }
+.inst-proj-row:nth-child(4) { animation-delay: 0.16s; }
+.inst-proj-row:nth-child(5) { animation-delay: 0.20s; }
+.inst-proj-row:nth-child(6) { animation-delay: 0.24s; }
+.inst-proj-row:nth-child(7) { animation-delay: 0.28s; }
+.inst-proj-row:nth-child(8) { animation-delay: 0.32s; }
+.inst-proj-row:nth-child(9) { animation-delay: 0.36s; }
+.inst-proj-row:nth-child(10) { animation-delay: 0.40s; }
+
+/* Review item entrance + stagger */
+.inst-proj-review-item {
+    animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.inst-proj-review-item:nth-child(1) { animation-delay: 0.04s; }
+.inst-proj-review-item:nth-child(2) { animation-delay: 0.08s; }
+.inst-proj-review-item:nth-child(3) { animation-delay: 0.12s; }
+.inst-proj-review-item:nth-child(4) { animation-delay: 0.16s; }
+.inst-proj-review-item:nth-child(5) { animation-delay: 0.20s; }
+
+/* Submissions table row entrance */
+.inst-proj-table tbody tr {
+    animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.inst-proj-table tbody tr:nth-child(1) { animation-delay: 0.04s; }
+.inst-proj-table tbody tr:nth-child(2) { animation-delay: 0.08s; }
+.inst-proj-table tbody tr:nth-child(3) { animation-delay: 0.12s; }
+.inst-proj-table tbody tr:nth-child(4) { animation-delay: 0.16s; }
+.inst-proj-table tbody tr:nth-child(5) { animation-delay: 0.20s; }
+.inst-proj-table tbody tr:nth-child(6) { animation-delay: 0.24s; }
+.inst-proj-table tbody tr:nth-child(7) { animation-delay: 0.28s; }
+.inst-proj-table tbody tr:nth-child(8) { animation-delay: 0.32s; }
+.inst-proj-table tbody tr:nth-child(9) { animation-delay: 0.36s; }
+.inst-proj-table tbody tr:nth-child(10) { animation-delay: 0.40s; }
+
+/* Skeleton row for tables */
+.skeleton-row td {
+    padding: 0.6rem 0.75rem;
+}
+
+/* Grading tab entrance animations */
+#tab-grading .selector-bar {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.1s;
+}
+
+#tab-grading .grade-stats {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.15s;
+}
+
+#tab-grading .grade-final-summary {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.2s;
+}
+
+#tab-grading .table-wrapper {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.25s;
+}
+
+#tab-grading .empty-state {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}

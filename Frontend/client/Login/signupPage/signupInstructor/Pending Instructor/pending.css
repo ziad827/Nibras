@@ -1,0 +1,292 @@
+/* =========================================
+   GLOBAL RESET
+   ========================================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+/* =========================================
+   PAGE BACKGROUNDS
+   ========================================= */
+
+/* Light Mode: Deep Blue Gradient (Matches Image 1) */
+.signup-page {
+    background: linear-gradient(135deg, #051030 0%, #0a1e5e 100%);
+    min-height: 100vh;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s ease;
+}
+
+/* Dark Mode: Deep Space Black (Matches Image 2) */
+[data-theme="dark"] .signup-page {
+    background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+}
+
+/* =========================================
+   HEADER STYLES
+   ========================================= */
+.auth-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 2rem 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 50;
+}
+
+.auth-logo {
+    width: 140px;
+    height: auto;
+    object-fit: contain;
+}
+
+/* Toggle Button - Always White */
+.signup-page .theme-toggle-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #ffffff !important;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+.signup-page .theme-toggle-btn:hover {
+    transform: scale(1.1);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* =========================================
+   AUTH CARD STYLES
+   ========================================= */
+.auth-container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 5;
+    padding: 1rem;
+}
+
+.auth-card {
+    background-color: #ffffff;
+    width: 100%;
+    max-width: 480px;
+    padding: 3.5rem 3rem;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+/* Dark Mode Card */
+[data-theme="dark"] .auth-card {
+    background-color: #121212;
+    border: 1px solid #333;
+    color: #ffffff;
+    box-shadow: 0 0 50px rgba(255, 255, 255, 0.05);
+}
+
+.auth-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    color: #111827;
+}
+
+[data-theme="dark"] .auth-title {
+    color: #ffffff;
+}
+
+/* =========================================
+   FORM ELEMENTS
+   ========================================= */
+.auth-card .form-group {
+    text-align: left;
+    margin-bottom: 1.5rem;
+}
+
+.auth-card label {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #374151;
+}
+
+[data-theme="dark"] .auth-card label {
+    color: #d1d5db;
+}
+
+/* Select Box Styling */
+.auth-card .form-control {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background-color: #f9fafb;
+    color: #111827;
+    outline: none;
+    font-size: 0.95rem;
+    appearance: none; /* Hides default arrow */
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+[data-theme="dark"] .auth-card .form-control {
+    background-color: #1e1e1e;
+    border-color: #333;
+    color: #ffffff;
+}
+
+.auth-card .form-control:focus {
+    border-color: #2563eb;
+    background-color: #ffffff;
+}
+
+[data-theme="dark"] .auth-card .form-control:focus {
+    background-color: #000000;
+    border-color: #3b82f6;
+}
+
+/* Custom Dropdown Arrow */
+.select-wrapper {
+    position: relative;
+}
+
+.select-arrow {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    pointer-events: none;
+    font-size: 0.8rem;
+}
+
+/* Button */
+.btn-login {
+    width: 100%;
+    padding: 0.9rem;
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-login:hover {
+    background-color: #1d4ed8;
+}
+
+/* Links */
+.signup-link {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.signup-link a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+[data-theme="dark"] .signup-link a {
+    color: #60a5fa;
+}
+
+/* =========================================
+   STARRY BACKGROUND (CSS ONLY)
+   ========================================= */
+.stars-container {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 1; pointer-events: none; overflow: hidden;
+}
+
+[data-theme="dark"] .stars-container {
+    display: block;
+}
+
+/* Star Layers */
+#stars {
+    width: 1px; height: 1px; background: transparent;
+    box-shadow: 48px 258px #FFF, 956px 995px #FFF, 1193px 589px #FFF, 489px 1625px #FFF, 1626px 742px #FFF, 309px 1045px #FFF, 944px 72px #FFF, 1075px 1909px #FFF, 1873px 1446px #FFF, 184px 1634px #FFF, 434px 587px #FFF, 1035px 1252px #FFF, 42px 1489px #FFF, 1364px 787px #FFF, 1430px 698px #FFF, 1392px 872px #FFF, 158px 771px #FFF, 260px 1323px #FFF, 643px 29px #FFF, 1440px 1454px #FFF, 1973px 843px #FFF, 1745px 581px #FFF, 971px 1631px #FFF, 618px 345px #FFF, 1362px 1593px #FFF, 1256px 1127px #FFF, 1681px 404px #FFF, 1978px 1387px #FFF, 1424px 375px #FFF, 1478px 1806px #FFF, 115px 1503px #FFF, 819px 1150px #FFF, 63px 883px #FFF, 483px 896px #FFF, 1687px 428px #FFF, 1263px 1373px #FFF, 270px 141px #FFF, 1033px 991px #FFF, 1493px 1408px #FFF, 331px 387px #FFF, 1320px 1925px #FFF, 88px 1553px #FFF, 909px 1965px #FFF, 1283px 813px #FFF, 1147px 1252px #FFF, 1468px 1012px #FFF, 1870px 1267px #FFF, 522px 270px #FFF, 1107px 599px #FFF, 950px 1768px #FFF, 843px 416px #FFF, 277px 160px #FFF, 1926px 346px #FFF, 705px 7px #FFF, 1825px 1799px #FFF, 1462px 1472px #FFF, 1364px 276px #FFF, 232px 350px #FFF, 1474px 1098px #FFF, 641px 1027px #FFF, 1074px 562px #FFF, 444px 633px #FFF, 1950px 1138px #FFF, 122px 688px #FFF, 1950px 225px #FFF, 17px 1178px #FFF, 497px 252px #FFF, 1158px 274px #FFF, 1642px 282px #FFF, 895px 1078px #FFF, 871px 609px #FFF, 219px 1033px #FFF, 1680px 299px #FFF, 739px 109px #FFF, 1174px 225px #FFF, 801px 1722px #FFF, 1441px 1058px #FFF, 892px 20px #FFF, 1745px 1173px #FFF, 176px 1355px #FFF, 1348px 1021px #FFF, 709px 1900px #FFF, 878px 1392px #FFF, 1929px 679px #FFF, 290px 1206px #FFF, 1869px 562px #FFF, 189px 1177px #FFF, 557px 1528px #FFF, 303px 817px #FFF, 1634px 923px #FFF, 1238px 755px #FFF, 1752px 1757px #FFF, 1255px 1123px #FFF, 1497px 1797px #FFF, 412px 1050px #FFF, 348px 497px #FFF, 637px 1839px #FFF, 1923px 379px #FFF, 93px 1399px #FFF, 1445px 1689px #FFF;
+    animation: animStar 50s linear infinite;
+}
+#stars:after { content: " "; position: absolute; top: 2000px; width: 1px; height: 1px; background: transparent; box-shadow: inherit; }
+
+#stars2 {
+    width: 2px; height: 2px; background: transparent;
+    box-shadow: 1785px 1839px #FFF, 1605px 267px #FFF, 641px 309px #FFF, 1551px 1372px #FFF, 1712px 428px #FFF, 1660px 1273px #FFF, 90px 1904px #FFF, 1617px 1453px #FFF, 954px 487px #FFF, 1622px 780px #FFF, 388px 354px #FFF, 1333px 1099px #FFF, 59px 1996px #FFF, 580px 435px #FFF, 965px 149px #FFF, 857px 683px #FFF, 802px 921px #FFF, 24px 1726px #FFF, 182px 1919px #FFF, 1179px 1270px #FFF, 1224px 949px #FFF, 1604px 316px #FFF, 670px 234px #FFF, 205px 428px #FFF, 52px 99px #FFF, 1539px 1842px #FFF, 1767px 203px #FFF, 1660px 1716px #FFF, 1383px 657px #FFF, 1116px 220px #FFF, 86px 1622px #FFF, 1349px 1779px #FFF, 483px 784px #FFF, 813px 1313px #FFF, 1688px 1635px #FFF, 1243px 670px #FFF, 1512px 1437px #FFF, 873px 1135px #FFF, 1783px 486px #FFF, 1096px 755px #FFF, 807px 1643px #FFF, 1145px 129px #FFF, 26px 1745px #FFF, 1891px 1503px #FFF, 1343px 1499px #FFF, 1231px 974px #FFF, 814px 198px #FFF, 770px 1177px #FFF, 112px 252px #FFF, 963px 779px #FFF;
+    animation: animStar 100s linear infinite;
+}
+#stars2:after { content: " "; position: absolute; top: 2000px; width: 2px; height: 2px; background: transparent; box-shadow: inherit; }
+
+#stars3 {
+    width: 3px; height: 3px; background: transparent;
+    box-shadow: 196px 1281px #FFF, 1143px 1473px #FFF, 1694px 305px #FFF, 951px 1053px #FFF, 1491px 1202px #FFF, 320px 674px #FFF, 1666px 31px #FFF, 734px 675px #FFF, 665px 83px #FFF, 992px 758px #FFF, 310px 392px #FFF, 13px 1620px #FFF, 249px 1428px #FFF, 1817px 1221px #FFF, 1841px 1894px #FFF, 1555px 1385px #FFF, 1580px 1056px #FFF, 1944px 1189px #FFF, 363px 1759px #FFF, 885px 996px #FFF;
+    animation: animStar 150s linear infinite;
+}
+#stars3:after { content: " "; position: absolute; top: 2000px; width: 3px; height: 3px; background: transparent; box-shadow: inherit; }
+
+@keyframes animStar { from { transform: translateY(0px); } to { transform: translateY(-2000px); } }
+
+@media (max-width: 600px) {
+    .auth-card { padding: 2rem; }
+    .auth-header { padding: 1.5rem; }
+    .auth-title { font-size: 1.5rem; }
+}   
+
+/* =========================================
+   PENDING PAGE SPECIFIC STYLES
+   ========================================= */
+
+/* The card needs to be wider for the text message */
+.pending-card {
+    max-width: 800px; /* Wider than the standard 480px form card */
+    padding: 4rem 3rem; /* More vertical padding */
+}
+
+/* Typography for the message */
+.pending-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.4;
+    color: #111827; /* Dark text for light mode */
+    margin-bottom: 3rem;
+}
+
+/* Dark Mode Text Override */
+[data-theme="dark"] .pending-text {
+    color: #ffffff;
+}
+
+/* Responsive adjustment for mobile */
+@media (max-width: 768px) {
+    .pending-card {
+        padding: 2rem;
+    }
+    .pending-text {
+        font-size: 1.2rem;
+    }
+}

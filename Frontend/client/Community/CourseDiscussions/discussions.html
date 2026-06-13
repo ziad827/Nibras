@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Course Discussions</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./discussions.css">
+    <script src="../../config.js"></script>
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            
+            <li class="nav-item"><a href="../../Projects/projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../../CLI/cli.html" class="nav-link"><i class="fa-solid fa-terminal"></i> CLI</a></li><li class="nav-item"><a href="../../Competitions/Contests/contest.html" class="nav-link"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="../community.html" class="nav-link active"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <li class="nav-item"><a href="../../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <li class="nav-item"><a href="../../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+
+        <div class="user-profile">
+            <div class="avatar-circle">ZA</div>
+            <div class="user-info">
+                <h4>Ziad Alaa</h4>
+                <span>student</span>
+            </div>
+        </div>
+
+        <div class="reputation-box">
+            <span>Reputation</span>
+            <div class="rep-badge">0</div>
+        </div>
+
+        <a href="../../Login/loginPage/login.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+        </a>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="search-bar-global">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Search courses, threads">
+            </div>
+
+            <div class="header-actions">
+                <button class="icon-btn" id="themeBtn" type="button" aria-label="Toggle theme"><i class="fa-regular fa-moon"></i></button>
+                <div class="profile-circle-small">ZA</div>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            <div class="page-title-section">
+                <h1>Course Discussions</h1>
+                <p id="selected-course-label">Loading selected course...</p>
+            </div>
+
+            <div class="toolbar">
+                <div class="field-group">
+                    <label for="community-course-select">Community Course</label>
+                    <select id="community-course-select"></select>
+                </div>
+
+                <div class="field-group search-group">
+                    <label for="thread-search">Search</label>
+                    <input id="thread-search" type="text" placeholder="Search thread title or body">
+                </div>
+
+                <div class="field-group">
+                    <label for="thread-status-filter">Status</label>
+                    <select id="thread-status-filter">
+                        <option value="all">All</option>
+                        <option value="open">Open</option>
+                        <option value="closed">Closed</option>
+                    </select>
+                </div>
+
+                <button class="btn-primary" id="open-thread-modal-btn" type="button"><i class="fa-solid fa-plus"></i> New Thread</button>
+                <a class="btn-link" href="../community.html">Go to General Q&A</a>
+            </div>
+
+            <div id="ui-notice" class="notice" hidden></div>
+
+            <section id="threads-container" class="threads-container" aria-live="polite">
+                <div class="skeleton skeleton-thread-card"></div>
+                <div class="skeleton skeleton-thread-card"></div>
+                <div class="skeleton skeleton-thread-card"></div>
+            </section>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="thread-modal" hidden>
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Create Thread</h2>
+                <button id="close-thread-modal-btn" type="button" class="icon-btn" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <label for="thread-title-input">Title</label>
+                <input id="thread-title-input" type="text" maxlength="300" placeholder="Summarize your discussion topic">
+
+                <label for="thread-body-input">Details</label>
+                <textarea id="thread-body-input" rows="8" placeholder="Describe your question or idea clearly"></textarea>
+
+                <label for="thread-tags-input">Tags (optional, comma separated)</label>
+                <input id="thread-tags-input" type="text" placeholder="e.g. javascript, debugging, react">
+                <div id="typing-indicator" style="font-size:0.8rem;color:var(--text-tertiary);font-style:italic;margin-top:0.5rem;min-height:1.2rem;transition:opacity 0.2s;opacity:0;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancel-thread-btn" type="button">Cancel</button>
+                <button class="btn-primary" id="create-thread-btn" type="button">Create Thread</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="../../react-bootstrap.js"></script>
+    <script src="../../Courses/courseData.js"></script>
+    <script src="../../services/gamification-ui.js"></script>
+    <script src="./discussions.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

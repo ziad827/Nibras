@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NiBras - Portfolio</title>
+    <script src="../services/auth-guard.js" data-login="../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+    <link rel="stylesheet" href="portfolio.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="../Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo">
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            <li class="nav-item"><a href="../Projects/projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="./portfolio.html" class="nav-link active"><i class="fa-solid fa-briefcase"></i> Portfolio</a></li>
+            <li class="nav-item"><a href="../CLI/cli.html" class="nav-link"><i class="fa-solid fa-terminal"></i> CLI</a></li>
+            <li class="nav-item"><a href="../Competitions/Contests/contest.html" class="nav-link"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <li class="nav-item"><a href="../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <li class="nav-item"><a href="../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+        <div class="user-profile">
+            <div class="avatar-circle">U</div>
+            <div class="user-info">
+                <h4>User</h4>
+                <span>Student</span>
+            </div>
+        </div>
+        <div class="reputation-box">
+            Reputation <span class="rep-badge">0</span>
+        </div>
+        <button class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <nav class="top-nav">
+                <a href="./portfolio.html" class="nav-tab active">My Portfolio</a>
+            </nav>
+            <div class="header-actions">
+                <button id="theme-toggle" class="icon-btn"><i class="fas fa-moon"></i></button>
+                <button class="icon-btn"><i class="fas fa-bell"></i></button>
+                <div class="profile-circle-small">U</div>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            <div id="portfolio-notice" style="padding:1rem;text-align:center;color:var(--text-secondary);display:none;"></div>
+
+            <!-- Hero -->
+            <section class="portfolio-hero">
+                <div class="portfolio-hero-content">
+                    <div class="portfolio-avatar-large" id="portfolio-avatar">U</div>
+                    <div>
+                        <h1 id="portfolio-user-name">My Portfolio</h1>
+                        <p id="portfolio-user-bio" class="portfolio-bio">Completed projects and contributions</p>
+                    </div>
+                    <div class="portfolio-hero-stats" id="portfolio-hero-stats">
+                        <div class="hero-stat"><span class="hero-stat-value" id="stat-projects">0</span><span class="hero-stat-label">Projects</span></div>
+                        <div class="hero-stat"><span class="hero-stat-value" id="stat-completed">0</span><span class="hero-stat-label">Completed</span></div>
+                        <div class="hero-stat"><span class="hero-stat-value" id="stat-grades">--</span><span class="hero-stat-label">Avg Grade</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Filter bar -->
+            <div class="portfolio-filter-bar">
+                <input type="text" id="portfolio-search" placeholder="Search projects..." class="portfolio-search-input" />
+                <select id="portfolio-filter-status" class="portfolio-filter-select">
+                    <option value="all">All Status</option>
+                    <option value="completed">Completed</option>
+                    <option value="in_progress">In Progress</option>
+                </select>
+            </div>
+
+            <!-- Project Grid -->
+            <div id="portfolio-grid" class="portfolio-grid">
+                <div class="portfolio-loading">Loading portfolio...</div>
+            </div>
+
+            <!-- Empty state -->
+            <div id="portfolio-empty" class="portfolio-empty" style="display:none;">
+                <i class="fa-regular fa-folder-open"></i>
+                <h3>No projects yet</h3>
+                <p>Complete projects through your courses to build your portfolio.</p>
+                <a href="../Projects/projects.html" class="btn-primary-link"><i class="fa-solid fa-arrow-right"></i> Go to Projects</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Project Detail Modal -->
+    <div class="modal-overlay" id="portfolioDetailModal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <h2 id="portfolio-detail-title">Project Details</h2>
+                <button class="close-btn" onclick="closePortfolioDetailModal()" type="button">&times;</button>
+            </div>
+            <div class="modal-body" id="portfolio-detail-body">
+                <div id="portfolio-detail-loading" style="text-align:center;padding:40px;color:var(--text-secondary);"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>
+                <div id="portfolio-detail-content" style="display:none;">
+                    <div id="portfolio-detail-description" class="portfolio-detail-section"></div>
+                    <div id="portfolio-detail-meta" class="portfolio-detail-section"></div>
+                    <div id="portfolio-detail-techstack" class="portfolio-detail-section"></div>
+                    <div id="portfolio-detail-team" class="portfolio-detail-section"></div>
+                    <div id="portfolio-detail-links" class="portfolio-detail-section"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../react-page-utils.js"></script>
+    <script>if (window.NibrasShared?.session?.updateUserInfoDisplay) { window.NibrasShared.session.updateUserInfoDisplay(); }</script>
+    <script>
+    (function initTheme() {
+        var themeBtn = document.getElementById('theme-toggle');
+        if (!themeBtn) return;
+        var icon = themeBtn.querySelector('i');
+        var html = document.documentElement;
+        var cur = html.getAttribute('data-theme') || 'light';
+        if (icon) icon.className = cur === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        themeBtn.addEventListener('click', function () {
+            var next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            if (icon) icon.className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            var logo = document.querySelector('.sidebar-logo');
+            if (logo) logo.src = next === 'dark' ? '../Assets/images/logo-dark.png' : '../Assets/images/logo-light.png';
+        });
+    })();
+    </script>
+    <script src="../config.js"></script>
+    <script src="../services/api.js"></script>
+    <script src="../react-bootstrap.js"></script>
+    <script src="./portfolio.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+meta {
+  name: Project Grade
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{trackingBaseUrl}}/v1/tracking/projects/{{projectId}}/grade
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{trackingToken}}
+}
+
+body:json {
+  {
+    "memberGrades": {}
+  }
+}

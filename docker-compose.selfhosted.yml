@@ -1,0 +1,263 @@
+# Slim production stack for a single free VM (Oracle Cloud Always Free, etc.).
+#
+# Usage:
+#   cp .env.prod.example .env.prod   # fill secrets
+#   docker compose -f docker-compose.selfhosted.yml up -d --build
+#   docker compose -f docker-compose.selfhosted.yml --profile ide up -d --build  # + /ide sandbox
+#
+# See docs/selfhosted-deploy.md for full migration guide.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nibras}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nibras}
+      POSTGRES_DB: ${POSTGRES_DB:-nibras}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-nibras}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - '127.0.0.1:5433:5432'
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 4848
+      REDIS_URL: redis://redis:6379
+      CHATBOT_V1_URL: http://tutor:5000
+      JUDGE0_API_URL: http://judge0-server:2358
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      tutor:
+        condition: service_healthy
+    networks:
+      - internal
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && node apps/api/dist/server.js"
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:${PORT:-4848}/healthz || exit 1',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  worker:
+    build:
+      context: .
+      target: worker
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - internal
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        NEXT_PUBLIC_NIBRAS_API_BASE_URL: ${NEXT_PUBLIC_NIBRAS_API_BASE_URL}
+        NEXT_PUBLIC_NIBRAS_WEB_BASE_URL: ${NEXT_PUBLIC_NIBRAS_WEB_BASE_URL}
+        NIBRAS_API_INTERNAL_URL: ${NIBRAS_API_INTERNAL_URL:-http://api:4848}
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NIBRAS_API_INTERNAL_URL: http://api:4848
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - internal
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    environment:
+      NIBRAS_DOMAIN: ${NIBRAS_DOMAIN:-localhost}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    networks:
+      - internal
+      - external
+
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nibras}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nibras}
+      POSTGRES_DB: ${POSTGRES_DB:-nibras}
+    volumes:
+      - ./backups:/backups
+    networks:
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command: >
+      -c "while true; do
+        sleep $$(( 86400 - $$(date +%s) % 86400 + 7200 ));
+        PGPASSWORD=$$POSTGRES_PASSWORD pg_dump -h postgres -U $$POSTGRES_USER $$POSTGRES_DB | gzip -9 > /backups/nibras-db-$$(date -u +%Y%m%dT%H%M%SZ).sql.gz;
+        ls -t /backups/nibras-db-*.sql.gz 2>/dev/null | tail -n +31 | xargs rm -f 2>/dev/null || true;
+        echo backup done;
+      done"
+
+  tutor:
+    build: ./apps/tutor
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      NIBRAS_API_URL: http://api:4848/v1/community
+      NIBRAS_API_ORIGIN: http://api:4848
+      REDIS_URL: ''
+    networks:
+      - internal
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'python3 -c "import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:5000/api/health\")"',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  judge0-server:
+    profiles: ['ide']
+    image: judge0/judge0:latest
+    restart: unless-stopped
+    volumes:
+      - ./judge0/judge0.conf:/judge0.conf:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    environment:
+      POSTGRES_HOST: judge0-db
+      REDIS_HOST: judge0-redis
+    privileged: true
+    cgroup: host
+    networks:
+      - internal
+    depends_on:
+      judge0-db:
+        condition: service_started
+      judge0-redis:
+        condition: service_started
+
+  judge0-worker:
+    profiles: ['ide']
+    image: judge0/judge0:latest
+    restart: unless-stopped
+    command: ['./scripts/workers']
+    volumes:
+      - ./judge0/judge0.conf:/judge0.conf:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    environment:
+      POSTGRES_HOST: judge0-db
+      REDIS_HOST: judge0-redis
+    privileged: true
+    cgroup: host
+    networks:
+      - internal
+    depends_on:
+      judge0-db:
+        condition: service_started
+      judge0-redis:
+        condition: service_started
+
+  judge0-db:
+    profiles: ['ide']
+    image: postgres:16.2
+    restart: unless-stopped
+    env_file: ./judge0/judge0.conf
+    volumes:
+      - judge0_postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  judge0-redis:
+    profiles: ['ide']
+    image: redis:7.2.4
+    restart: unless-stopped
+    command:
+      [
+        'bash',
+        '-c',
+        'docker-entrypoint.sh --appendonly no --requirepass "$$REDIS_PASSWORD"',
+      ]
+    env_file: ./judge0/judge0.conf
+    networks:
+      - internal
+
+volumes:
+  postgres_data:
+  redis_data:
+  nginx_logs:
+  judge0_postgres_data:
+
+networks:
+  internal:
+    name: nibras_app_internal
+    driver: bridge
+  external:
+    driver: bridge

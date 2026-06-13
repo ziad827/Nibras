@@ -1,0 +1,1953 @@
+import { FastifyInstance } from 'fastify';
+import {
+  CommunityModerationStatus,
+  CommunityVoteTargetType,
+  PrismaClient,
+} from '@prisma/client';
+import { optionalAuth, requireUser } from '../../lib/auth';
+import { Errors } from '../../lib/errors';
+import { requestBaseUrl } from '../../lib/request-base-url';
+import { AppStore } from '../../store';
+import {
+  AI_CREDENTIAL_DECRYPT_FAILED_MESSAGE,
+  getUserAiCredential,
+  hasPlatformAiKey,
+  HASSONA_CREDENTIAL_REQUIRED_MESSAGE,
+  tutorPayloadFromCredential,
+  userHasAiCredentialRow,
+} from '../../lib/ai-credentials';
+import {
+  assertCourseManage,
+  assertCourseView,
+  canAcceptAnswer,
+} from './access';
+import {
+  authorSelect,
+  loadReputationTotals,
+  presentAuthor,
+  presentQuestion,
+  presentThread,
+} from './present';
+import {
+  awardAnswerAccepted,
+  awardAnswerUpvoteReceived,
+  awardPostUpvoteReceived,
+  awardQuestionUpvoteReceived,
+} from './reputation';
+import { questionOrderBy } from './sort';
+import { attachMyVotes } from './votes';
+import { visibleContentFilter } from './moderation';
+import { registerCommunityV2Routes } from './v2-routes';
+import { enrichRoutingResponse } from './routing-enrichment';
+import { buildTutorInsightsStats } from './tutor-insights-stats';
+import { TUTOR_DEFAULT_MATCH_THRESHOLD } from '@nibras/contracts';
+
+export function registerCommunityRoutes(
+  app: FastifyInstance,
+  store: AppStore,
+  prisma: PrismaClient,
+): void {
+  // ── Questions ───────────────────────────────────────────────────────────
+
+  app.get(
+    '/v1/community/questions',
+    { schema: { tags: ['community'], summary: 'List community questions' } },
+    async (request, reply) => {
+      const auth = await optionalAuth(request, reply, store);
+      const query = request.query as {
+        q?: string;
+        tag?: string;
+        tags?: string;
+        authorId?: string;
+        sort?: string;
+        page?: string;
+        limit?: string;
+      };
+      const page = Math.max(1, parseInt(query.page || '1', 10) || 1);
+      const limit = Math.min(
+        100,
+        Math.max(1, parseInt(query.limit || '20', 10) || 20),
+      );
+      const skip = (page - 1) * limit;
+
+      const where: Record<string, unknown> = {
+        ...visibleContentFilter(auth, false),
+      };
+      if (query.q) {
+        where.OR = [
+          { title: { contains: query.q, mode: 'insensitive' } },
+          { body: { contains: query.q, mode: 'insensitive' } },
+        ];
+      }
+      if (query.tags) {
+        const tagList = query.tags
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean);
+        if (tagList.length > 0) where.tags = { hasSome: tagList };
+      } else if (query.tag) {
+        where.tags = { has: query.tag };
+      }
+      if (query.authorId) {
+        where.authorId = query.authorId;
+      }
+
+      const orderBy = questionOrderBy(query.sort);
+
+      const [questions, total] = await Promise.all([
+        prisma.communityQuestion.findMany({
+          where,
+          orderBy,
+          skip,
+          take: limit,
+          include: { author: { select: authorSelect } },
+        }),
+        prisma.communityQuestion.count({ where }),
+      ]);
+
+      const reputationByUserId = await loadReputationTotals(
+        prisma,
+        questions.map((q) => q.author.id),
+      );
+      const withVotes = await attachMyVotes(
+        prisma,
+        auth?.user.id,
+        CommunityVoteTargetType.question,
+        questions,
+      );
+
+      return {
+        questions: withVotes.map((q) =>
+          presentQuestion(q, reputationByUserId, q.myVote),
+        ),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    },
+  );
+
+  app.get(
+    '/v1/community/questions/:questionId',
+    { schema: { tags: ['community'], summary: 'Get a community question' } },
+    async (request, reply) => {
+      const auth = await optionalAuth(request, reply, store);
+      const { questionId } = request.params as { questionId: string };
+      const question = await prisma.communityQuestion.findUnique({
+        where: { id: questionId },
+        include: {
+          author: { select: authorSelect },
+          answers: {
+            include: { author: { select: authorSelect } },
+            orderBy: { createdAt: 'asc' },
+          },
+        },
+      });
+      if (
+        !question ||
+        (question.moderationStatus !== CommunityModerationStatus.visible &&
+          auth?.user.systemRole !== 'admin')
+      ) {
+        reply.code(404).send(Errors.notFound('Question'));
+        return;
+      }
+      if (!auth || auth.user.id !== question.authorId) {
+        await prisma.communityQuestion.update({
+          where: { id: questionId },
+          data: { viewCount: { increment: 1 } },
+        });
+        question.viewCount += 1;
+      }
+      const reputationByUserId = await loadReputationTotals(prisma, [
+        question.author.id,
+        ...question.answers.map((a) => a.author.id),
+      ]);
+      const [questionVote] = await attachMyVotes(
+        prisma,
+        auth?.user.id,
+        CommunityVoteTargetType.question,
+        [question],
+      );
+      const visibleAnswers = question.answers.filter(
+        (a) =>
+          a.moderationStatus === CommunityModerationStatus.visible ||
+          auth?.user.systemRole === 'admin',
+      );
+      const answersWithVotes = await attachMyVotes(
+        prisma,
+        auth?.user.id,
+        CommunityVoteTargetType.answer,
+        visibleAnswers,
+      );
+      return {
+        question: presentQuestion(
+          questionVote,
+          reputationByUserId,
+          questionVote.myVote,
+        ),
+        answers: answersWithVotes.map((a) => ({
+          ...a,
+          _id: a.id,
+          author: presentAuthor(a.author, reputationByUserId),
+        })),
+      };
+    },
+  );
+
+  app.post(
+    '/v1/community/questions',
+    { schema: { tags: ['community'], summary: 'Create a community question' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const body = request.body as {
+        title?: string;
+        body?: string;
+        tags?: string[];
+      };
+      if (!body.title?.trim() || !body.body?.trim()) {
+        reply.code(400).send(Errors.validation('Title and body are required.'));
+        return;
+      }
+      const tags = body.tags ?? [];
+      const [question] = await prisma.$transaction([
+        prisma.communityQuestion.create({
+          data: {
+            authorId: auth.user.id,
+            title: body.title.trim(),
+            body: body.body.trim(),
+            tags,
+          },
+          include: { author: { select: authorSelect } },
+        }),
+        ...tags.map((tag) =>
+          prisma.communityTag.upsert({
+            where: { name: tag },
+            create: { name: tag, usageCount: 1 },
+            update: { usageCount: { increment: 1 } },
+          }),
+        ),
+      ]);
+      reply.code(201);
+      return {
+        question: {
+          ...question,
+          _id: question.id,
+          author: presentAuthor(question.author),
+        },
+      };
+    },
+  );
+
+  // ── Answers ─────────────────────────────────────────────────────────────
+
+  app.get(
+    '/v1/community/answers/question/:questionId',
+    { schema: { tags: ['community'], summary: 'List answers for a question' } },
+    async (request, reply) => {
+      const auth = await optionalAuth(request, reply, store);
+      const { questionId } = request.params as { questionId: string };
+      const question = await prisma.communityQuestion.findUnique({
+        where: { id: questionId },
+      });
+      if (!question) {
+        reply.code(404).send(Errors.notFound('Question'));
+        return;
+      }
+      const answers = await prisma.communityAnswer.findMany({
+        where: {
+          questionId,
+          moderationStatus: CommunityModerationStatus.visible,
+        },
+        orderBy: { createdAt: 'asc' },
+        include: { author: { select: authorSelect } },
+      });
+      const reputationByUserId = await loadReputationTotals(
+        prisma,
+        answers.map((a) => a.author.id),
+      );
+      const withVotes = await attachMyVotes(
+        prisma,
+        auth?.user.id,
+        CommunityVoteTargetType.answer,
+        answers,
+      );
+      return {
+        answers: withVotes.map((a) => ({
+          ...a,
+          _id: a.id,
+          author: presentAuthor(a.author, reputationByUserId),
+        })),
+      };
+    },
+  );
+
+  app.post(
+    '/v1/community/answers/:questionId',
+    { schema: { tags: ['community'], summary: 'Create an answer' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { questionId } = request.params as { questionId: string };
+      const body = request.body as { body?: string };
+      if (!body.body?.trim()) {
+        reply.code(400).send(Errors.validation('Answer body is required.'));
+        return;
+      }
+      const question = await prisma.communityQuestion.findUnique({
+        where: { id: questionId },
+      });
+      if (!question) {
+        reply.code(404).send(Errors.notFound('Question'));
+        return;
+      }
+      const answer = await prisma.communityAnswer.create({
+        data: {
+          questionId,
+          authorId: auth.user.id,
+          body: body.body.trim(),
+        },
+        include: { author: { select: authorSelect } },
+      });
+      const answerCount = await prisma.communityAnswer.count({
+        where: { questionId },
+      });
+      await prisma.communityQuestion.update({
+        where: { id: questionId },
+        data: { answersCount: answerCount, updatedAt: new Date() },
+      });
+      if (question.authorId !== auth.user.id) {
+        void store.createNotification(
+          requestBaseUrl(request),
+          question.authorId,
+          {
+            type: 'community_answer',
+            title: 'New answer',
+            body: `${auth.user.username} answered your question "${question.title.slice(0, 80)}".`,
+            link: `/community/q/${questionId}`,
+          },
+        );
+      }
+      reply.code(201);
+      return {
+        answer: {
+          ...answer,
+          _id: answer.id,
+          author: presentAuthor(answer.author),
+        },
+      };
+    },
+  );
+
+  app.patch(
+    '/v1/community/answers/:answerId/accept',
+    { schema: { tags: ['community'], summary: 'Accept an answer' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { answerId } = request.params as { answerId: string };
+      const answer = await prisma.communityAnswer.findUnique({
+        where: { id: answerId },
+        include: { question: true },
+      });
+      if (!answer) {
+        reply.code(404).send(Errors.notFound('Answer'));
+        return;
+      }
+      if (!canAcceptAnswer(auth, answer.question.authorId)) {
+        reply.code(403).send(Errors.forbidden());
+        return;
+      }
+      await prisma.$transaction([
+        prisma.communityAnswer.updateMany({
+          where: { questionId: answer.questionId, accepted: true },
+          data: { accepted: false },
+        }),
+        prisma.communityAnswer.update({
+          where: { id: answerId },
+          data: { accepted: true },
+        }),
+        prisma.communityQuestion.update({
+          where: { id: answer.questionId },
+          data: { acceptedAnswerId: answerId },
+        }),
+      ]);
+      if (answer.authorId !== auth.user.id) {
+        void store.createNotification(
+          requestBaseUrl(request),
+          answer.authorId,
+          {
+            type: 'community_answer_accepted',
+            title: 'Answer accepted',
+            body: `Your answer was accepted on "${answer.question.title.slice(0, 80)}".`,
+            link: `/community/q/${answer.questionId}`,
+          },
+        );
+      }
+      void awardAnswerAccepted(
+        prisma,
+        answer.authorId,
+        answerId,
+        answer.question.title,
+      );
+      return { accepted: true };
+    },
+  );
+
+  // ── Votes ───────────────────────────────────────────────────────────────
+
+  app.post(
+    '/v1/community/votes',
+    { schema: { tags: ['community'], summary: 'Cast a vote' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const body = request.body as {
+        targetType?: string;
+        targetId?: string;
+        value?: number;
+      };
+      if (!body.targetType || !body.targetId || body.value === undefined) {
+        reply
+          .code(400)
+          .send(
+            Errors.validation('targetType, targetId, and value are required.'),
+          );
+        return;
+      }
+      const validTypes: CommunityVoteTargetType[] = [
+        CommunityVoteTargetType.question,
+        CommunityVoteTargetType.answer,
+        CommunityVoteTargetType.post,
+      ];
+      if (!validTypes.includes(body.targetType as CommunityVoteTargetType)) {
+        reply
+          .code(400)
+          .send(
+            Errors.validation('targetType must be question, answer, or post.'),
+          );
+        return;
+      }
+      const targetType = body.targetType as CommunityVoteTargetType;
+      const value = body.value === 1 ? 1 : body.value === -1 ? -1 : 0;
+
+      const existing = await prisma.communityVote.findUnique({
+        where: {
+          userId_targetType_targetId: {
+            userId: auth.user.id,
+            targetType,
+            targetId: body.targetId,
+          },
+        },
+      });
+
+      let action: string;
+      let delta: number;
+
+      if (value === 0 && existing) {
+        await prisma.communityVote.delete({ where: { id: existing.id } });
+        delta = -existing.value;
+        action = 'removed';
+      } else if (value === 0) {
+        return { action: 'none', voteValue: 0, votesCount: 0 };
+      } else if (existing) {
+        if (existing.value === value) {
+          await prisma.communityVote.delete({ where: { id: existing.id } });
+          delta = -value;
+          action = 'toggled';
+        } else {
+          await prisma.communityVote.update({
+            where: { id: existing.id },
+            data: { value },
+          });
+          delta = value - existing.value;
+          action = 'changed';
+        }
+      } else {
+        await prisma.communityVote.create({
+          data: {
+            userId: auth.user.id,
+            targetType,
+            targetId: body.targetId,
+            value,
+          },
+        });
+        delta = value;
+        action = 'voted';
+      }
+
+      let votesCount = 0;
+      if (targetType === 'question') {
+        const updated = await prisma.communityQuestion.update({
+          where: { id: body.targetId },
+          data: { votesCount: { increment: delta } },
+        });
+        votesCount = updated.votesCount;
+      } else if (targetType === 'answer') {
+        const updated = await prisma.communityAnswer.update({
+          where: { id: body.targetId },
+          data: { votesCount: { increment: delta } },
+        });
+        votesCount = updated.votesCount;
+      } else if (targetType === 'post') {
+        const updated = await prisma.communityPost.update({
+          where: { id: body.targetId },
+          data: { votesCount: { increment: delta } },
+        });
+        votesCount = updated.votesCount;
+      }
+
+      const awardedUpvote =
+        value === 1 && (action === 'voted' || action === 'changed');
+      if (awardedUpvote) {
+        let contentAuthorId: string | null = null;
+        let contentTitle = '';
+        let contentLink = '';
+        if (targetType === CommunityVoteTargetType.question) {
+          const q = await prisma.communityQuestion.findUnique({
+            where: { id: body.targetId },
+            select: { authorId: true, title: true },
+          });
+          if (q) {
+            contentAuthorId = q.authorId;
+            contentTitle = q.title;
+            contentLink = `/community/q/${body.targetId}`;
+            void awardQuestionUpvoteReceived(
+              prisma,
+              q.authorId,
+              body.targetId,
+              auth.user.id,
+            );
+          }
+        } else if (targetType === CommunityVoteTargetType.answer) {
+          const a = await prisma.communityAnswer.findUnique({
+            where: { id: body.targetId },
+            select: { authorId: true, questionId: true },
+          });
+          if (a) {
+            contentAuthorId = a.authorId;
+            contentLink = `/community/q/${a.questionId}`;
+            contentTitle = 'your answer';
+            void awardAnswerUpvoteReceived(
+              prisma,
+              a.authorId,
+              body.targetId,
+              auth.user.id,
+            );
+          }
+        } else if (targetType === CommunityVoteTargetType.post) {
+          const p = await prisma.communityPost.findUnique({
+            where: { id: body.targetId },
+            select: { authorId: true, threadId: true },
+          });
+          if (p) {
+            contentAuthorId = p.authorId;
+            contentLink = `/community/discussions/${p.threadId}`;
+            contentTitle = 'your post';
+            void awardPostUpvoteReceived(
+              prisma,
+              p.authorId,
+              body.targetId,
+              auth.user.id,
+            );
+          }
+        }
+        if (contentAuthorId && contentAuthorId !== auth.user.id) {
+          void store.createNotification(
+            requestBaseUrl(request),
+            contentAuthorId,
+            {
+              type: 'community_vote',
+              title: 'Upvote',
+              body: `${auth.user.username} upvoted ${contentTitle.startsWith('your') ? contentTitle : `"${contentTitle.slice(0, 80)}"`}.`,
+              link: contentLink,
+            },
+          );
+        }
+      }
+
+      const currentVote = await prisma.communityVote.findUnique({
+        where: {
+          userId_targetType_targetId: {
+            userId: auth.user.id,
+            targetType,
+            targetId: body.targetId,
+          },
+        },
+      });
+
+      return { action, voteValue: currentVote?.value ?? 0, votesCount };
+    },
+  );
+
+  // ── Tags ────────────────────────────────────────────────────────────────
+
+  app.get(
+    '/v1/community/tags',
+    { schema: { tags: ['community'], summary: 'List community tags' } },
+    async () => {
+      const tags = await prisma.communityTag.findMany({
+        orderBy: { usageCount: 'desc' },
+      });
+      return { tags: tags.map((t) => ({ ...t, _id: t.id })) };
+    },
+  );
+
+  app.get(
+    '/v1/community/tags/admin',
+    { schema: { tags: ['community'], summary: 'List all tags (admin)' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      if (auth.user.systemRole !== 'admin') {
+        reply.code(403).send(Errors.forbidden());
+        return;
+      }
+      const tags = await prisma.communityTag.findMany({
+        orderBy: { name: 'asc' },
+      });
+      return { tags: tags.map((t) => ({ ...t, _id: t.id })) };
+    },
+  );
+
+  app.post(
+    '/v1/community/tags',
+    { schema: { tags: ['community'], summary: 'Create a tag (admin)' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      if (auth.user.systemRole !== 'admin') {
+        reply.code(403).send(Errors.forbidden());
+        return;
+      }
+      const body = request.body as { name?: string; description?: string };
+      if (!body.name?.trim()) {
+        reply.code(400).send(Errors.validation('Tag name is required.'));
+        return;
+      }
+      const existing = await prisma.communityTag.findUnique({
+        where: { name: body.name.trim() },
+      });
+      if (existing) {
+        reply
+          .code(409)
+          .send(Errors.validation('A tag with this name already exists.'));
+        return;
+      }
+      const tag = await prisma.communityTag.create({
+        data: {
+          name: body.name.trim(),
+          description: body.description?.trim() || undefined,
+        },
+      });
+      reply.code(201);
+      return { tag: { ...tag, _id: tag.id } };
+    },
+  );
+
+  app.put(
+    '/v1/community/tags/:tagId',
+    { schema: { tags: ['community'], summary: 'Update a tag (admin)' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      if (auth.user.systemRole !== 'admin') {
+        reply.code(403).send(Errors.forbidden());
+        return;
+      }
+      const { tagId } = request.params as { tagId: string };
+      const body = request.body as { name?: string; description?: string };
+      const tag = await prisma.communityTag.findUnique({
+        where: { id: tagId },
+      });
+      if (!tag) {
+        reply.code(404).send(Errors.notFound('Tag'));
+        return;
+      }
+      const data: Record<string, unknown> = {};
+      if (body.name?.trim()) {
+        const trimmedName = body.name.trim();
+        if (trimmedName !== tag.name) {
+          const conflict = await prisma.communityTag.findUnique({
+            where: { name: trimmedName },
+          });
+          if (conflict) {
+            reply
+              .code(409)
+              .send(Errors.validation('A tag with this name already exists.'));
+            return;
+          }
+          data.name = trimmedName;
+        }
+      }
+      if (body.description !== undefined) {
+        data.description = body.description?.trim() || null;
+      }
+      if (Object.keys(data).length === 0) {
+        return { tag: { ...tag, _id: tag.id } };
+      }
+      const updated = await prisma.communityTag.update({
+        where: { id: tagId },
+        data,
+      });
+      return { tag: { ...updated, _id: updated.id } };
+    },
+  );
+
+  app.delete(
+    '/v1/community/tags/:tagId',
+    { schema: { tags: ['community'], summary: 'Delete a tag (admin)' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      if (auth.user.systemRole !== 'admin') {
+        reply.code(403).send(Errors.forbidden());
+        return;
+      }
+      const { tagId } = request.params as { tagId: string };
+      const tag = await prisma.communityTag.findUnique({
+        where: { id: tagId },
+      });
+      if (!tag) {
+        reply.code(404).send(Errors.notFound('Tag'));
+        return;
+      }
+      await prisma.$transaction(async (tx) => {
+        const questions = await tx.communityQuestion.findMany({
+          where: { tags: { has: tag.name } },
+          select: { id: true, tags: true },
+        });
+        for (const question of questions) {
+          await tx.communityQuestion.update({
+            where: { id: question.id },
+            data: { tags: question.tags.filter((t) => t !== tag.name) },
+          });
+        }
+        await tx.communityTag.delete({ where: { id: tagId } });
+      });
+      return { deleted: true };
+    },
+  );
+
+  // ── Threads ─────────────────────────────────────────────────────────────
+
+  app.get(
+    '/v1/community/discussion-courses',
+    {
+      schema: {
+        tags: ['community'],
+        summary: 'List courses with discussion threads (public read)',
+      },
+    },
+    async () => {
+      const courses = await prisma.course.findMany({
+        where: {
+          deletedAt: null,
+          isActive: true,
+          communityThreads: { some: {} },
+        },
+        select: { id: true, title: true, courseCode: true },
+        orderBy: { title: 'asc' },
+      });
+      return {
+        courses: courses.map((c) => ({
+          id: c.id,
+          title: c.title,
+          courseCode: c.courseCode,
+        })),
+      };
+    },
+  );
+
+  app.get(
+    '/v1/community/threads/course/:courseId',
+    { schema: { tags: ['community'], summary: 'List threads for a course' } },
+    async (request, reply) => {
+      const auth = await optionalAuth(request, reply, store);
+      const { courseId } = request.params as { courseId: string };
+      const query = request.query as {
+        q?: string;
+        page?: string;
+        limit?: string;
+      };
+      const page = Math.max(1, parseInt(query.page || '1', 10) || 1);
+      const limit = Math.min(
+        100,
+        Math.max(1, parseInt(query.limit || '20', 10) || 20),
+      );
+      const skip = (page - 1) * limit;
+
+      const where: Record<string, unknown> = {
+        courseId,
+        ...visibleContentFilter(auth, false),
+      };
+      if (query.q) {
+        where.OR = [
+          { title: { contains: query.q, mode: 'insensitive' } },
+          { body: { contains: query.q, mode: 'insensitive' } },
+        ];
+      }
+
+      const [threads, total] = await Promise.all([
+        prisma.communityThread.findMany({
+          where,
+          orderBy: [{ pinned: 'desc' }, { lastActivityAt: 'desc' }],
+          skip,
+          take: limit,
+          include: { author: { select: authorSelect } },
+        }),
+        prisma.communityThread.count({ where }),
+      ]);
+
+      const reputationByUserId = await loadReputationTotals(
+        prisma,
+        threads.map((t) => t.author.id),
+      );
+
+      return {
+        items: threads.map((t) => presentThread(t, reputationByUserId)),
+        total,
+        page,
+        limit,
+      };
+    },
+  );
+
+  app.get(
+    '/v1/community/threads/:threadId',
+    { schema: { tags: ['community'], summary: 'Get a thread' } },
+    async (request, reply) => {
+      const auth = await optionalAuth(request, reply, store);
+      const { threadId } = request.params as { threadId: string };
+      const thread = await prisma.communityThread.findUnique({
+        where: { id: threadId },
+        include: { author: { select: authorSelect } },
+      });
+      if (
+        !thread ||
+        (thread.moderationStatus !== CommunityModerationStatus.visible &&
+          auth?.user.systemRole !== 'admin')
+      ) {
+        reply.code(404).send(Errors.notFound('Thread'));
+        return;
+      }
+      const reputationByUserId = await loadReputationTotals(prisma, [
+        thread.author.id,
+      ]);
+      return presentThread(thread, reputationByUserId);
+    },
+  );
+
+  app.post(
+    '/v1/community/threads/:courseId',
+    { schema: { tags: ['community'], summary: 'Create a thread' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const apiBaseUrl = requestBaseUrl(request);
+      const { courseId } = request.params as { courseId: string };
+      if (!(await assertCourseView(store, apiBaseUrl, auth, courseId, reply)))
+        return;
+      const body = request.body as {
+        title?: string;
+        body?: string;
+        tags?: string[];
+      };
+      if (!body.title?.trim()) {
+        reply.code(400).send(Errors.validation('Title is required.'));
+        return;
+      }
+      const now = new Date();
+      const thread = await prisma.communityThread.create({
+        data: {
+          courseId,
+          authorId: auth.user.id,
+          title: body.title.trim(),
+          body: body.body?.trim() ?? '',
+          tags: body.tags ?? [],
+          lastActivityAt: now,
+        },
+        include: { author: { select: authorSelect } },
+      });
+      const reputationByUserId = await loadReputationTotals(prisma, [
+        thread.author.id,
+      ]);
+      reply.code(201);
+      return presentThread(thread, reputationByUserId);
+    },
+  );
+
+  app.patch(
+    '/v1/community/threads/:threadId/pin',
+    { schema: { tags: ['community'], summary: 'Pin a thread' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { threadId } = request.params as { threadId: string };
+      const existing = await prisma.communityThread.findUnique({
+        where: { id: threadId },
+      });
+      if (!existing) {
+        reply.code(404).send(Errors.notFound('Thread'));
+        return;
+      }
+      if (!assertCourseManage(auth, existing.courseId, reply)) return;
+      const thread = await prisma.communityThread.update({
+        where: { id: threadId },
+        data: { pinned: true },
+        include: { author: { select: authorSelect } },
+      });
+      const reputationByUserId = await loadReputationTotals(prisma, [
+        thread.author.id,
+      ]);
+      return presentThread(thread, reputationByUserId);
+    },
+  );
+
+  app.patch(
+    '/v1/community/threads/:threadId/unpin',
+    { schema: { tags: ['community'], summary: 'Unpin a thread' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { threadId } = request.params as { threadId: string };
+      const existing = await prisma.communityThread.findUnique({
+        where: { id: threadId },
+      });
+      if (!existing) {
+        reply.code(404).send(Errors.notFound('Thread'));
+        return;
+      }
+      if (!assertCourseManage(auth, existing.courseId, reply)) return;
+      const thread = await prisma.communityThread.update({
+        where: { id: threadId },
+        data: { pinned: false },
+        include: { author: { select: authorSelect } },
+      });
+      const reputationByUserId = await loadReputationTotals(prisma, [
+        thread.author.id,
+      ]);
+      return presentThread(thread, reputationByUserId);
+    },
+  );
+
+  app.patch(
+    '/v1/community/threads/:threadId/close',
+    { schema: { tags: ['community'], summary: 'Close a thread' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { threadId } = request.params as { threadId: string };
+      const existing = await prisma.communityThread.findUnique({
+        where: { id: threadId },
+      });
+      if (!existing) {
+        reply.code(404).send(Errors.notFound('Thread'));
+        return;
+      }
+      if (!assertCourseManage(auth, existing.courseId, reply)) return;
+      const thread = await prisma.communityThread.update({
+        where: { id: threadId },
+        data: { closed: true },
+        include: { author: { select: authorSelect } },
+      });
+      const reputationByUserId = await loadReputationTotals(prisma, [
+        thread.author.id,
+      ]);
+      return presentThread(thread, reputationByUserId);
+    },
+  );
+
+  app.patch(
+    '/v1/community/threads/:threadId/open',
+    { schema: { tags: ['community'], summary: 'Open a thread' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { threadId } = request.params as { threadId: string };
+      const existing = await prisma.communityThread.findUnique({
+        where: { id: threadId },
+      });
+      if (!existing) {
+        reply.code(404).send(Errors.notFound('Thread'));
+        return;
+      }
+      if (!assertCourseManage(auth, existing.courseId, reply)) return;
+      const thread = await prisma.communityThread.update({
+        where: { id: threadId },
+        data: { closed: false },
+        include: { author: { select: authorSelect } },
+      });
+      const reputationByUserId = await loadReputationTotals(prisma, [
+        thread.author.id,
+      ]);
+      return presentThread(thread, reputationByUserId);
+    },
+  );
+
+  // ── Posts ────────────────────────────────────────────────────────────────
+
+  app.get(
+    '/v1/community/posts/thread/:threadId',
+    { schema: { tags: ['community'], summary: 'List posts in a thread' } },
+    async (request, reply) => {
+      const auth = await optionalAuth(request, reply, store);
+      const { threadId } = request.params as { threadId: string };
+      const thread = await prisma.communityThread.findUnique({
+        where: { id: threadId },
+      });
+      if (!thread) {
+        reply.code(404).send(Errors.notFound('Thread'));
+        return;
+      }
+      const posts = await prisma.communityPost.findMany({
+        where: {
+          threadId,
+          moderationStatus: CommunityModerationStatus.visible,
+        },
+        orderBy: { createdAt: 'asc' },
+        include: { author: { select: authorSelect } },
+      });
+      const reputationByUserId = await loadReputationTotals(
+        prisma,
+        posts.map((p) => p.author.id),
+      );
+      const withVotes = await attachMyVotes(
+        prisma,
+        auth?.user.id,
+        CommunityVoteTargetType.post,
+        posts,
+      );
+      return withVotes.map((p) => ({
+        ...p,
+        _id: p.id,
+        author: presentAuthor(p.author, reputationByUserId),
+      }));
+    },
+  );
+
+  app.post(
+    '/v1/community/posts/:threadId',
+    { schema: { tags: ['community'], summary: 'Create a post in a thread' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { threadId } = request.params as { threadId: string };
+      const body = request.body as { body?: string };
+      if (!body.body?.trim()) {
+        reply.code(400).send(Errors.validation('Post body is required.'));
+        return;
+      }
+      const apiBaseUrl = requestBaseUrl(request);
+      const thread = await prisma.communityThread.findUnique({
+        where: { id: threadId },
+      });
+      if (!thread) {
+        reply.code(404).send(Errors.notFound('Thread'));
+        return;
+      }
+      if (
+        !(await assertCourseView(
+          store,
+          apiBaseUrl,
+          auth,
+          thread.courseId,
+          reply,
+        ))
+      )
+        return;
+      if (thread.closed) {
+        reply.code(400).send(Errors.validation('Thread is closed.'));
+        return;
+      }
+      const post = await prisma.communityPost.create({
+        data: {
+          threadId,
+          authorId: auth.user.id,
+          body: body.body.trim(),
+        },
+        include: { author: { select: authorSelect } },
+      });
+      const now = new Date();
+      await prisma.communityThread.update({
+        where: { id: threadId },
+        data: {
+          postsCount: { increment: 1 },
+          lastActivityAt: now,
+          updatedAt: now,
+        },
+      });
+      if (thread.authorId !== auth.user.id) {
+        void store.createNotification(
+          requestBaseUrl(request),
+          thread.authorId,
+          {
+            type: 'community_reply',
+            title: 'New reply',
+            body: `${auth.user.username} replied in "${thread.title.slice(0, 80)}".`,
+            link: `/community/discussions/${threadId}`,
+          },
+        );
+      }
+      reply.code(201);
+      return { ...post, _id: post.id, author: presentAuthor(post.author) };
+    },
+  );
+
+  // ── Chatbot ─────────────────────────────────────────────────────────────
+
+  const CHATBOT_V1_URL = process.env.CHATBOT_V1_URL || '';
+
+  let tutorHealthCache: { at: number; byokOnly: boolean } | null = null;
+
+  async function tutorRequiresByok(): Promise<boolean> {
+    if (!CHATBOT_V1_URL) return true;
+    const now = Date.now();
+    if (tutorHealthCache && now - tutorHealthCache.at < 60_000) {
+      return tutorHealthCache.byokOnly;
+    }
+    try {
+      const resp = await fetch(`${CHATBOT_V1_URL}/api/health`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!resp.ok) {
+        tutorHealthCache = { at: now, byokOnly: true };
+        return true;
+      }
+      const data = (await resp.json()) as { byok_only?: boolean };
+      const byokOnly = Boolean(data.byok_only);
+      tutorHealthCache = { at: now, byokOnly };
+      return byokOnly;
+    } catch {
+      tutorHealthCache = { at: now, byokOnly: true };
+      return true;
+    }
+  }
+
+  async function resolveTutorAccess(
+    userId: string,
+    reply: { code: (status: number) => { send: (body: unknown) => void } },
+  ): Promise<{
+    credential: Awaited<ReturnType<typeof getUserAiCredential>>;
+  } | null> {
+    const hasPersonalKey = await userHasAiCredentialRow(prisma, userId);
+    const credential = await getUserAiCredential(prisma, userId);
+
+    if (hasPersonalKey) {
+      if (!credential) {
+        reply
+          .code(503)
+          .send(Errors.unavailable(AI_CREDENTIAL_DECRYPT_FAILED_MESSAGE));
+        return null;
+      }
+      return { credential };
+    }
+
+    if (credential || (hasPlatformAiKey() && !(await tutorRequiresByok()))) {
+      return { credential };
+    }
+
+    reply.code(403).send({
+      error: HASSONA_CREDENTIAL_REQUIRED_MESSAGE,
+      code: 'FORBIDDEN',
+    });
+    return null;
+  }
+
+  async function tutorRequestPayload(
+    userId: string,
+    body: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const credential = await getUserAiCredential(prisma, userId);
+    if (!credential) return body;
+    return tutorPayloadFromCredential(credential, body);
+  }
+
+  type ChatBotV1Response = {
+    type?: string;
+    message?: string;
+    data?: {
+      answer?: string;
+      hints?: string[];
+      tags?: string[];
+      question_id?: string;
+      question?: string;
+      match_score?: number;
+      follow_ups?: string[];
+      citations?: Array<{ title?: string; url?: string }>;
+      xai?: {
+        reasoning?: string;
+        concepts_used?: string[];
+        might_be_unclear?: string[];
+      };
+    };
+  };
+
+  app.get(
+    '/v1/community/chatbot/config',
+    { schema: { tags: ['community'], summary: 'Tutor client configuration' } },
+    async () => {
+      let matchThreshold = TUTOR_DEFAULT_MATCH_THRESHOLD;
+      if (CHATBOT_V1_URL) {
+        try {
+          const resp = await fetch(`${CHATBOT_V1_URL}/api/config`, {
+            signal: AbortSignal.timeout(5000),
+          });
+          if (resp.ok) {
+            const data = (await resp.json()) as { matchThreshold?: number };
+            if (typeof data.matchThreshold === 'number') {
+              matchThreshold = data.matchThreshold;
+            }
+          }
+        } catch {
+          // use default
+        }
+      }
+      return { matchThreshold };
+    },
+  );
+
+  app.post(
+    '/v1/community/chatbot/ask',
+    { schema: { tags: ['community'], summary: 'Ask the AI tutor' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const body = request.body as {
+        question?: string;
+        context?: string;
+        history?: Array<{ role: string; content: string }>;
+        conversationId?: string;
+      };
+      if (!body.question?.trim()) {
+        reply.code(400).send(Errors.validation('Question is required.'));
+        return;
+      }
+      if (!CHATBOT_V1_URL) {
+        reply
+          .code(503)
+          .send(Errors.unavailable('AI Tutor service is not configured.'));
+        return;
+      }
+      const access = await resolveTutorAccess(auth.user.id, reply);
+      if (!access) return;
+
+      try {
+        const resp = await fetch(`${CHATBOT_V1_URL}/api/ask`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            await tutorRequestPayload(auth.user.id, {
+              question: body.question,
+              history: body.history ?? [],
+              context: body.context?.trim() ?? '',
+            }),
+          ),
+          signal: AbortSignal.timeout(30000),
+        });
+        const rawBody = await resp.text().catch(() => '');
+        let chatBotResponse: ChatBotV1Response | null = null;
+        try {
+          chatBotResponse = rawBody
+            ? (JSON.parse(rawBody) as ChatBotV1Response)
+            : null;
+        } catch {
+          chatBotResponse = null;
+        }
+        if (!resp.ok || !chatBotResponse) {
+          const detail =
+            chatBotResponse?.message || rawBody || 'AI Tutor request failed.';
+
+          reply
+            .code(resp.status >= 500 ? resp.status : 502)
+            .send(Errors.unavailable(detail.slice(0, 300)));
+          return;
+        }
+        if (chatBotResponse.type === 'error') {
+          const errMsg =
+            chatBotResponse.message || 'AI generation failed. Please retry.';
+          const isRateLimit = /rate limit|429|too many requests/i.test(errMsg);
+          reply.code(isRateLimit ? 429 : 503).send(
+            isRateLimit
+              ? {
+                  ...Errors.unavailable(errMsg),
+                  code: 'RATE_LIMITED' as const,
+                }
+              : Errors.unavailable(errMsg),
+          );
+          return;
+        }
+        if (chatBotResponse.type === 'refused') {
+          return {
+            answer:
+              chatBotResponse.message ||
+              'This question is outside the scope of this platform.',
+            refused: true,
+            hints: [],
+            tags: [],
+            xai: null,
+          };
+        }
+        const data = chatBotResponse.data;
+        const result = {
+          answer: data?.answer || '',
+          hints: data?.hints || [],
+          tags: data?.tags || [],
+          followUps: data?.follow_ups || [],
+          communityQuestionId: data?.question_id || null,
+          communityQuestion: data?.question || null,
+          matchScore: data?.match_score ?? null,
+          citations: (data?.citations || []).map((c) => ({
+            title: c.title || 'Community Q&A',
+            url: c.url,
+          })),
+          xai: data?.xai || null,
+        };
+
+        let persistenceWarning: string | null = null;
+        if (body.conversationId) {
+          try {
+            const conv = await prisma.tutorConversation.findFirst({
+              where: { id: body.conversationId, userId: auth.user.id },
+            });
+            if (conv) {
+              await prisma.tutorMessage.createMany({
+                data: [
+                  {
+                    conversationId: conv.id,
+                    role: 'user',
+                    content: body.question!,
+                    tags: [],
+                    xaiConcepts: [],
+                    xaiUnclear: [],
+                  },
+                  {
+                    conversationId: conv.id,
+                    role: 'assistant',
+                    content: result.answer,
+                    tags: result.tags,
+                    xaiReasoning: result.xai?.reasoning ?? null,
+                    xaiConcepts: result.xai?.concepts_used ?? [],
+                    xaiUnclear: result.xai?.might_be_unclear ?? [],
+                    responseType: chatBotResponse.type ?? null,
+                    communityQuestionId: result.communityQuestionId,
+                    matchScore: result.matchScore,
+                  },
+                ],
+              });
+              await prisma.tutorConversation.update({
+                where: { id: conv.id },
+                data: { updatedAt: new Date() },
+              });
+            }
+          } catch {
+            persistenceWarning =
+              'Your reply was generated but could not be saved to conversation history.';
+          }
+        }
+
+        return persistenceWarning ? { ...result, persistenceWarning } : result;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+
+        reply
+          .code(502)
+          .send(Errors.unavailable(`AI Tutor request failed: ${message}`));
+      }
+    },
+  );
+
+  app.post(
+    '/v1/community/chatbot/ask/stream',
+    {
+      schema: { tags: ['community'], summary: 'Ask the AI tutor (streaming)' },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const body = request.body as {
+        question?: string;
+        context?: string;
+        history?: Array<{ role: string; content: string }>;
+        conversationId?: string;
+      };
+      if (!body.question?.trim()) {
+        reply.code(400).send(Errors.validation('Question is required.'));
+        return;
+      }
+      if (!CHATBOT_V1_URL) {
+        reply
+          .code(503)
+          .send(Errors.unavailable('AI Tutor service is not configured.'));
+        return;
+      }
+      const access = await resolveTutorAccess(auth.user.id, reply);
+      if (!access) return;
+
+      const upstream = await fetch(`${CHATBOT_V1_URL}/api/ask/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          await tutorRequestPayload(auth.user.id, {
+            question: body.question,
+            history: body.history ?? [],
+            context: body.context?.trim() ?? '',
+          }),
+        ),
+      });
+
+      if (!upstream.ok || !upstream.body) {
+        reply.code(502).send(Errors.unavailable('AI Tutor stream failed.'));
+        return;
+      }
+
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+
+      const reader = upstream.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        reply.raw.write(buffer);
+        buffer = '';
+      }
+
+      reply.raw.end();
+    },
+  );
+
+  app.post(
+    '/v1/community/chatbot/explain',
+    {
+      schema: {
+        tags: ['community'],
+        summary: 'Explain an unclear term from a tutor answer',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const body = request.body as {
+        term?: string;
+        context?: string;
+        conversationId?: string;
+      };
+      if (!body.term?.trim()) {
+        reply.code(400).send(Errors.validation('term is required.'));
+        return;
+      }
+      if (!CHATBOT_V1_URL) {
+        reply
+          .code(503)
+          .send(Errors.unavailable('AI Tutor service is not configured.'));
+        return;
+      }
+      const access = await resolveTutorAccess(auth.user.id, reply);
+      if (!access) return;
+      try {
+        const resp = await fetch(`${CHATBOT_V1_URL}/api/explain`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            await tutorRequestPayload(auth.user.id, {
+              term: body.term.trim(),
+              context: body.context?.trim() ?? '',
+            }),
+          ),
+          signal: AbortSignal.timeout(30000),
+        });
+        const rawBody = await resp.text().catch(() => '');
+        let parsed: Record<string, unknown> | null = null;
+        try {
+          parsed = rawBody
+            ? (JSON.parse(rawBody) as Record<string, unknown>)
+            : null;
+        } catch {
+          parsed = null;
+        }
+        if (!resp.ok || !parsed) {
+          const detail =
+            (typeof parsed?.error === 'string' ? parsed.error : null) ||
+            rawBody ||
+            'Explain request failed.';
+          reply
+            .code(resp.status >= 500 ? resp.status : 502)
+            .send(Errors.unavailable(String(detail).slice(0, 300)));
+          return;
+        }
+
+        if (body.conversationId && typeof parsed.explanation === 'string') {
+          try {
+            const conv = await prisma.tutorConversation.findFirst({
+              where: { id: body.conversationId, userId: auth.user.id },
+            });
+            if (conv) {
+              const content = [
+                `**${parsed.term}**`,
+                String(parsed.explanation),
+                parsed.example ? `Example: ${String(parsed.example)}` : '',
+              ]
+                .filter(Boolean)
+                .join('\n\n');
+              await prisma.tutorMessage.create({
+                data: {
+                  conversationId: conv.id,
+                  role: 'assistant',
+                  content,
+                  tags: [],
+                  xaiConcepts: [],
+                  xaiUnclear: [],
+                  responseType: 'explain',
+                },
+              });
+              await prisma.tutorConversation.update({
+                where: { id: conv.id },
+                data: { updatedAt: new Date() },
+              });
+            }
+          } catch {
+            // non-critical
+          }
+        }
+
+        return parsed;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        reply
+          .code(502)
+          .send(Errors.unavailable(`Explain request failed: ${message}`));
+      }
+    },
+  );
+
+  app.post(
+    '/v1/community/chatbot/publish',
+    {
+      schema: {
+        tags: ['community'],
+        summary: 'Publish a chatbot exchange as a Q&A',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const body = request.body as {
+        question?: string;
+        answer?: string;
+        title?: string;
+        tags?: string[];
+      };
+      if (!body.question || !body.answer) {
+        reply
+          .code(400)
+          .send(Errors.validation('question and answer are required.'));
+        return;
+      }
+      const question = await prisma.communityQuestion.create({
+        data: {
+          authorId: auth.user.id,
+          title: body.title || body.question.slice(0, 120),
+          body: body.question,
+          tags: body.tags ?? [],
+        },
+      });
+      await prisma.communityAnswer.create({
+        data: {
+          questionId: question.id,
+          authorId: auth.user.id,
+          body: body.answer,
+        },
+      });
+      const publishedCount = await prisma.communityAnswer.count({
+        where: { questionId: question.id },
+      });
+      await prisma.communityQuestion.update({
+        where: { id: question.id },
+        data: { answersCount: publishedCount },
+      });
+      return { questionId: question.id, url: `/community/q/${question.id}` };
+    },
+  );
+
+  // ── Chatbot insights ─────────────────────────────────────────────────────
+
+  app.get(
+    '/v1/community/chatbot/insights',
+    { schema: { tags: ['community'], summary: 'Get learning insights' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+
+      const stats = await buildTutorInsightsStats(prisma, auth.user.id);
+
+      if (!CHATBOT_V1_URL || stats.totalQuestions === 0) {
+        return {
+          hardMetrics: stats,
+          aiSummary: {
+            strengths: [],
+            weaknesses: [],
+            nextActions: [
+              'Ask the AI Tutor some questions to start building your learning profile.',
+            ],
+            overallAssessment: 'Not enough data yet. Keep asking questions!',
+          },
+        };
+      }
+
+      const hasPersonalKey = await userHasAiCredentialRow(prisma, auth.user.id);
+      const credential = await getUserAiCredential(prisma, auth.user.id);
+      const canCallTutorAi =
+        CHATBOT_V1_URL &&
+        (hasPersonalKey
+          ? Boolean(credential)
+          : Boolean(credential || hasPlatformAiKey()));
+      if (canCallTutorAi) {
+        try {
+          const resp = await fetch(`${CHATBOT_V1_URL}/api/insights`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(
+              await tutorRequestPayload(auth.user.id, { stats }),
+            ),
+            signal: AbortSignal.timeout(20000),
+          });
+          if (resp.ok) {
+            return await resp.json();
+          }
+        } catch {
+          // fall through to local-only response
+        }
+      }
+
+      return {
+        hardMetrics: stats,
+        aiSummary: {
+          strengths: [],
+          weaknesses: [],
+          nextActions: ['AI summary is temporarily unavailable.'],
+          overallAssessment: 'Could not generate summary.',
+        },
+      };
+    },
+  );
+
+  // ── Chatbot routing ──────────────────────────────────────────────────────
+
+  app.post(
+    '/v1/community/chatbot/routing',
+    { schema: { tags: ['community'], summary: 'Compute a learning path' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const body = request.body as { goal?: string };
+      if (!body.goal?.trim()) {
+        reply.code(400).send(Errors.validation('goal is required.'));
+        return;
+      }
+      if (!CHATBOT_V1_URL) {
+        reply
+          .code(503)
+          .send(Errors.unavailable('AI Tutor service is not configured.'));
+        return;
+      }
+      const access = await resolveTutorAccess(auth.user.id, reply);
+      if (!access) return;
+      try {
+        const resp = await fetch(`${CHATBOT_V1_URL}/api/routing`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            await tutorRequestPayload(auth.user.id, { goal: body.goal }),
+          ),
+          signal: AbortSignal.timeout(30000),
+        });
+        if (!resp.ok) {
+          const text = await resp.text().catch(() => '');
+          reply
+            .code(502)
+            .send(
+              Errors.unavailable(
+                `Routing service returned ${resp.status}: ${text.slice(0, 200)}`,
+              ),
+            );
+          return;
+        }
+        return await enrichRoutingResponse(
+          prisma,
+          auth.user.id,
+          (await resp.json()) as import('@nibras/contracts').RoutingResponse,
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        reply
+          .code(502)
+          .send(Errors.unavailable(`Routing request failed: ${message}`));
+      }
+    },
+  );
+
+  app.post(
+    '/v1/community/chatbot/answer-question',
+    {
+      schema: {
+        tags: ['community'],
+        summary: 'Auto-answer a community question via tutor bot',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      if (auth.user.systemRole !== 'admin') {
+        reply.code(403).send(Errors.forbidden());
+        return;
+      }
+      const body = request.body as { id?: string; question?: string };
+      if (!body.id?.trim() || !body.question?.trim()) {
+        reply
+          .code(400)
+          .send(Errors.validation('id and question are required.'));
+        return;
+      }
+      if (!CHATBOT_V1_URL) {
+        reply
+          .code(503)
+          .send(Errors.unavailable('AI Tutor service is not configured.'));
+        return;
+      }
+      const access = await resolveTutorAccess(auth.user.id, reply);
+      if (!access) return;
+      try {
+        const resp = await fetch(`${CHATBOT_V1_URL}/api/answer-question`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            await tutorRequestPayload(auth.user.id, {
+              id: body.id.trim(),
+              question: body.question.trim(),
+            }),
+          ),
+          signal: AbortSignal.timeout(30000),
+        });
+        const rawBody = await resp.text().catch(() => '');
+        let parsed: Record<string, unknown> | null = null;
+        try {
+          parsed = rawBody
+            ? (JSON.parse(rawBody) as Record<string, unknown>)
+            : null;
+        } catch {
+          parsed = null;
+        }
+        if (!resp.ok || !parsed) {
+          reply
+            .code(502)
+            .send(Errors.unavailable('Answer-question proxy failed.'));
+          return;
+        }
+        return parsed;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        reply
+          .code(502)
+          .send(Errors.unavailable(`Answer-question failed: ${message}`));
+      }
+    },
+  );
+
+  // ── Tutor conversation CRUD ──────────────────────────────────────────────
+
+  app.get(
+    '/v1/tutor/conversations',
+    { schema: { tags: ['community'], summary: 'List tutor conversations' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const query = request.query as { page?: string; limit?: string };
+      const page = Math.max(1, parseInt(query.page ?? '1', 10));
+      const limit = Math.min(
+        50,
+        Math.max(1, parseInt(query.limit ?? '30', 10)),
+      );
+
+      const [conversations, total] = await Promise.all([
+        prisma.tutorConversation.findMany({
+          where: { userId: auth.user.id },
+          orderBy: { updatedAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+          select: {
+            id: true,
+            title: true,
+            createdAt: true,
+            updatedAt: true,
+            _count: { select: { messages: true } },
+          },
+        }),
+        prisma.tutorConversation.count({ where: { userId: auth.user.id } }),
+      ]);
+
+      void reply.header('x-total-count', String(total));
+      return conversations.map((c) => ({
+        id: c.id,
+        title: c.title,
+        messageCount: c._count.messages,
+        createdAt: c.createdAt.toISOString(),
+        updatedAt: c.updatedAt.toISOString(),
+      }));
+    },
+  );
+
+  app.post(
+    '/v1/tutor/conversations',
+    { schema: { tags: ['community'], summary: 'Create tutor conversation' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const body = request.body as { title?: string };
+      const conv = await prisma.tutorConversation.create({
+        data: {
+          userId: auth.user.id,
+          title: body?.title || 'New conversation',
+        },
+      });
+      return {
+        id: conv.id,
+        title: conv.title,
+        createdAt: conv.createdAt.toISOString(),
+      };
+    },
+  );
+
+  app.get(
+    '/v1/tutor/conversations/:id',
+    {
+      schema: {
+        tags: ['community'],
+        summary: 'Get tutor conversation with messages',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { id } = request.params as { id: string };
+      const conv = await prisma.tutorConversation.findFirst({
+        where: { id, userId: auth.user.id },
+        include: { messages: { orderBy: { createdAt: 'asc' } } },
+      });
+      if (!conv) {
+        return reply.code(404).send({ error: 'Conversation not found' });
+      }
+      return {
+        id: conv.id,
+        title: conv.title,
+        createdAt: conv.createdAt.toISOString(),
+        updatedAt: conv.updatedAt.toISOString(),
+        messages: conv.messages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          tags: m.tags,
+          xai: m.xaiReasoning
+            ? {
+                reasoning: m.xaiReasoning,
+                concepts_used: m.xaiConcepts,
+                might_be_unclear: m.xaiUnclear,
+              }
+            : null,
+          responseType: m.responseType,
+          createdAt: m.createdAt.toISOString(),
+        })),
+      };
+    },
+  );
+
+  app.delete(
+    '/v1/tutor/conversations/:id',
+    { schema: { tags: ['community'], summary: 'Delete tutor conversation' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { id } = request.params as { id: string };
+      const conv = await prisma.tutorConversation.findFirst({
+        where: { id, userId: auth.user.id },
+      });
+      if (!conv) {
+        return reply.code(404).send({ error: 'Conversation not found' });
+      }
+      await prisma.tutorConversation.delete({ where: { id } });
+      return { deleted: true };
+    },
+  );
+
+  app.patch(
+    '/v1/tutor/conversations/:id',
+    { schema: { tags: ['community'], summary: 'Rename tutor conversation' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { id } = request.params as { id: string };
+      const body = request.body as { title?: string };
+      if (!body.title?.trim()) {
+        reply.code(400).send(Errors.validation('title is required.'));
+        return;
+      }
+      const conv = await prisma.tutorConversation.findFirst({
+        where: { id, userId: auth.user.id },
+      });
+      if (!conv) {
+        return reply.code(404).send({ error: 'Conversation not found' });
+      }
+      const updated = await prisma.tutorConversation.update({
+        where: { id },
+        data: { title: body.title.trim() },
+      });
+      return { id: updated.id, title: updated.title };
+    },
+  );
+
+  app.post(
+    '/v1/tutor/messages/:id/feedback',
+    { schema: { tags: ['community'], summary: 'Rate a tutor message' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { id } = request.params as { id: string };
+      const body = request.body as { rating?: string; comment?: string };
+      if (body.rating !== 'up' && body.rating !== 'down') {
+        reply.code(400).send(Errors.validation('rating must be up or down.'));
+        return;
+      }
+      const message = await prisma.tutorMessage.findFirst({
+        where: {
+          id,
+          conversation: { userId: auth.user.id },
+          role: 'assistant',
+        },
+      });
+      if (!message) {
+        reply.code(404).send(Errors.notFound('Message'));
+        return;
+      }
+      await prisma.tutorMessage.update({
+        where: { id },
+        data: {
+          feedbackRating: body.rating,
+          feedbackComment: body.comment?.trim() || null,
+        },
+      });
+      return { ok: true };
+    },
+  );
+
+  registerCommunityV2Routes(app, store, prisma);
+}

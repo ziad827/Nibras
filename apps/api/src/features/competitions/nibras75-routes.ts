@@ -1,0 +1,458 @@
+import { FastifyInstance } from 'fastify';
+import { CompPlatform, PrismaClient } from '@prisma/client';
+import { GitHubRequestError, type GitHubAppConfig } from '@nibras/github';
+import { optionalUser, requireUser } from '../../lib/auth';
+import { AppStore } from '../../store';
+import {
+  fetchNibras75Analytics,
+  getNibras75Config,
+  upsertNibras75Config,
+} from './practice/nibras75/nibras75-analytics';
+import {
+  fetchNibras75Problems,
+  getNibras75Meta,
+  setNibras75ProblemSolved,
+  clearNibras75ManualProgress,
+  getNibras75ProblemNote,
+  setNibras75ReviewAt,
+  upsertNibras75ProblemNote,
+} from './practice/nibras75/nibras75-client';
+import {
+  forkNibras75Workspace,
+  getNibras75Workspace,
+} from './practice/nibras75/nibras75-fork';
+import { fetchNibras75Stats } from './practice/nibras75/nibras75-stats';
+
+function nibras75ForkErrorStatus(err: unknown, message: string): number {
+  if (message.includes('Link your GitHub')) return 400;
+  if (message.includes('GitHub App is not configured')) return 503;
+  if (message.includes('Could not create your Nibras 75')) return 400;
+  if (err instanceof GitHubRequestError) {
+    return err.statusCode >= 500 ? 502 : 400;
+  }
+  return 502;
+}
+
+async function resolveLeetcodeHandle(
+  prisma: PrismaClient,
+  userId: string | undefined,
+  queryHandle?: string,
+): Promise<string | undefined> {
+  if (queryHandle?.trim()) return queryHandle.trim();
+  if (!userId) return undefined;
+
+  const account = await prisma.linkedAccount.findUnique({
+    where: {
+      userId_platform: { userId, platform: 'leetcode' as CompPlatform },
+    },
+  });
+  if (!account) return undefined;
+  if (account.verificationStatus !== 'verified') return undefined;
+  return account.handle;
+}
+
+function parseSort(
+  value?: string,
+): 'rank' | 'difficulty' | 'askedByCount' | undefined {
+  if (value === 'rank' || value === 'difficulty' || value === 'askedByCount')
+    return value;
+  return undefined;
+}
+
+export function registerNibras75Routes(
+  app: FastifyInstance,
+  store: AppStore,
+  prisma: PrismaClient,
+  githubConfig: GitHubAppConfig | null,
+): void {
+  app.get(
+    '/v1/practice/nibras-75/problems',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'Nibras 75 curated interview problems',
+      },
+    },
+    async (request, reply) => {
+      const user = await optionalUser(request, reply, store);
+      const q = request.query as {
+        handle?: string;
+        q?: string;
+        difficulty?: string;
+        solved?: string;
+        tag?: string;
+        company?: string;
+        sort?: string;
+        reviewDue?: string;
+      };
+
+      try {
+        const handle = await resolveLeetcodeHandle(prisma, user?.id, q.handle);
+        const difficulty =
+          q.difficulty === 'easy' ||
+          q.difficulty === 'medium' ||
+          q.difficulty === 'hard'
+            ? q.difficulty
+            : undefined;
+        const solved =
+          q.solved === 'true' || q.solved === 'false'
+            ? (q.solved as 'true' | 'false')
+            : undefined;
+        const reviewDue =
+          q.reviewDue === 'true' || q.reviewDue === 'false'
+            ? (q.reviewDue as 'true' | 'false')
+            : undefined;
+
+        const result = await fetchNibras75Problems(handle, user?.id, prisma, {
+          q: q.q,
+          difficulty,
+          solved,
+          tag: q.tag,
+          company: q.company,
+          sort: parseSort(q.sort),
+          reviewDue,
+        });
+        const meta = getNibras75Meta();
+
+        return {
+          ...meta,
+          totalCurriculum: meta.total,
+          items: result.items,
+          total: result.total,
+          solvedCount: result.solvedCount,
+          completedInSet: result.completedInSet,
+          handle: handle ?? null,
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return reply.status(502).send({ error: message });
+      }
+    },
+  );
+
+  app.get(
+    '/v1/practice/nibras-75/stats',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'Nibras 75 progress stats and heatmap',
+      },
+    },
+    async (request, reply) => {
+      const user = await optionalUser(request, reply, store);
+      const query = request.query as { handle?: string };
+
+      try {
+        const handle = await resolveLeetcodeHandle(
+          prisma,
+          user?.id,
+          query.handle,
+        );
+        const stats = await fetchNibras75Stats(handle, user?.id, prisma);
+        return { ...stats, handle: handle ?? null };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return reply.status(502).send({ error: message });
+      }
+    },
+  );
+
+  app.get(
+    '/v1/practice/nibras-75/analytics',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'LeetCode analytics for Nibras 75 (linked handle)',
+      },
+    },
+    async (request, reply) => {
+      const user = await optionalUser(request, reply, store);
+      const query = request.query as { handle?: string };
+
+      try {
+        const handle = await resolveLeetcodeHandle(
+          prisma,
+          user?.id,
+          query.handle,
+        );
+        if (!handle?.trim()) {
+          return reply.status(400).send({
+            error:
+              'LeetCode username is required (link account or pass handle)',
+          });
+        }
+        const body = await fetchNibras75Analytics(handle, user?.id, prisma);
+        return { ...body, handle };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return reply.status(502).send({ error: message });
+      }
+    },
+  );
+
+  app.get(
+    '/v1/practice/nibras-75/config',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'Get Nibras 75 study plan config',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+
+      const config = await getNibras75Config(prisma, auth.user.id);
+      return {
+        config: config
+          ? {
+              weeklyPace: config.weeklyPace,
+              targetDate: config.targetDate?.toISOString() ?? null,
+              useForDailyProblem: config.useForDailyProblem,
+            }
+          : {
+              weeklyPace: 5,
+              targetDate: null,
+              useForDailyProblem: false,
+            },
+      };
+    },
+  );
+
+  app.patch(
+    '/v1/practice/nibras-75/config',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'Update Nibras 75 study plan config',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+
+      const body = request.body as {
+        weeklyPace?: number;
+        targetDate?: string | null;
+        useForDailyProblem?: boolean;
+      };
+
+      const config = await upsertNibras75Config(prisma, auth.user.id, body);
+      return {
+        config: {
+          weeklyPace: config.weeklyPace,
+          targetDate: config.targetDate?.toISOString() ?? null,
+          useForDailyProblem: config.useForDailyProblem,
+        },
+      };
+    },
+  );
+
+  app.post(
+    '/v1/practice/nibras-75/problems/:slug/solved',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'Mark a Nibras 75 problem solved or unsolved',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+
+      const { slug } = request.params as { slug: string };
+      const body = request.body as { solved?: boolean };
+      if (typeof body.solved !== 'boolean') {
+        return reply
+          .status(400)
+          .send({ error: 'solved (boolean) is required' });
+      }
+
+      try {
+        const result = await setNibras75ProblemSolved(
+          prisma,
+          auth.user.id,
+          slug,
+          body.solved,
+        );
+        return result;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status = message.includes('not part') ? 404 : 502;
+        return reply.status(status).send({ error: message });
+      }
+    },
+  );
+
+  app.delete(
+    '/v1/practice/nibras-75/problems/:slug/solved',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'Clear manual progress override for a Nibras 75 problem',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+
+      const { slug } = request.params as { slug: string };
+
+      try {
+        const result = await clearNibras75ManualProgress(
+          prisma,
+          auth.user.id,
+          slug,
+        );
+        return result;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status = message.includes('not part') ? 404 : 502;
+        return reply.status(status).send({ error: message });
+      }
+    },
+  );
+
+  app.get(
+    '/v1/practice/nibras-75/problems/:slug/note',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'Get personal note for a Nibras 75 problem',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { slug } = request.params as { slug: string };
+      try {
+        return await getNibras75ProblemNote(prisma, auth.user.id, slug);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status = message.includes('not part') ? 404 : 502;
+        return reply.status(status).send({ error: message });
+      }
+    },
+  );
+
+  app.patch(
+    '/v1/practice/nibras-75/problems/:slug/note',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'Save personal note for a Nibras 75 problem',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { slug } = request.params as { slug: string };
+      const body = request.body as { note?: string };
+      if (typeof body.note !== 'string') {
+        return reply.status(400).send({ error: 'note (string) is required' });
+      }
+      try {
+        return await upsertNibras75ProblemNote(
+          prisma,
+          auth.user.id,
+          slug,
+          body.note,
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status = message.includes('not part') ? 404 : 502;
+        return reply.status(status).send({ error: message });
+      }
+    },
+  );
+
+  app.patch(
+    '/v1/practice/nibras-75/problems/:slug/review',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'Set spaced-repetition review date for a Nibras 75 problem',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { slug } = request.params as { slug: string };
+      const body = request.body as { reviewAt?: string | null };
+      if (!('reviewAt' in body)) {
+        return reply
+          .status(400)
+          .send({ error: 'reviewAt is required (ISO string or null)' });
+      }
+      try {
+        return await setNibras75ReviewAt(
+          prisma,
+          auth.user.id,
+          slug,
+          body.reviewAt ?? null,
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status = message.includes('not part') ? 404 : 502;
+        return reply.status(status).send({ error: message });
+      }
+    },
+  );
+
+  app.get(
+    '/v1/practice/nibras-75/workspace',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'Get Nibras 75 GitHub workspace fork',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+
+      const workspace = await getNibras75Workspace(prisma, auth.user.id);
+      return { workspace };
+    },
+  );
+
+  app.post(
+    '/v1/practice/nibras-75/workspace/fork',
+    {
+      schema: {
+        tags: ['competitions'],
+        summary: 'Fork Nibras 75 template repo on GitHub',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+
+      try {
+        const workspace = await forkNibras75Workspace(
+          prisma,
+          store,
+          githubConfig,
+          auth.user.id,
+        );
+        return { workspace };
+      } catch (err) {
+        let message = err instanceof Error ? err.message : String(err);
+
+        if (err instanceof GitHubRequestError) {
+          try {
+            const parsed = JSON.parse(err.bodyText) as { message?: string };
+            if (parsed.message) {
+              message = parsed.message;
+            }
+          } catch {
+            // Keep original message if parsing fails
+          }
+        }
+
+        const status = nibras75ForkErrorStatus(err, message);
+        return reply.status(status).send({ error: message });
+      }
+    },
+  );
+}

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Sign Up</title>
+<script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CSS -->
+    <link rel="stylesheet" href="./signup.css">
+    <!-- OAuth Client IDs -->
+    <script>
+        window.NibrasApiConfig = {
+            googleClientId: '809028632276-sgttn83goo7em2anm7t0t5ar37m4v8nm.apps.googleusercontent.com',
+            microsoftClientId: '347c6c6f-1234-5678-9abc-def012345678'
+        };
+    </script>
+</head>
+<body class="signup-page">
+    <div id="app-root" hidden></div>
+
+    <!-- Starry Background (Visible Only in Dark Mode) -->
+    <div class="stars-container">
+        <div id="stars"></div>
+        <div id="stars2"></div>
+        <div id="stars3"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="auth-header">
+        <div class="logo-area">
+            <!-- Logo is white in both designs -->
+            <img src="/Assets/images/logo-dark.png" alt="Nibras Logo" class="auth-logo">
+        </div>
+        
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle-btn" id="themeBtn">
+            <i class="fa-solid fa-moon"></i>
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <div class="auth-container">
+        <div class="auth-card">
+            
+            <h2 class="auth-title">Create an account</h2>
+            <p id="signupNotice" class="auth-notice" hidden></p>
+
+            <form id="signupForm">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="nameInput" placeholder="Your full name" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="emailInput" placeholder="Email" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" placeholder="Enter your password" class="form-control" id="passInput" required>
+                        <i class="fa-regular fa-eye toggle-password" onclick="togglePass('passInput', this)"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" placeholder="Confirm your password" class="form-control" id="confPassInput" required>
+                        <i class="fa-regular fa-eye toggle-password" onclick="togglePass('confPassInput', this)"></i>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login" style="margin-top: 1rem; width: 100%; border: none; cursor: pointer;">Sign Up</button>
+            </form>
+
+            <form id="otpForm" hidden>
+                <h3 class="auth-subtitle">Verify your email OTP</h3>
+                <p class="auth-note">We sent a 6-digit OTP to <strong id="otpEmailLabel"></strong>. Enter it below to activate your account.</p>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="otpEmailInput" placeholder="Email" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>OTP code</label>
+                    <input type="text" id="otpCodeInput" placeholder="6-digit OTP" class="form-control" maxlength="6" inputmode="numeric" required>
+                </div>
+                <button type="submit" class="btn-login" style="margin-top: 1rem; width: 100%; border: none; cursor: pointer;">Verify OTP</button>
+                <button type="button" id="otpBackBtn" class="btn-secondary">Back to sign up</button>
+            </form>
+
+            <div class="signup-link" style="margin-top: 0.5rem;">
+                Already Have An Account ? <a href="../loginPage/login.html">Log In</a>
+            </div>
+
+            <!-- OAuth Buttons -->
+            <div class="oauth-divider"><span>or continue with</span></div>
+            <div class="oauth-buttons" id="googleSignInContainer"></div>
+            <div class="oauth-buttons" id="microsoftSignInContainer"></div>
+            <p id="microsoftAuthStatus" class="auth-notice" hidden></p>
+
+        </div>
+    </div>
+
+        <script src="../../config.js"></script>
+        <script src="../../react-bootstrap.js"></script>
+        <script src="https://accounts.google.com/gsi/client" async defer data-google-gsi="true"></script>
+    <script src="./signup.js"></script>
+</body>
+</html>

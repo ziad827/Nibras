@@ -1,0 +1,65 @@
+FROM node:20-alpine AS base
+WORKDIR /app
+RUN apk add --no-cache build-base cmake git openssl
+
+# ── Install dependencies ──────────────────────────────────────────────────────
+FROM base AS deps
+COPY package.json package-lock.json ./
+COPY apps/worker/package.json ./apps/worker/
+COPY apps/api/package.json ./apps/api/
+COPY packages/contracts/package.json ./packages/contracts/
+COPY packages/core/package.json ./packages/core/
+COPY packages/grading/package.json ./packages/grading/
+COPY packages/github/package.json ./packages/github/
+COPY packages/daily-problem/package.json ./packages/daily-problem/
+COPY prisma ./prisma
+RUN npm ci --workspace=@nibras/worker --workspace=@nibras/api --workspace=@nibras/contracts --workspace=@nibras/core --workspace=@nibras/daily-problem --workspace=@nibras/grading --workspace=@nibras/github --include-workspace-root
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+FROM deps AS build
+COPY packages/contracts ./packages/contracts
+COPY packages/core ./packages/core
+COPY packages/grading ./packages/grading
+COPY packages/github ./packages/github
+COPY packages/daily-problem ./packages/daily-problem
+COPY apps/api ./apps/api
+COPY apps/worker ./apps/worker
+COPY tsconfig.base.json ./
+ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build
+ENV DIRECT_DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build
+RUN npm run db:generate
+# Build API first — worker awards badges via dynamic import from api/dist
+RUN npm run build -w @nibras/contracts && \
+    npm run build -w @nibras/daily-problem && \
+    npm run build -w @nibras/core && \
+    npm run build -w @nibras/grading && \
+    npm run build -w @nibras/github && \
+    npm run build -w @nibras/api && \
+    npm run build -w @nibras/worker
+
+# ── Production image ──────────────────────────────────────────────────────────
+FROM base AS runner
+ENV NODE_ENV=production
+WORKDIR /app
+
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages/contracts/dist ./packages/contracts/dist
+COPY --from=build /app/packages/contracts/package.json ./packages/contracts/
+COPY --from=build /app/packages/grading/dist ./packages/grading/dist
+COPY --from=build /app/packages/grading/package.json ./packages/grading/
+COPY --from=build /app/packages/github/dist ./packages/github/dist
+COPY --from=build /app/packages/github/package.json ./packages/github/
+COPY --from=build /app/packages/daily-problem/dist ./packages/daily-problem/dist
+COPY --from=build /app/packages/daily-problem/package.json ./packages/daily-problem/
+COPY --from=build /app/apps/worker/dist ./apps/worker/dist
+COPY --from=build /app/apps/worker/package.json ./apps/worker/
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/package.json ./apps/api/
+COPY --from=build /app/prisma ./prisma
+COPY package.json ./
+
+EXPOSE 9090
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s \
+  CMD wget -qO- http://127.0.0.1:9090/healthz || exit 1
+
+CMD ["sh", "-c", "npx prisma generate && if [ -n \"${DIRECT_DATABASE_URL:-}\" ]; then DATABASE_URL=\"$DIRECT_DATABASE_URL\" npx prisma migrate deploy; else npx prisma migrate deploy; fi && node apps/worker/dist/worker.js"]

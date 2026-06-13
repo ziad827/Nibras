@@ -1,0 +1,39 @@
+{
+  "name": "@nibras/cli",
+  "version": "2.0.0",
+  "description": "Official CLI for Nibras — submit projects, track milestones, and manage courses from your terminal.",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EpitomeZied/nibras"
+  },
+  "type": "commonjs",
+  "main": "bundle/index.js",
+  "bin": {
+    "nibras": "bundle/index.js"
+  },
+  "files": [
+    "bundle",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && ncc build dist/index.js -o bundle --no-source-map-register"
+  },
+  "dependencies": {
+    "@nibras/contracts": "file:../../packages/contracts",
+    "@nibras/core": "file:../../packages/core",
+    "boxen": "^5.1.2",
+    "cli-progress": "^3.12.0",
+    "gradient-string": "^2.0.2",
+    "jszip": "^3.10.1",
+    "ora": "^5.4.1",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/cli-progress": "^3.11.6",
+    "@vercel/ncc": "^0.38.4"
+  }
+}

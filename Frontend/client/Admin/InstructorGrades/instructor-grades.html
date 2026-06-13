@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instructor Grades</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./instructor-grades.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>Course Content</h2>
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../../Courses/Course%20Description/courseContent.html" class="nav-link" data-nav-link="courseContent"><i class="fa-solid fa-book-open"></i> Course Overview</a></li>
+            <li class="nav-item"><a href="../AssignmentBuilder/assignment-builder.html" class="nav-link" data-nav-link="assignments"><i class="fa-regular fa-file-lines"></i> Assignments</a></li>
+            <li class="nav-item"><a href="../Grading/grading.html" class="nav-link" data-nav-link="grading"><i class="fa-solid fa-check-double"></i> Grading</a></li>
+            <li class="nav-item"><a href="./instructor-grades.html" class="nav-link active" data-nav-link="grades"><i class="fa-solid fa-award"></i> Grades</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <a href="../../Courses/courses.html" class="back-btn">
+                <i class="fa-solid fa-arrow-left-long" style="margin-right:8px"></i> Return to Courses
+            </a>
+            <div class="course-meta">
+                <h4 id="sidebar-course-code">Loading course...</h4>
+                <span id="sidebar-term">Loading...</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <div class="top-bar">
+            <div class="breadcrumbs">
+                <span class="crumb-current">Grades</span>
+            </div>
+            <button class="theme-toggle-btn" id="themeBtn"><i class="fa-solid fa-sun"></i> <span>Light Mode</span></button>
+        </div>
+
+        <div class="page-header">
+            <h1>Grade Overview</h1>
+            <p id="course-subtitle">Loading course...</p>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="grade-stats" id="grade-stats">
+            <div class="stat-card"><span class="stat-label">Students</span><span class="stat-value" id="stat-students">0</span></div>
+            <div class="stat-card"><span class="stat-label">Assignments</span><span class="stat-value" id="stat-assignments">0</span></div>
+            <div class="stat-card"><span class="stat-label">Avg Score</span><span class="stat-value" id="stat-avg">--</span></div>
+            <div class="stat-card"><span class="stat-label">Pass Rate</span><span class="stat-value" id="stat-pass">--</span></div>
+        </div>
+
+        <!-- Grades Table -->
+        <div class="table-wrapper">
+            <table class="grades-table" id="grades-table">
+                <thead>
+                    <tr id="table-header">
+                        <th>Student</th>
+                        <th>Email</th>
+                        <th>Total</th>
+                        <th>Percentage</th>
+                        <th>Grade</th>
+                    </tr>
+                </thead>
+                <tbody id="grades-body">
+                    <tr class="skeleton-row"><td colspan="6"><div class="skeleton" style="height:20px"></div></td></tr>
+                    <tr class="skeleton-row"><td colspan="6"><div class="skeleton" style="height:20px"></div></td></tr>
+                    <tr class="skeleton-row"><td colspan="6"><div class="skeleton" style="height:20px"></div></td></tr>
+                    <tr class="skeleton-row"><td colspan="6"><div class="skeleton" style="height:20px"></div></td></tr>
+                    <tr class="skeleton-row"><td colspan="6"><div class="skeleton" style="height:20px"></div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="../../react-bootstrap.js"></script>
+    <script src="../../Courses/courseData.js"></script>
+    <script src="../../services/api.js"></script>
+    <script src="./instructor-grades.js"></script>
+</body>
+</html>

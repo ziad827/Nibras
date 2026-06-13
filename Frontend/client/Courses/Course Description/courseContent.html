@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Dashboard</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+
+    <!-- Preserve courseId in navigation links -->
+    <script>
+    (function () {
+        const params = new URLSearchParams(window.location.search);
+        const courseId = params.get('courseId') || localStorage.getItem('selectedCourseId');
+        if (courseId) {
+            localStorage.setItem('selectedCourseId', courseId);
+        }
+
+            function updateLinks() {
+                var isInstructor = false;
+                try { var _u = JSON.parse(localStorage.getItem('user') || '{}'); var _r = String(_u?.role?.name || _u?.role || '').toLowerCase(); isInstructor = _r === 'instructor'; } catch (_) {}
+
+                const storedCourseId = localStorage.getItem('selectedCourseId');
+                if (!storedCourseId) return;
+
+                function withCourseId(path) {
+                    if (path.includes('courseId=')) return path;
+                    const separator = path.includes('?') ? '&' : '?';
+                    return `${path}${separator}courseId=${encodeURIComponent(storedCourseId)}`;
+                }
+
+                var navLinks = [
+                    { key: "courseContent", path: "./courseContent.html" },
+                    { key: "videos", path: isInstructor ? '' : "../Videos/videos.html" },
+                    { key: "assignments", path: isInstructor ? "../../Admin/AssignmentBuilder/assignment-builder.html" : "../Assignments/Assignments.html" },
+                    { key: "grading", path: isInstructor ? "../../Admin/Grading/grading.html" : "" },
+                    { key: "grades", path: isInstructor ? "../../Admin/InstructorGrades/instructor-grades.html" : "../Grades/grades.html" },
+                ];
+
+            navLinks.forEach(({ key, path }) => {
+                const el = document.querySelector(`[data-nav-link="${key}"]`);
+                if (el) {
+                    if (path) {
+                        el.closest('.nav-item').style.display = '';
+                        el.setAttribute("href", withCourseId(path));
+                    } else {
+                        el.closest('.nav-item').style.display = 'none';
+                    }
+                }
+            });
+
+            const backBtn = document.querySelector(".back-btn");
+            if (backBtn) backBtn.setAttribute("href", withCourseId("../courses.html"));
+
+            const forumLink = document.querySelector("#discussion-forum-link");
+            if (forumLink) forumLink.setAttribute("href", withCourseId("../../Community/CourseDiscussions/discussions.html"));
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', updateLinks);
+        } else {
+            updateLinks();
+        }
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./courseContent.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>Course Content</h2>
+            <div class="sidebar-progress">
+                <!-- ID added for dynamic data -->
+                <span class="progress-text" id="sidebar-progress-text">Loading...</span>
+                <div class="progress-bar-container">
+                    <div class="progress-fill" id="sidebar-progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Static Navigation (Usually doesn't change per user) -->
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="./courseContent.html" class="nav-link active" data-nav-link="courseContent"><i class="fa-solid fa-book-open"></i> Course Overview</a></li>
+            <li class="nav-item"><a href="../Videos/videos.html" class="nav-link" data-nav-link="videos"><i class="fa-solid fa-video"></i> Videos</a></li>
+            <li class="nav-item"><a href="../Assignments/Assignments.html" class="nav-link" data-nav-link="assignments"><i class="fa-regular fa-file-lines"></i> Assignments</a></li>
+            <li class="nav-item" id="nav-grading"><a href="../../Admin/Grading/grading.html" class="nav-link" data-nav-link="grading"><i class="fa-solid fa-check-double"></i> Grading</a></li>
+            <li class="nav-item"><a href="../Grades/grades.html" class="nav-link" data-nav-link="grades"><i class="fa-solid fa-award"></i> Grades</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+        <a href="../courses.html" class="back-btn">
+                <i class="fa-solid fa-arrow-left-long" style="margin-right:8px"></i>
+                    Return to Courses
+        </a>
+
+            <div class="course-meta">
+                <h4 id="sidebar-course-code">...</h4>
+                <span id="sidebar-term">...</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        
+        <!-- TOP BAR  -->
+        <div class="top-bar">
+            <div class="breadcrumbs">Dashboard / Loading...</div>
+            <button class="theme-toggle-btn" id="themeBtn">
+                <i class="fa-solid fa-moon"></i> <span>Dark Mode</span>
+            </button>
+        </div>
+
+        <!-- Blue Banner -->
+        <header class="course-header">
+            <div class="header-left">
+                <h3><i class="fa-solid fa-graduation-cap"></i> <span id="header-code">CS 101</span></h3>
+                <h1 id="header-title">Loading Course...</h1>
+                <p id="header-desc">...</p>
+                <div class="header-stats">
+                    <div><i class="fa-regular fa-calendar"></i> <span id="header-duration">...</span></div>
+                    <div><i class="fa-regular fa-clock"></i> <span id="header-commitment">...</span></div>
+                    <div><i class="fa-solid fa-user-group"></i> <span id="header-students">...</span></div>
+                </div>
+            </div>
+            <div class="week-badge">
+                <h2 id="current-week-num">0</h2>
+                <span>of <span id="total-weeks">0</span></span>
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            <!-- Left Column -->
+            <div class="left-column">
+                
+                <!-- Announcements (Dynamic) -->
+                <section class="card">
+                    <div class="card-header">
+                        <i class="fa-regular fa-bell"></i>
+                        <h3>Announcements</h3>
+                    </div>
+                    <!-- Container for JS to inject data -->
+                    <div id="announcements-container">
+                        <div class="skeleton" style="height:80px; margin-bottom:0.75rem;"></div>
+                        <div class="skeleton" style="height:80px;"></div>
+                    </div>
+                </section>
+
+                <!-- Objectives (Dynamic) -->
+                <section class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-bullseye"></i>
+                        <h3>Learning Objectives</h3>
+                    </div>
+                    <p style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-secondary);">By the end of this course, you will be able to:</p>
+                    <ul class="objective-list" id="objectives-container">
+                        <li><i class="fa-regular fa-circle-check" style="color:var(--text-tertiary)"></i> <span class="skeleton skeleton-line-sm" style="display:inline-block; vertical-align:middle;"></span></li>
+                        <li><i class="fa-regular fa-circle-check" style="color:var(--text-tertiary)"></i> <span class="skeleton skeleton-line-sm" style="display:inline-block; vertical-align:middle; width:75%;"></span></li>
+                        <li><i class="fa-regular fa-circle-check" style="color:var(--text-tertiary)"></i> <span class="skeleton skeleton-line-sm" style="display:inline-block; vertical-align:middle; width:50%;"></span></li>
+                    </ul>
+                </section>
+
+                <!-- Curriculum (Dynamic) -->
+                <section class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-book-open"></i>
+                        <h3>Course Curriculum</h3>
+                    </div>
+                    <div class="curriculum-list" id="curriculum-container">
+                        <div style="display:flex; gap:1rem; padding-bottom:1.5rem;">
+                            <div class="skeleton" style="width:36px; height:36px; border-radius:50%; flex-shrink:0;"></div>
+                            <div style="flex:1;">
+                                <div class="skeleton skeleton-line" style="width:70%;"></div>
+                                <div class="skeleton skeleton-line-sm" style="width:40%;"></div>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:1rem; padding-bottom:1.5rem;">
+                            <div class="skeleton" style="width:36px; height:36px; border-radius:50%; flex-shrink:0;"></div>
+                            <div style="flex:1;">
+                                <div class="skeleton skeleton-line" style="width:60%;"></div>
+                                <div class="skeleton skeleton-line-sm" style="width:35%;"></div>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:1rem;">
+                            <div class="skeleton" style="width:36px; height:36px; border-radius:50%; flex-shrink:0;"></div>
+                            <div style="flex:1;">
+                                <div class="skeleton skeleton-line" style="width:50%;"></div>
+                                <div class="skeleton skeleton-line-sm" style="width:30%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Prerequisites (Dynamic) -->
+                <section class="card">
+                    <div class="card-header">
+                        <i class="fa-regular fa-lightbulb"></i>
+                        <h3>Prerequisites</h3>
+                    </div>
+                    <ul class="prereq-list" id="prereq-container">
+                        <li><span>•</span> <span class="skeleton skeleton-line-sm" style="display:inline-block; vertical-align:middle;"></span></li>
+                        <li><span>•</span> <span class="skeleton skeleton-line-sm" style="display:inline-block; vertical-align:middle; width:65%;"></span></li>
+                        <li><span>•</span> <span class="skeleton skeleton-line-sm" style="display:inline-block; vertical-align:middle; width:80%;"></span></li>
+                    </ul>
+                </section>
+
+            </div>
+
+            <!-- Right Column -->
+            <div class="right-column">
+                
+                <!-- Instructor (Dynamic) -->
+                <section class="card">
+                    <h5 class="widget-title">Course Instructor</h5>
+                    <div class="instructor-profile">
+                        <div class="avatar" id="instructor-initials">JS</div>
+                        <div class="instructor-info">
+                            <h4 id="instructor-name">...</h4>
+                            <p id="instructor-role">...</p>
+                            <div class="rating">
+                                <i class="fa-solid fa-star"></i> <span id="instructor-rating">...</span> rating
+                            </div>
+                        </div>
+                    </div>
+                    <p class="bio" id="instructor-bio">...</p>
+                    <button class="btn-outline">
+                        <i class="fa-regular fa-envelope"></i> Send Message
+                    </button>
+                </section>
+
+                <!-- Progress (Dynamic) -->
+                <section class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <h3>Your Progress</h3>
+                    </div>
+                    <div class="progress-stats">
+                        <span class="progress-stat-main">Overall Progress</span>
+                        <span style="font-weight: 600;" id="progress-percent-text">0%</span>
+                    </div>
+                    <div class="progress-bar-container" style="margin-bottom: 1.5rem;">
+                        <div class="progress-fill" id="progress-fill-main" style="width: 0%;"></div>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <h3 id="stat-score">0%</h3>
+                            <p>Average Score</p>
+                        </div>
+                        <div class="stat-box">
+                            <h3 id="stat-assignments">0/0</h3>
+                            <p>Assignments</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Grading (Static Structure, could be dynamic but fine for now) -->
+                <section class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-medal"></i>
+                        <h3>Grading Breakdown</h3>
+                    </div>
+                    <div class="grading-table">
+                        <div class="grading-row"><span>Assignments</span><span style="font-weight: 600;">40%</span></div>
+                        <div class="grading-row"><span>Projects</span><span style="font-weight: 600;">30%</span></div>
+                        <div class="grading-row"><span>Quizzes</span><span style="font-weight: 600;">20%</span></div>
+                        <div class="grading-row"><span>Participation</span><span style="font-weight: 600;">10%</span></div>
+                    </div>
+                </section>
+
+                <!-- Quick Links -->
+                <section class="card">
+                    <h5 class="widget-title">Quick Links</h5>
+                    <a href="#" class="quick-link" id="videos-link"><i class="fa-solid fa-video"></i> Videos</a>
+                    <a href="#" class="quick-link" id="playground-link"><i class="fa-solid fa-code"></i> Code Playground</a>
+                    <a href="#" class="quick-link" id="discussion-forum-link"><i class="fa-solid fa-users"></i> Discussion Forum</a>
+                    <a href="#" class="quick-link"><i class="fa-regular fa-file-pdf"></i> Course Syllabus</a>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+        <script src="../../../react-bootstrap.js"></script>
+    <script src="../courseData.js"></script>
+    <script src="./courseContent.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

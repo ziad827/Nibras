@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Projects Platform</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    
+    <!-- Theme Initialization Script to prevent FOUC -->
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+        })();
+    </script>
+
+    <!-- Preserve courseId in navigation links -->
+    <script>
+    (function () {
+        const params = new URLSearchParams(window.location.search);
+        const courseId = params.get('courseId') || localStorage.getItem('selectedCourseId');
+        if (courseId) {
+            localStorage.setItem('selectedCourseId', courseId);
+        }
+
+        function updateLinks() {
+            const storedCourseId = localStorage.getItem('selectedCourseId');
+            if (!storedCourseId) return;
+
+            function withCourseId(path) {
+                if (path.includes('courseId=')) return path;
+                const separator = path.includes('?') ? '&' : '?';
+                return `${path}${separator}courseId=${encodeURIComponent(storedCourseId)}`;
+            }
+
+            const navLinks = [
+                { key: "courseContent", path: "../Course Description/courseContent.html" },
+                { key: "videos", path: "../Videos/videos.html" },
+                { key: "assignments", path: "../Assignments/Assignments.html" },
+                { key: "projects", path: "./Projects.html" },
+                { key: "portfolio", path: "../../Portfolio/portfolio.html" },
+                { key: "grades", path: "../Grades/grades.html" },
+            ];
+
+            navLinks.forEach(({ key, path }) => {
+                const el = document.querySelector(`[data-nav-link="${key}"]`);
+                if (el) el.setAttribute("href", withCourseId(path));
+            });
+
+            const backBtn = document.querySelector(".back-btn");
+            if (backBtn) backBtn.setAttribute("href", withCourseId("../courses.html"));
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', updateLinks);
+        } else {
+            updateLinks();
+        }
+    })();
+    </script>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- External CSS -->
+    <link rel="stylesheet" href="./Projects.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>Course Content</h2>
+            <div class="sidebar-progress">
+                <span class="progress-text">2 of 8 lectures completed</span>
+                <div class="progress-bar-container">
+                    <div class="progress-fill" style="width: 25%"></div>
+                </div>
+            </div>
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="../Course%20Description/courseContent.html" class="nav-link" data-nav-link="courseContent">
+                    <i class="fa-solid fa-book-open"></i> Course Overview
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="../Videos/videos.html" class="nav-link" data-nav-link="videos">
+                    <i class="fa-solid fa-video"></i> Videos
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="../Assignments/Assignments.html" class="nav-link" data-nav-link="assignments">
+                    <i class="fa-regular fa-file-lines"></i> Assignments
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="./Projects.html" class="nav-link active" data-nav-link="projects">
+                    <i class="fa-regular fa-folder"></i> Projects
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="../../Portfolio/portfolio.html" class="nav-link" data-nav-link="portfolio">
+                    <i class="fa-regular fa-user"></i> Portfolio
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="../Grades/grades.html" class="nav-link" data-nav-link="grades">
+                    <i class="fa-solid fa-award"></i> Grades
+                </a>
+            </li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <button class="btn btn-secondary" onclick="openCliHelpModal()" style="width: 100%; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fa-solid fa-terminal"></i> CLI Help
+            </button>
+            <a href="../courses.html" class="back-btn">
+                <i class="fa-solid fa-arrow-left-long" style="margin-right:8px"></i>
+                Return to Courses
+            </a>
+            <div class="course-meta">
+                <h4>Loading course...</h4>
+                <span>Fall 2024 • Week 4</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        
+        <!-- TOP BAR (Theme Toggle) -->
+        <div class="top-bar">
+            <div class="breadcrumbs"></div> 
+            <button class="theme-toggle-btn" id="themeBtn" type="button" aria-label="Toggle theme">
+                <i class="fa-solid fa-sun"></i> <span>Light Mode</span>
+            </button>
+        </div>
+
+        <!-- Header -->
+        <header class="page-header">
+            <div class="header-top-row" style="margin-bottom:0;">
+                <div class="header-titles">
+                    <h1>Projects</h1>
+                    <p>Loading course...</p>
+                </div>
+                <div class="header-stats">
+                    <div class="stat-line">
+                        <span>Overall Progress</span>
+                    </div>
+                    <div class="stat-line secondary" style="font-size: 14px; font-weight: 500; color: var(--text-primary);">
+                        <i class="fa-solid fa-chart-line" style="margin-right: 4px; color: var(--text-secondary);"></i> 
+                        60% Complete
+                    </div>
+                    <div class="header-counters">
+                        <span class="status-badge badge-graded" data-counter="approved">Approved: 0</span>
+                        <span class="status-badge badge-submitted" data-counter="in_review">In Review: 0</span>
+                        <span class="status-badge badge-default" data-counter="complete">Complete: 0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- View Context Switcher -->
+        <div class="context-tabs">
+            <button class="context-tab active" type="button" aria-pressed="true" onclick="switchView('my-projects-view', event)">My Projects</button>
+            <button class="context-tab" type="button" aria-pressed="false" onclick="switchView('group-view', event)">Group Workspace</button>
+        </div>
+        <div id="projects-api-notice" role="status" aria-live="polite" hidden style="margin: 12px 0 18px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-secondary); color: var(--text-secondary); font-size: 13px;"></div>
+
+        <!-- ========================================== -->
+        <!-- VIEW 1: MY PROJECTS                        -->
+        <!-- ========================================== -->
+        <section class="view-section active" id="my-projects-view">
+            
+            <!-- Project Cards (Tabs) -->
+            <div class="project-tabs-list" id="projectListTabs">
+                <button type="button" class="project-card-tab active" data-project-dom-id="project-1" aria-pressed="true" onclick="selectProject('project-1', event)">
+                    <h3 data-role="project-card-title">E-Commerce Platform Development</h3>
+                    <p data-role="project-card-meta">👥 Team • 30% of final grade</p>
+                </button>
+                
+                <button type="button" class="project-card-tab" data-project-dom-id="project-2" aria-pressed="false" onclick="selectProject('project-2', event)">
+                    <h3 data-role="project-card-title">Advanced Portfolio Website</h3>
+                    <p data-role="project-card-meta">👤 Individual • 20% of final grade</p>
+                </button>
+            </div>
+
+            <div id="projectDetailsHost">
+            <!-- Project 1 Details -->
+            <div id="project-1" class="project-details active">
+                <div class="two-col-grid">
+                    
+                    <!-- Left Column -->
+                    <div class="left-col">
+                        <!-- Project Overview -->
+                        <div class="card">
+                            <div class="card-header"><div class="card-title">Project Overview</div></div>
+                            <h3 style="margin-bottom: 12px; font-weight: 600;" data-role="project-overview-title">E-Commerce Platform Development</h3>
+                            <p class="section-desc" data-role="project-overview-description">Build a full-stack e-commerce web application with user authentication, product catalog, shopping cart, and payment integration.</p>
+                            
+                            <div class="meta-grid">
+                                <div class="meta-item">
+                                    <h4>Grade Weight</h4>
+                                    <p>30% of final grade</p>
+                                </div>
+                                <div class="meta-item">
+                                    <h4>Supervisor</h4>
+                                    <p>Prof. Jane Smith</p>
+                                </div>
+                                <div class="meta-item" style="grid-column: span 2;">
+                                    <h4>Duration</h4>
+                                    <p>Nov 1, 2024 → Jan 15, 2025</p>
+                                </div>
+                            </div>
+
+                            <div class="meta-item">
+                                <h4 style="margin-bottom: 12px;">Team Members</h4>
+                                <div class="team-members">
+                                    <div class="team-member"><div class="avatar">SJ</div> Sarah Johnson</div>
+                                    <div class="team-member"><div class="avatar" style="background:var(--accent-blue)">MC</div> Michael Chen</div>
+                                    <div class="team-member"><div class="avatar" style="background:var(--accent-blue)">ED</div> Emma Davis</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Milestones & Phases -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Milestones & Phases</div>
+                                <div class="card-subtitle" data-role="milestones-subtitle">2 of 5 completed</div>
+                            </div>
+                            
+                            <div class="timeline" data-role="milestones-timeline">
+                                <!-- Milestone 1 (Approved) -->
+                                <div class="milestone" data-milestone-id="1">
+                                    <div class="m-icon m-graded" data-role="milestone-icon"><i class="fa-solid fa-check"></i></div>
+                                    <div class="m-content">
+                                        <div class="m-header">
+                                            <h4>Project Proposal</h4>
+                                            <span class="status-badge badge-graded" data-role="milestone-status-badge">Approved</span>
+                                        </div>
+                                        <p class="m-desc">Submit detailed project proposal with wireframes and tech stack</p>
+                                        <div class="m-meta" data-role="milestone-due"><i class="fa-regular fa-calendar"></i> Nov 8, 2024</div>
+                                        <button class="btn btn-outline btn-sm" data-role="milestone-action" style="margin-top: 10px;" onclick="openFeedbackModal(1, 1)">
+                                            <i class="fa-regular fa-comment-dots" style="margin-right: 6px;"></i> View Feedback & History
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Milestone 2 (Needs Changes) -->
+                                <div class="milestone" data-milestone-id="2">
+                                    <div class="m-icon m-default" data-role="milestone-icon" style="border-color: var(--status-late-text); color: var(--status-late-text);"><i class="fa-solid fa-rotate-right"></i></div>
+                                    <div class="m-content">
+                                        <div class="m-header">
+                                            <h4>Frontend Development</h4>
+                                            <span class="status-badge badge-late" data-role="milestone-status-badge">Needs Changes</span>
+                                        </div>
+                                        <p class="m-desc">Implement UI components and integrate with backend</p>
+                                        <div class="m-meta" data-role="milestone-due"><i class="fa-regular fa-calendar"></i> Dec 15, 2024</div>
+                                        <!-- Opens the Feedback view so they can see WHAT needs changing -->
+                                        <button class="btn btn-outline btn-sm" data-role="milestone-action" style="margin-top: 10px;" onclick="openFeedbackModal(1, 2)">
+                                            <i class="fa-solid fa-triangle-exclamation" style="margin-right: 6px; color: var(--status-late-text);"></i> Review Feedback to Resubmit
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Milestone 3 (Pending) -->
+                                <div class="milestone" data-milestone-id="3">
+                                    <div class="m-icon m-default" data-role="milestone-icon"><i class="fa-solid fa-clock"></i></div>
+                                    <div class="m-content">
+                                        <div class="m-header">
+                                            <h4>Testing & Deployment</h4>
+                                            <span class="status-badge badge-default" data-role="milestone-status-badge">Pending</span>
+                                        </div>
+                                        <p class="m-desc">Complete testing, bug fixes, and deploy to production</p>
+                                        <div class="m-meta" data-role="milestone-due" style="margin-bottom: 12px;"><i class="fa-regular fa-calendar"></i> Jan 8, 2025</div>
+                                        <button class="btn btn-primary" data-role="milestone-action" onclick="openSubmissionModal(1, 3)">Submit Milestone</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Final Submission -->
+                        <div class="card">
+                            <div class="card-title" style="margin-bottom: 8px;">Final Project Submission</div>
+                            <button type="button" class="final-submission-box" onclick="openSubmissionModal(1, 'final')">
+                                Click to submit final project
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="right-col">
+                        <!-- Progress Widget -->
+                        <div class="card progress-widget">
+                            <div class="card-header" style="margin-bottom: 12px;"><div class="card-title">Overall Progress</div></div>
+                            <div class="p-row"><span>Completion</span><span id="progress-completion-value">60%</span></div>
+                            <div class="progress-bar-container" style="margin-bottom: 16px;">
+                                <div class="progress-fill" id="progress-fill-widget" style="width: 60%;"></div>
+                            </div>
+                            <div class="stat-row"><span>Approved Milestones</span><span class="stat-val green" id="approved-milestones-value">2/5</span></div>
+                            <div class="stat-row"><span>Days Remaining</span><span class="stat-val" id="days-remaining-value">28</span></div>
+                        </div>
+
+                        <!-- Grading Breakdown -->
+                        <div class="card">
+                            <div class="card-header" style="margin-bottom: 16px;"><div class="card-title">Grading Breakdown</div></div>
+                            <ul class="grading-list">
+                                <li><span>Technical Implementation</span><span>40%</span></li>
+                                <li><span>Design & UX</span><span>25%</span></li>
+                                <li><span>Documentation</span><span>20%</span></li>
+                                <li><span>Presentation</span><span>15%</span></li>
+                            </ul>
+                        </div>
+
+                        <!-- Resources -->
+                        <div class="card">
+                            <div class="card-header" style="margin-bottom: 16px;"><div class="card-title">Resources</div></div>
+                            <ul class="resource-list">
+                                <li><a href="#"><i class="fa-solid fa-file-pdf"></i> Project Guidelines</a></li>
+                                <li><a href="#"><i class="fa-solid fa-file-zipper"></i> Submission Template</a></li>
+                                <li><a href="#"><i class="fa-solid fa-link"></i> Example Projects</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Project 2 Details -->
+            <div id="project-2" class="project-details">
+                <div class="card">
+                    <div class="card-header"><div class="card-title" data-role="project-overview-title">Advanced Portfolio Website</div></div>
+                    <p class="section-desc" data-role="project-overview-description">You are currently viewing the individual portfolio project workspace. Start by submitting your initial wireframes in the milestone section.</p>
+                    <button type="button" class="final-submission-box" onclick="openSubmissionModal(2, 1)">
+                        Click to submit initial wireframes
+                    </button>
+                </div>
+            </div>
+            </div>
+
+        </section>
+
+        <!-- ========================================== -->
+        <!-- VIEW 2: GROUP WORKSPACE                    -->
+        <!-- ========================================== -->
+        <section class="view-section" id="group-view">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Group Workspace: E-Commerce Platform</div>
+                    <button id="group-add-contribution-btn" type="button" class="btn btn-primary" disabled>Add Contribution Note</button>
+                </div>
+                <p class="section-desc">Manage team roles, log contributions, and track team velocity here.</p>
+                <p id="group-readonly-notice" style="margin: 0 0 14px; font-size: 13px; color: var(--text-secondary);">Student mode: Group Workspace is visible but read-only in this integration.</p>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Member</th>
+                            <th>Role</th>
+                            <th>Latest Contribution</th>
+                            <th>Hours Logged</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><div class="team-member" style="border:none; padding:0"><div class="avatar">SJ</div> Sarah Johnson</div></td>
+                            <td>Project Manager / Fullstack</td>
+                            <td>Set up Next.js boilerplate, created Jira tickets</td>
+                            <td>12 hrs</td>
+                            <td><span class="status-badge badge-graded">On Track</span></td>
+                        </tr>
+                        <tr>
+                            <td><div class="team-member" style="border:none; padding:0"><div class="avatar">MC</div> Michael Chen</div></td>
+                            <td>Backend Lead</td>
+                            <td>Designed Postgres Schema & Prisma models</td>
+                            <td>15 hrs</td>
+                            <td><span class="status-badge badge-graded">On Track</span></td>
+                        </tr>
+                        <tr>
+                            <td><div class="team-member" style="border:none; padding:0"><div class="avatar">ED</div> Emma Davis</div></td>
+                            <td>UI/UX & Frontend</td>
+                            <td>Figma wireframes and Tailwind setup</td>
+                            <td>10 hrs</td>
+                            <td><span class="status-badge badge-late">Needs Review</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MODALS                                     -->
+    <!-- ========================================== -->
+    
+    <!-- Submit Milestone Modal (1.4) -->
+    <div class="modal-overlay" id="submissionModal" role="dialog" aria-modal="true" aria-labelledby="submission-modal-title" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="submission-modal-title">Submit Milestone</h2>
+                <button class="close-btn" onclick="closeModal('submissionModal')" type="button" aria-label="Close submit milestone modal">&times;</button>
+            </div>
+            
+            <form id="milestoneSubmitForm">
+                <input type="hidden" name="project_id" id="modal_project_id" value="">
+                <input type="hidden" name="milestone_id" id="modal_milestone_id" value="">
+                <input type="hidden" name="project_key" id="modal_project_key" value="">
+
+                <div id="milestone-form-content">
+                    <div class="form-group">
+                        <label for="submission_type">Submission Type</label>
+                        <select name="submission_type" id="submission_type" required>
+                            <option value="github">GitHub Repository Link</option>
+                            <option value="link">External Link</option>
+                            <option value="text">Text</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="resource_link">Submission Value (URL / Repo / Text)</label>
+                        <input type="text" name="resource_link" id="resource_link" placeholder="https://github.com/..." required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">Notes to Reviewer (Optional)</label>
+                        <textarea name="notes" id="notes" rows="4" placeholder="Any specific areas you want feedback on?"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="submission_branch">Branch (Optional, for hosted preflight)</label>
+                        <input type="text" name="submission_branch" id="submission_branch" value="main" placeholder="main">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="submission_commit_sha">Commit SHA (Optional, for hosted preflight)</label>
+                        <input type="text" name="submission_commit_sha" id="submission_commit_sha" placeholder="e.g. 8f3c7d2">
+                    </div>
+                </div>
+
+                <!-- Pulse Tracker inside Modal -->
+                <div id="modal-pulse-tracker" style="display: none; padding: 1rem 0;">
+                    <div class="pulse-steps">
+                        <div class="pulse-step" id="step-init">
+                            <div class="step-icon"><i class="fa-solid fa-terminal"></i></div>
+                            <div class="step-text">
+                                <span class="step-title">Initializing Pipeline</span>
+                                <span class="step-desc">Preparing environment...</span>
+                            </div>
+                        </div>
+                        <div class="pulse-step" id="step-clone">
+                            <div class="step-icon"><i class="fa-solid fa-code-branch"></i></div>
+                            <div class="step-text">
+                                <span class="step-title">Cloning Repository</span>
+                                <span class="step-desc">Fetching code...</span>
+                            </div>
+                        </div>
+                        <div class="pulse-step" id="step-verify">
+                            <div class="step-icon"><i class="fa-solid fa-circle-check"></i></div>
+                            <div class="step-text">
+                                <span class="step-title">Verifying Commit</span>
+                                <span class="step-desc">Checking commit signature...</span>
+                            </div>
+                        </div>
+                        <div class="pulse-step" id="step-test">
+                            <div class="step-icon"><i class="fa-solid fa-flask"></i></div>
+                            <div class="step-text">
+                                <span class="step-title">Running Tests</span>
+                                <span class="step-desc">Executing automated checks...</span>
+                            </div>
+                        </div>
+                        <div class="pulse-step" id="step-grade">
+                            <div class="step-icon"><i class="fa-solid fa-brain"></i></div>
+                            <div class="step-text">
+                                <span class="step-title">AI Analysis</span>
+                                <span class="step-desc">Reviewing logic & reasoning...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Result details shown after completion -->
+                    <div class="pulse-result-details" id="pulse-result-details">
+                        <div class="pulse-result-row">
+                            <span class="pulse-result-label">Status</span>
+                            <span class="pulse-result-value" id="pulse-result-status">Completed</span>
+                        </div>
+                        <div class="pulse-result-row">
+                            <span class="pulse-result-label">Grade</span>
+                            <span class="pulse-result-value" id="pulse-result-grade">—</span>
+                        </div>
+                        <div class="pulse-result-row">
+                            <span class="pulse-result-label">Time Elapsed</span>
+                            <span class="pulse-result-value" id="pulse-result-time">—</span>
+                        </div>
+                        <div class="pulse-result-tests" id="pulse-result-tests"></div>
+                    </div>
+
+                    <button type="button" id="btn-retry-submission" class="btn btn-outline pulse-retry-btn" onclick="retrySubmission()">
+                        <i class="fa-solid fa-rotate"></i> Retry Submission
+                    </button>
+                </div>
+
+                <div class="modal-footer">
+                    <div id="submission-status-message" role="status" aria-live="polite" style="flex:1; font-size: 12px; color: var(--text-secondary);"></div>
+                    <button type="submit" id="submit-milestone-btn" class="btn btn-primary">Submit Milestone</button>
+                    <button type="button" id="btn-close-pulse" class="btn btn-outline" style="display: none;" onclick="closeModal('submissionModal')">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Feedback & History Modal (1.5 & 1.6) -->
+    <!-- [BACKEND: Populate dynamically based on Milestone ID requested via AJAX, or render server-side] -->
+    <div class="modal-overlay" id="feedbackModal" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title" aria-hidden="true">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <h2 id="feedback-modal-title">Milestone Feedback & History</h2>
+                <button class="close-btn" onclick="closeModal('feedbackModal')" type="button" aria-label="Close feedback modal">&times;</button>
+            </div>
+            
+            <div class="modal-body scrollable-content">
+                
+                <!-- Section 1.6: Feedback / Review View -->
+                <div class="feedback-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="font-size: 1rem; font-weight: 600;">Latest Feedback</h3>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button id="btn-toggle-project-ai" class="btn btn-outline btn-sm">
+                                <i class="fa-solid fa-brain"></i> AI Analysis
+                            </button>
+                            <span class="status-badge badge-late" id="feedback-status-badge">Needs Changes</span>
+                        </div>
+                    </div>
+
+                    <div class="feedback-box">
+                        <div style="display: grid; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <strong>Rubric Score:</strong>
+                                <span style="color: var(--text-secondary);"><span style="color: var(--text-primary); font-weight: 600;" id="feedback-rubric-score">65</span> / 100</span>
+                            </div>
+                            <div id="feedback-test-results" style="display: none;">
+                                <strong>Test Results:</strong><pre id="feedback-test-results-content" style="background: var(--bg-secondary); padding: 0.5rem; border-radius: 4px; overflow-x: auto;"></pre>
+                            </div>
+                            <div id="feedback-instructor-comment">
+                                <p class="instructor-comment" id="feedback-comment">"Good start on the UI components and routing. However, accessibility needs major work, and the mobile view is currently breaking on the product catalog page. Please address the checklist below and resubmit."</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Deep Analysis for Projects -->
+                    <div id="project-ai-analysis" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h4 style="font-size: 0.9rem; font-weight: 600;"><i class="fa-solid fa-microchip"></i> Semantic Reasoning</h4>
+                            <span id="project-ai-confidence" class="status-badge badge-default" style="font-size: 11px;">Confidence: --%</span>
+                        </div>
+                        <div class="feedback-box" style="background: var(--bg-secondary); border-left: 3px solid var(--accent-blue);">
+                            <p id="project-ai-reasoning" style="font-size: 0.85rem; line-height: 1.5;">...</p>
+                        </div>
+                        <h4 style="font-size: 0.9rem; font-weight: 600; margin: 16px 0 8px;"><i class="fa-solid fa-code"></i> AI Evidence</h4>
+                        <div style="background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; overflow-x: auto; white-space: pre;"><code id="project-ai-evidence">...</code></div>
+                    </div>
+
+                    <h4 style="font-size: 0.9rem; font-weight: 600; margin: 20px 0 12px;">Required Changes Checklist</h4>
+                    <ul class="needs-changes-list" id="feedback-checklist">
+                        <!-- [BACKEND: Loop through changes requested] -->
+                        <li><i class="fa-regular fa-square"></i> Fix color contrast on primary buttons</li>
+                        <li><i class="fa-regular fa-square"></i> Add responsive flex-wrap to product grid</li>
+                        <li><i class="fa-regular fa-square"></i> Include ARIA labels on navigation menu</li>
+                    </ul>
+
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button type="button" class="btn btn-primary" id="feedback-resubmit-btn" onclick="closeModal('feedbackModal'); openSubmissionModal(1, 2)">
+                            <i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 6px;"></i> Resubmit Milestone
+                        </button>
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 32px 0;">
+
+                <!-- Section 1.5: Submission History -->
+                <div class="history-section">
+                    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 16px;">Submission History</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Attempt</th>
+                                <th>Timestamp</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-body">
+                            <!-- [BACKEND: Loop through historical submissions] -->
+                            <tr>
+                                <td>Attempt 2</td>
+                                <td>Dec 16, 2024 - 10:45 AM</td>
+                                <td><span class="status-badge badge-late">Needs Changes</span></td>
+                                <td>
+                                    <a href="#" class="history-link">View File</a> • 
+                                    <a href="#" class="history-link">Compare</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Attempt 1</td>
+                                <td>Dec 12, 2024 - 04:20 PM</td>
+                                <td><span class="status-badge badge-late">Needs Changes</span></td>
+                                <td>
+                                    <a href="#" class="history-link">View File</a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- GitHub Connect Modal -->
+    <div class="modal-overlay" id="githubConnectModal" role="dialog" aria-modal="true" aria-labelledby="github-modal-title" aria-hidden="true">
+        <div class="modal-content" style="max-width: 560px;">
+            <div class="modal-header">
+                <h2 id="github-modal-title"><i class="fa-brands fa-github"></i> Connect GitHub Repository</h2>
+                <button class="close-btn" onclick="closeGithubConnectModal()" type="button" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Step indicator -->
+                <div class="gh-steps">
+                    <div class="gh-step active" id="gh-step-1">
+                        <span class="gh-step-num">1</span>
+                        <span class="gh-step-label">Authenticate</span>
+                    </div>
+                    <div class="gh-step-connector"></div>
+                    <div class="gh-step" id="gh-step-2">
+                        <span class="gh-step-num">2</span>
+                        <span class="gh-step-label">Repository</span>
+                    </div>
+                    <div class="gh-step-connector"></div>
+                    <div class="gh-step" id="gh-step-3">
+                        <span class="gh-step-num">3</span>
+                        <span class="gh-step-label">Connect</span>
+                    </div>
+                </div>
+
+                <!-- Step 1: Authentication -->
+                <div id="gh-auth-step" class="gh-panel">
+                    <p class="gh-panel-desc">Authenticate with GitHub to link your repository. Nibras needs read access to your repositories to track commits and contributions.</p>
+                    <div id="gh-auth-status" class="gh-status-info">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i> Checking GitHub connection...
+                    </div>
+                    <div id="gh-auth-actions" style="display:none;">
+                        <button class="btn btn-primary" onclick="startGithubOAuth()" style="width:100%;padding:12px;justify-content:center;">
+                            <i class="fa-brands fa-github"></i> Sign in with GitHub
+                        </button>
+                        <p class="gh-hint">You'll be redirected to GitHub to authorize the Nibras app.</p>
+                    </div>
+                    <div id="gh-authenticated-info" style="display:none;">
+                        <div class="gh-authenticated-badge">
+                            <i class="fa-solid fa-circle-check"></i> Connected as <span id="gh-authenticated-user">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Repository Details -->
+                <div id="gh-repo-step" class="gh-panel" style="display:none;">
+                    <div class="form-group">
+                        <label for="gh-repo-url">Repository URL</label>
+                        <input type="text" id="gh-repo-url" placeholder="https://github.com/owner/repo" />
+                        <p class="gh-field-hint">Enter the full URL of your GitHub repository.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="gh-repo-branch">Branch</label>
+                        <select id="gh-repo-branch">
+                            <option value="main">main</option>
+                            <option value="master">master</option>
+                            <option value="develop">develop</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Step 3: Confirm & Connect -->
+                <div id="gh-connect-step" class="gh-panel" style="display:none;">
+                    <div class="gh-connect-summary">
+                        <div class="gh-connect-row">
+                            <span class="gh-connect-label">Repository</span>
+                            <span class="gh-connect-value" id="gh-connect-repo-display">—</span>
+                        </div>
+                        <div class="gh-connect-row">
+                            <span class="gh-connect-label">Branch</span>
+                            <span class="gh-connect-value" id="gh-connect-branch-display">main</span>
+                        </div>
+                    </div>
+                    <div id="gh-validate-status"></div>
+                    <button class="btn btn-primary" id="gh-connect-btn" onclick="confirmGithubConnect()" style="width:100%;padding:12px;justify-content:center;">
+                        <i class="fa-solid fa-link"></i> Connect Repository
+                    </button>
+                </div>
+
+                <!-- Success state -->
+                <div id="gh-success-state" class="gh-panel" style="display:none;">
+                    <div class="gh-success-icon"><i class="fa-solid fa-circle-check"></i></div>
+                    <h3 class="gh-success-title">Repository Connected!</h3>
+                    <p class="gh-success-desc">Your repository <span id="gh-connected-repo-name" class="gh-repo-name">—</span> is now linked. Nibras will track commits and contributions from this repository.</p>
+                    <button class="btn btn-primary" onclick="closeGithubConnectModal()" style="width:100%;padding:12px;justify-content:center;">Done</button>
+                </div>
+
+                <div id="gh-connect-error" class="gh-error" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Commit History Modal -->
+    <div class="modal-overlay" id="commitHistoryModal" role="dialog" aria-modal="true" aria-labelledby="commit-modal-title" aria-hidden="true">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <div>
+                    <h2 id="commit-modal-title"><i class="fa-solid fa-code-commit"></i> Commit History</h2>
+                    <p id="commit-modal-subtitle" style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;">Repository: <span id="commit-repo-name">—</span></p>
+                </div>
+                <button class="close-btn" onclick="closeCommitHistoryModal()" type="button" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="commit-loading" style="text-align:center;padding:40px;color:var(--text-secondary);">
+                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:1.5rem;display:block;margin-bottom:12px;"></i>
+                    Loading commit history...
+                </div>
+                <div id="commit-empty" style="display:none;text-align:center;padding:40px;color:var(--text-secondary);">
+                    <i class="fa-regular fa-folder-open" style="font-size:2rem;display:block;margin-bottom:12px;"></i>
+                    <p>No commits found yet.</p>
+                </div>
+                <div id="commit-content" style="display:none;">
+                    <div id="commit-summary" class="commit-summary-bar"></div>
+                    <div class="commit-contrib-breakdown" id="commit-contrib-breakdown"></div>
+                    <div class="commit-list-scroll" id="commit-list-container" style="max-height:400px;overflow-y:auto;"></div>
+                </div>
+                <div id="commit-error" class="gh-error" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contribution Analytics Modal -->
+    <div class="modal-overlay" id="contributionAnalyticsModal" role="dialog" aria-modal="true" aria-labelledby="analytics-modal-title" aria-hidden="true">
+        <div class="modal-content" style="max-width: 750px;">
+            <div class="modal-header">
+                <div>
+                    <h2 id="analytics-modal-title"><i class="fa-solid fa-chart-pie"></i> Contribution Analytics</h2>
+                    <p style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;">Per-member contribution breakdown for <span id="analytics-project-name">—</span></p>
+                </div>
+                <button class="close-btn" onclick="closeContributionAnalyticsModal()" type="button" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="analytics-loading" style="text-align:center;padding:40px;color:var(--text-secondary);">
+                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:1.5rem;display:block;margin-bottom:12px;"></i>
+                    Loading analytics...
+                </div>
+                <div id="analytics-empty" style="display:none;text-align:center;padding:40px;color:var(--text-secondary);">
+                    <i class="fa-regular fa-chart-bar" style="font-size:2rem;display:block;margin-bottom:12px;"></i>
+                    <p>No contribution data available yet.</p>
+                </div>
+                <div id="analytics-content" style="display:none;">
+                    <!-- Summary Cards -->
+                    <div class="analytics-summary" id="analytics-summary"></div>
+
+                    <!-- Tabs -->
+                    <div class="analytics-tabs">
+                        <button class="analytics-tab active" data-analytics-tab="commits">Commits</button>
+                        <button class="analytics-tab" data-analytics-tab="lines">Lines Changed</button>
+                        <button class="analytics-tab" data-analytics-tab="frequency">Frequency</button>
+                    </div>
+
+                    <!-- Tab: Commits -->
+                    <div class="analytics-tab-panel active" id="analytics-panel-commits">
+                        <div class="analytics-chart-container" id="analytics-commits-chart"></div>
+                        <div class="analytics-table-container" id="analytics-commits-table"></div>
+                    </div>
+
+                    <!-- Tab: Lines Changed -->
+                    <div class="analytics-tab-panel" id="analytics-panel-lines">
+                        <div class="analytics-chart-container" id="analytics-lines-chart"></div>
+                        <div class="analytics-table-container" id="analytics-lines-table"></div>
+                    </div>
+
+                    <!-- Tab: Frequency -->
+                    <div class="analytics-tab-panel" id="analytics-panel-frequency">
+                        <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:12px;">Commit activity timeline showing contribution frequency over time.</p>
+                        <div id="analytics-frequency-timeline"></div>
+                    </div>
+                </div>
+                <div id="analytics-error" class="gh-error" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team Management Modal -->
+    <div class="modal-overlay" id="teamManagementModal" role="dialog" aria-modal="true" aria-labelledby="team-modal-title" aria-hidden="true">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <div>
+                    <h2 id="team-modal-title"><i class="fa-solid fa-users"></i> Team Management</h2>
+                    <p style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;">Manage team members and settings for <span id="team-project-name">—</span></p>
+                </div>
+                <button class="close-btn" onclick="closeTeamManagementModal()" type="button" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="team-loading" style="text-align:center;padding:40px;color:var(--text-secondary);">
+                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:1.5rem;display:block;margin-bottom:12px;"></i>
+                    Loading team data...
+                </div>
+                <div id="team-content" style="display:none;">
+                    <!-- Team Name -->
+                    <div class="form-group">
+                        <label for="team-name-input">Team Name</label>
+                        <input type="text" id="team-name-input" placeholder="Enter team name" />
+                    </div>
+
+                    <!-- Team Repo URL -->
+                    <div class="form-group">
+                        <label for="team-repo-input">Repository URL</label>
+                        <input type="url" id="team-repo-input" placeholder="https://github.com/org/team-repo" />
+                    </div>
+
+                    <!-- Current Members -->
+                    <div class="team-section-header">
+                        <span><i class="fa-solid fa-user-group"></i> Members</span>
+                        <span id="team-member-count">0</span>
+                    </div>
+                    <div id="team-member-list" class="team-member-list">
+                        <p style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.85rem;">No members yet.</p>
+                    </div>
+
+                    <!-- Invite Member -->
+                    <div class="team-section-header" style="margin-top:16px;">
+                        <span><i class="fa-solid fa-user-plus"></i> Invite Member</span>
+                    </div>
+                    <div class="team-invite-row">
+                        <input type="text" id="team-invite-input" placeholder="Enter name or email" style="flex:1;" />
+                        <select id="team-invite-role" style="width:120px;">
+                            <option value="member">Member</option>
+                            <option value="admin">Admin</option>
+                            <option value="reviewer">Reviewer</option>
+                        </select>
+                        <button class="btn btn-primary btn-sm" onclick="inviteTeamMember()" style="white-space:nowrap;">Add</button>
+                    </div>
+
+                    <!-- Invite error -->
+                    <div id="team-invite-error" class="gh-error" style="display:none;"></div>
+                </div>
+                <div id="team-success-msg" class="gh-success-msg" style="display:none;"></div>
+            </div>
+            <div class="modal-footer" id="team-modal-footer" style="display:none;">
+                <button class="btn btn-outline" onclick="closeTeamManagementModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveTeamSettings()"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CLI Help Modal -->
+    <div id="cliHelpModal" class="modal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+        <div class="modal-content" style="background-color: var(--bg-primary); margin: 5% auto; padding: 25px; border-radius: 12px; max-width: 750px; max-height: 85vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; display: flex; align-items: center; gap: 10px; color: var(--text-primary);">
+                    <i class="fa-solid fa-terminal" style="color: var(--accent-blue);"></i>
+                    Nibras CLI Guide
+                </h2>
+                <button onclick="closeCliHelpModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-secondary);">&times;</button>
+            </div>
+
+            <!-- Connection Status -->
+            <div id="cli-status-container" style="margin-bottom: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid var(--accent-blue);">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div id="cli-status-icon" style="width:12px;height:12px;border-radius:50%;background:#6b7280;"></div>
+                    <span id="cli-status-text" style="color:var(--text-secondary);font-size:14px;">Checking connection...</span>
+                </div>
+            </div>
+
+            <!-- Course & Project Selector -->
+            <div style="margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
+                <div style="flex:1;min-width:200px;">
+                    <label style="display:block;margin-bottom:5px;color:var(--text-primary);font-weight:500;font-size:14px;">Course</label>
+                    <select id="cli-course-select" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-primary);font-size:14px;">
+                        <option value="">Loading courses...</option>
+                    </select>
+                </div>
+                <div style="flex:1;min-width:200px;">
+                    <label style="display:block;margin-bottom:5px;color:var(--text-primary);font-weight:500;font-size:14px;">Project</label>
+                    <select id="cli-project-select" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-primary);font-size:14px;">
+                        <option value="">Select a project...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Commands -->
+            <div id="cli-commands-container">
+                <div style="margin-bottom:15px;">
+                    <h3 style="margin-bottom:10px;color:var(--text-primary);font-size:15px;">1. Install the CLI</h3>
+                    <div id="cli-install-box" style="background:#1e1e1e;padding:12px 15px;border-radius:8px;font-family:monospace;position:relative;">
+                        <button onclick="copyTextContent('npm install -g @nibras/cli')" style="position:absolute;top:8px;right:10px;padding:4px 10px;font-size:11px;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;">Copy</button>
+                        <code style="color:#4fc3f7;font-size:14px;">npm install -g @nibras/cli</code>
+                    </div>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <h3 style="margin-bottom:10px;color:var(--text-primary);font-size:15px;">2. Login</h3>
+                    <div style="background:#1e1e1e;padding:12px 15px;border-radius:8px;font-family:monospace;position:relative;">
+                        <button onclick="copyTextContent(document.getElementById('cli-login-command')?.textContent || '')" style="position:absolute;top:8px;right:10px;padding:4px 10px;font-size:11px;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;">Copy</button>
+                        <code id="cli-login-command" style="color:#4fc3f7;font-size:14px;">nibras login --api-base-url {url}</code>
+                    </div>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <h3 style="margin-bottom:10px;color:var(--text-primary);font-size:15px;">3. Setup Project</h3>
+                    <div style="background:#1e1e1e;padding:12px 15px;border-radius:8px;font-family:monospace;position:relative;">
+                        <button onclick="copyTextContent(document.getElementById('cli-setup-command')?.textContent || '')" style="position:absolute;top:8px;right:10px;padding:4px 10px;font-size:11px;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;">Copy</button>
+                        <code id="cli-setup-command" style="color:#4fc3f7;font-size:14px;">nibras setup --project ...</code>
+                    </div>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <h3 style="margin-bottom:10px;color:var(--text-primary);font-size:15px;">4. Test &amp; Submit</h3>
+                    <div style="background:#1e1e1e;padding:12px 15px;border-radius:8px;font-family:monospace;position:relative;">
+                        <button onclick="copyTextContent('nibras test && nibras submit')" style="position:absolute;top:8px;right:10px;padding:4px 10px;font-size:11px;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;">Copy</button>
+                        <code style="color:#4fc3f7;font-size:14px;">nibras test && nibras submit</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Link GitHub & Verify -->
+            <div id="cli-actions-row" style="margin-bottom:15px;display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn btn-primary btn-sm" type="button" data-cli-action="link-github" style="padding:8px 16px;font-size:13px;">
+                    <i class="fa-brands fa-github"></i> Link GitHub
+                </button>
+                <button class="btn btn-outline btn-sm" type="button" data-cli-action="check-github" style="padding:8px 16px;font-size:13px;">
+                    <i class="fa-solid fa-circle-check"></i> Verify
+                </button>
+                <button class="btn btn-outline btn-sm" type="button" data-cli-action="ping-api" style="padding:8px 16px;font-size:13px;">
+                    <i class="fa-solid fa-plug"></i> Ping API
+                </button>
+                <span id="cli-verify-result" style="color:var(--text-secondary);font-size:13px;align-self:center;"></span>
+            </div>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="closeCliHelpModal()" class="btn btn-primary" style="padding: 12px 30px;">Got It!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openCliHelpModal() {
+            document.getElementById('cliHelpModal').style.display = 'block';
+            if (typeof window.loadCliGuide === 'function') window.loadCliGuide();
+        }
+        function closeCliHelpModal() {
+            document.getElementById('cliHelpModal').style.display = 'none';
+        }
+        function copyTextContent(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                var r = document.getElementById('cli-verify-result');
+                if (r) { r.textContent = 'Copied!'; setTimeout(function() { r.textContent = ''; }, 1500); }
+            }, function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+        window.onclick = function(event) {
+            var modal = document.getElementById('cliHelpModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+
+    <!-- Core API Configuration -->
+    <script src="../../config.js"></script>
+    <!-- Shared utilities (auth, theming, API fetch) -->
+    <script src="../../react-page-utils.js"></script>
+    <!-- Page bootstrap -->
+    <script src="../../react-bootstrap.js"></script>
+    <!-- Course data and ID resolution -->
+    <script src="../courseData.js"></script>
+    <!-- Projects API client -->
+    <script src="./projectsApi.js?v=20260417-5"></script>
+    <!-- Main projects page logic -->
+    <script src="./Projects.js?v=20260417-4"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

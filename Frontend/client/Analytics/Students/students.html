@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Analytics (Students)</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./students.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            
+            <li class="nav-item"><a href="../../Projects/projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../../CLI/cli.html" class="nav-link"><i class="fa-solid fa-terminal"></i> CLI</a></li><li class="nav-item"><a href="../../Competitions/Contests/contest.html" class="nav-link"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="../../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <li class="nav-item"><a href="../../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <!-- Active State -->
+            <li class="nav-item"><a href="../Overview/overview.html" class="nav-link active"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+
+        <div class="user-profile">
+            <div class="avatar-circle">ZA</div>
+            <div class="user-info">
+                <h4>Ziad Alaa</h4>
+                <span>student</span>
+            </div>
+        </div>
+        
+        <div class="reputation-box">
+            <span>Reputation</span>
+            <div class="rep-badge">0</div>
+        </div>
+
+        <a href="../../Login/loginPage/login.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+        </a>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        
+        <!-- HEADER -->
+        <header class="top-header">
+            <div class="search-bar-global">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Search courses, problems">
+            </div>
+            
+            <div class="header-actions">
+                <button class="icon-btn theme-toggle-btn" id="themeBtn"><i class="fa-regular fa-moon"></i></button>
+                <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
+                <div class="profile-circle-small">ZA</div>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            
+            <!-- Page Header -->
+            <div class="analytics-header">
+                <div>
+                    <h1><i class="fa-solid fa-chart-column" style="margin-right:10px;"></i> Analytics Dashboard</h1>
+                    <p>Comprehensive insights and performance metrics</p>
+                </div>
+                <div class="analytics-controls">
+                    <button class="btn-outline">Last 7 days <i class="fa-solid fa-chevron-down"></i></button>
+                    <button class="btn-outline" id="export-btn"><i class="fa-solid fa-download"></i> Export</button>
+                </div>
+            </div>
+
+            <!-- Stats Overview -->
+            <div class="stats-overview-grid" id="stats-container">
+                <div class="ana-stat-card skeleton-card"><div class="skeleton" style="height:16px;width:60%;margin-bottom:8px"></div><div class="skeleton" style="height:32px;width:40%;margin-bottom:6px"></div><div class="skeleton" style="height:14px;width:30%"></div></div>
+                <div class="ana-stat-card skeleton-card"><div class="skeleton" style="height:16px;width:60%;margin-bottom:8px"></div><div class="skeleton" style="height:32px;width:40%;margin-bottom:6px"></div><div class="skeleton" style="height:14px;width:30%"></div></div>
+                <div class="ana-stat-card skeleton-card"><div class="skeleton" style="height:16px;width:60%;margin-bottom:8px"></div><div class="skeleton" style="height:32px;width:40%;margin-bottom:6px"></div><div class="skeleton" style="height:14px;width:30%"></div></div>
+                <div class="ana-stat-card skeleton-card"><div class="skeleton" style="height:16px;width:60%;margin-bottom:8px"></div><div class="skeleton" style="height:32px;width:40%;margin-bottom:6px"></div><div class="skeleton" style="height:14px;width:30%"></div></div>
+            </div>
+
+            <!-- Progress Over Time -->
+            <section class="card progress-card" id="progress-section">
+                <div class="card-header-simple">
+                    <h3>Progress Over Time</h3>
+                    <p class="section-desc">Learning progress and grade trends</p>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="studentProgressChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Tabs -->
+            <div class="analytics-tabs">
+                <a href="../Overview/overview.html" class="ana-tab">Overview</a>
+                <a href="./students.html" class="ana-tab active">Students</a>
+                <a href="../Courses/courses.html" class="ana-tab">Courses</a>
+                <a href="../Engagement/engagement.html" class="ana-tab">Engagement</a>
+            </div>
+
+            <!-- Students Grid -->
+            <div class="charts-layout">
+                
+                <!-- Problem Progress -->
+                <section class="card distribution-card">
+                    <div class="card-header-simple">
+                        <h3>Problem Progress</h3>
+                        <p class="section-desc">Coding problems solved by difficulty</p>
+                    </div>
+                    <div class="performance-list" id="performance-container">
+                        <div class="perf-item skeleton-row"><div class="skeleton" style="height:16px;width:50%"></div><div class="skeleton" style="height:6px;width:100%;margin-top:6px"></div></div>
+                        <div class="perf-item skeleton-row"><div class="skeleton" style="height:16px;width:50%"></div><div class="skeleton" style="height:6px;width:100%;margin-top:6px"></div></div>
+                        <div class="perf-item skeleton-row"><div class="skeleton" style="height:16px;width:50%"></div><div class="skeleton" style="height:6px;width:100%;margin-top:6px"></div></div>
+                    </div>
+                </section>
+
+                <!-- Earned Badges -->
+                <section class="card risk-card">
+                    <div class="card-header-simple">
+                        <h3>Earned Badges</h3>
+                        <p class="section-desc">Achievements unlocked on your journey</p>
+                    </div>
+                    <div class="risk-list" id="badges-container">
+                        <div class="risk-card-item skeleton-row"><div class="skeleton" style="width:24px;height:24px;border-radius:50%;flex-shrink:0"></div><div style="flex:1;margin:0 0.75rem"><div class="skeleton" style="height:16px;width:60%"></div><div class="skeleton" style="height:12px;width:40%;margin-top:4px"></div></div><div class="skeleton" style="width:50px;height:20px;border-radius:12px"></div></div>
+                        <div class="risk-card-item skeleton-row"><div class="skeleton" style="width:24px;height:24px;border-radius:50%;flex-shrink:0"></div><div style="flex:1;margin:0 0.75rem"><div class="skeleton" style="height:16px;width:60%"></div><div class="skeleton" style="height:12px;width:40%;margin-top:4px"></div></div><div class="skeleton" style="width:50px;height:20px;border-radius:12px"></div></div>
+                        <div class="risk-card-item skeleton-row"><div class="skeleton" style="width:24px;height:24px;border-radius:50%;flex-shrink:0"></div><div style="flex:1;margin:0 0.75rem"><div class="skeleton" style="height:16px;width:60%"></div><div class="skeleton" style="height:12px;width:40%;margin-top:4px"></div></div><div class="skeleton" style="width:50px;height:20px;border-radius:12px"></div></div>
+                    </div>
+                </section>
+
+            </div>
+
+            <!-- At-Risk Students (instructor only) -->
+            <section class="card atrisk-card" id="atrisk-section" style="display:none;">
+                <div class="card-header-simple">
+                    <h3>At-Risk Students</h3>
+                    <p class="section-desc">Students flagged for declining performance or reduced engagement</p>
+                </div>
+                <div class="risk-list" id="atrisk-container">
+                    <!-- JS Injected -->
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+        <script src="../../../react-page-utils.js"></script>
+    <script>
+        if (window.NibrasShared?.session?.updateUserInfoDisplay) {
+            window.NibrasShared.session.updateUserInfoDisplay();
+        }
+    </script>
+    <script src="../../../react-bootstrap.js"></script>
+    <script src="./students.js"></script>
+    <script src="../../services/gamification-ui.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

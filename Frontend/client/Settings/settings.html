@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Settings</title>
+    <script src="../services/auth-guard.js" data-login="../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./settings.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            
+            <li class="nav-item"><a href="../Projects/projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../CLI/cli.html" class="nav-link"><i class="fa-solid fa-terminal"></i> CLI</a></li><li class="nav-item"><a href="../Competitions/Contests/contest.html" class="nav-link"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <li class="nav-item"><a href="../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <li class="nav-item"><a href="../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <!-- Active State -->
+            <li class="nav-item"><a href="./settings.html" class="nav-link active"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+
+        <div class="user-profile">
+            <div class="avatar-circle">ZA</div>
+            <div class="user-info">
+                <h4>Ziad Alaa</h4>
+                <span>student</span>
+            </div>
+        </div>
+        
+        <div class="reputation-box">
+            <span>Reputation</span>
+            <div class="rep-badge">0</div>
+        </div>
+
+        <a href="../Login/loginPage/login.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+        </a>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        
+        <div class="content-wrapper settings-wrapper">
+            
+            <div class="page-title-section">
+                <h1>Settings</h1>
+                <p>Manage your account preferences and learning experience</p>
+            </div>
+
+            <!-- 1. Profile Information -->
+            <section class="card settings-card">
+                <div class="card-header-simple">
+                    <h3>Profile Information</h3>
+                    <p class="section-desc">Update your personal details and student information</p>
+                </div>
+                
+                <div class="avatar-edit-row">
+                    <div class="avatar-large" id="avatar-display">ZA</div>
+                    <button class="btn-outline-small" id="btn-change-avatar">Change Avatar</button>
+                    <input type="file" id="avatar-file-input" accept="image/*" style="display:none">
+                </div>
+
+                <div class="form-group">
+                    <label>Display Name</label>
+                    <input type="text" id="input-name" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="input-email" class="form-control">
+                </div>
+            </section>
+
+            <!-- 2. Account Security -->
+            <section class="card settings-card">
+                <div class="card-header-simple">
+                    <h3>Account Security</h3>
+                    <p class="section-desc">Keep your account safe and secure</p>
+                </div>
+
+                <div class="form-group">
+                    <label>Current Password</label>
+                    <input type="password" placeholder="Enter current password" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" placeholder="Enter new password" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" placeholder="Confirm new password" class="form-control">
+                </div>
+
+            </section>
+
+            <!-- 2.1 Connected Accounts (NEW) -->
+            <section class="card settings-card">
+                <div class="card-header-simple">
+                    <h3>Connected Accounts</h3>
+                    <p class="section-desc">Connect your external accounts to enable automated grading and repo syncing</p>
+                </div>
+
+                <div class="connected-account-row" id="github-connection-area">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div class="account-icon github-bg"><i class="fa-brands fa-github"></i></div>
+                        <div>
+                            <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 2px;">GitHub</h4>
+                            <p id="github-status-text" class="section-desc" style="margin-bottom: 0;">Not connected</p>
+                        </div>
+                    </div>
+                    <button id="btn-connect-github" class="btn-outline-small" style="background-color: #24292f; color: white; border: none; padding: 0.6rem 1rem;">
+                        <i class="fa-brands fa-github"></i> Connect GitHub
+                    </button>
+                    <button id="btn-install-github-app" class="btn-outline-small" style="display:none; background-color: #2563eb; color: white; border: none; padding: 0.6rem 1rem;">
+                        <i class="fa-solid fa-puzzle-piece"></i> Install GitHub App
+                    </button>
+                    
+                    <div id="github-profile-info" style="display: none; align-items: center; gap: 1rem;">
+                        <img id="github-avatar" src="" style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-color);">
+                        <span id="github-username" style="font-weight: 500; font-size: 0.9rem;">...</span>
+                        <button id="btn-disconnect-github" class="btn-outline-small" style="color: #ef4444; border-color: #ef4444;">Disconnect</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Notification Preferences -->
+            <section class="card settings-card">
+                <div class="card-header-simple">
+                    <h3>Notification Preferences</h3>
+                    <p class="section-desc">Choose what notifications you want to receive</p>
+                </div>
+
+                <div class="toggle-list" id="notification-container">
+                    <div class="skeleton-container" aria-hidden="true">
+                        <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                        <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                        <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                        <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                        <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                        <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3.5 Notification Channels -->
+            <section class="card settings-card">
+                <div class="card-header-simple">
+                    <h3>Notification Channels</h3>
+                    <p class="section-desc">Choose how notifications are delivered</p>
+                </div>
+
+                <div class="toggle-list" id="channel-container">
+                    <div class="skeleton-container" aria-hidden="true">
+                        <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                        <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                        <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Privacy Settings -->
+            <section class="card settings-card">
+                <div class="card-header-simple">
+                    <h3>Privacy Settings</h3>
+                    <p class="section-desc">Control your visibility on the platform</p>
+                </div>
+
+                <div class="toggle-list" id="privacy-container">
+                    <div class="toggle-row">
+                        <div class="toggle-info"><h4>Show on Leaderboards</h4><p>Display your profile and reputation on public leaderboards</p></div>
+                        <label class="switch">
+                            <input type="checkbox" id="privacy-leaderboard" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. Learning Preferences -->
+            <section class="card settings-card">
+                <div class="card-header-simple">
+                    <h3>Learning Preferences</h3>
+                    <p class="section-desc">Customize your learning experience</p>
+                </div>
+
+                <div class="form-group">
+                    <label>Study Level</label>
+                    <select class="form-control" id="pref-level">
+                        <option value="Level 1">Level 1</option>
+                        <option value="Level 2">Level 2</option>
+                        <option value="Level 3">Level 3</option>
+                        <option value="Level 4">Level 4</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- 5. Appearance -->
+            <section class="card settings-card">
+                <div class="card-header-simple">
+                    <h3>Appearance</h3>
+                    <p class="section-desc">Customize how Nibras looks for you</p>
+                </div>
+                <div class="form-group">
+                    <label>Theme</label>
+                    <select class="form-control" id="theme-selector">
+                        <option value="light">Light Mode</option>
+                        <option value="dark">Dark Mode</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Action Buttons -->
+            <div class="settings-actions">
+                <button class="btn-cancel">Cancel</button>
+                <button class="btn-save">Save Changes</button>
+            </div>
+
+        </div>
+    </main>
+
+        <script src="../react-page-utils.js"></script>
+    <script>
+        if (window.NibrasShared?.session?.updateUserInfoDisplay) {
+            window.NibrasShared.session.updateUserInfoDisplay();
+        }
+    </script>
+    <script src="../react-bootstrap.js"></script>
+    <script src="./settings.js?v=20260417-3"></script>
+    <script src="../services/gamification-ui.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

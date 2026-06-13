@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Sign-In Callback</title>
+<script src="../../config.js"></script>
+</head>
+<body>
+    <p>Processing GitHub sign-in...</p>
+    <script>
+        async function handleGithubCallback() {
+            const params = new URLSearchParams(window.location.search);
+            
+            // Check for session token in query param (passed as ?st=)
+            const sessionToken = params.get('st');
+            const error = params.get('error');
+            const errorDescription = params.get('error_description');
+            
+            if (sessionToken) {
+                // Store session token and redirect to dashboard
+                localStorage.setItem('nibras_session_token', sessionToken);
+                
+                // Also fetch and store user data
+                try {
+                    const trackingApi = window.NIBRAS_TRACKING_API_URL || 'http://localhost:4848';
+                    const response = await fetch(`${trackingApi}/v1/web/session`, {
+                        method: 'GET',
+                        credentials: 'include',
+                    });
+                    
+                    if (response.ok) {
+                        const userData = await response.json();
+                        localStorage.setItem('nibras_user', JSON.stringify(userData));
+                        console.log('[GitHub Callback] User data stored:', userData);
+                    }
+                } catch (err) {
+                    console.error('[GitHub Callback] Failed to fetch user:', err);
+                }
+                
+                window.location.href = '../../Dashboard/dashboard.html';
+            } else if (error) {
+                window.location.href = '../../Login/loginPage/login.html?error=github_auth_failed&message=' + encodeURIComponent(errorDescription || error);
+            } else {
+                // No token - redirect to login with error
+                window.location.href = '../../Login/loginPage/login.html?error=github_auth_failed';
+            }
+        }
+        
+        handleGithubCallback();
+    </script>
+</body>
+</html>

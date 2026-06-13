@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Instructor Sign Up</title>
+<script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CSS -->
+    <link rel="stylesheet" href="./department.css">
+</head>
+<body class="signup-page">
+    <div id="app-root" hidden></div>
+
+    <!-- Starry Background (Visible Only in Dark Mode) -->
+    <div class="stars-container">
+        <div id="stars"></div>
+        <div id="stars2"></div>
+        <div id="stars3"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="auth-header">
+        <div class="logo-area">
+            <!-- Logo must be White because background is dark in both modes -->
+            <img src="/Assets/images/logo-dark.png" alt="Nibras Logo" class="auth-logo">
+        </div>
+        
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle-btn" id="themeBtn">
+            <i class="fa-solid fa-moon"></i>
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <div class="auth-container">
+        <div class="auth-card">
+            
+            <h2 class="auth-title">Create an account</h2>
+
+            <form id="signupForm">
+                
+                <!-- Department Dropdown -->
+                <div class="form-group">
+                    <label>Department</label>
+                    <div class="select-wrapper">
+                        <select class="form-control">
+                            <option value="" disabled selected>Choose Department</option>
+                            <option value="cs">Computer Science</option>
+                            <option value="is">Information Systems</option>
+                            <option value="it">Information Technology</option>
+                            <option value="se">Software Engineering</option>
+                            <option value="ai">Artificial Intelligence</option>
+                        </select>
+                        <i class="fa-solid fa-caret-down select-arrow"></i>
+                    </div>
+                </div>
+
+                <a href="../Pending%20Instructor/pending.html" type="submit" class="btn-login" style="margin-top: 1.5rem;">Sign Up</a>
+
+                <!-- Footer Links -->
+                <div class="signup-link">
+                    <span style="color: inherit; opacity: 0.7;">Are You Student ?</span> 
+                    <a href="../../signup.html">Sign Up</a>
+                </div>
+
+                <div class="signup-link" style="margin-top: 0.5rem;">
+                    <span style="color: inherit; opacity: 0.7;">Already Have An Account ?</span> 
+                    <a href="../../../loginPage/login.html">Log In</a>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+        <script src="../../../../../react-bootstrap.js"></script>
+    <script src="./department.js"></script>
+</body>
+</html>

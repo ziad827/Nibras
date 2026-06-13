@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assignment Builder</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./assignment-builder.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>Course Content</h2>
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../../Courses/Course%20Description/courseContent.html" class="nav-link" data-nav-link="courseContent"><i class="fa-solid fa-book-open"></i> Course Overview</a></li>
+            <li class="nav-item"><a href="./assignment-builder.html" class="nav-link active" data-nav-link="assignments"><i class="fa-regular fa-file-lines"></i> Assignments</a></li>
+            <li class="nav-item"><a href="../Grading/grading.html" class="nav-link" data-nav-link="grading"><i class="fa-solid fa-check-double"></i> Grading</a></li>
+            <li class="nav-item"><a href="../InstructorGrades/instructor-grades.html" class="nav-link" data-nav-link="grades"><i class="fa-solid fa-award"></i> Grades</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <a href="../../Courses/courses.html" class="back-btn">
+                <i class="fa-solid fa-arrow-left-long" style="margin-right:8px"></i> Return to Courses
+            </a>
+            <div class="course-meta">
+                <h4 id="sidebar-course-code">Loading course...</h4>
+                <span id="sidebar-term">Loading...</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <div class="top-bar">
+            <div class="breadcrumbs">
+                <span class="crumb-current">Assignments</span>
+            </div>
+            <button class="theme-toggle-btn" id="themeBtn"><i class="fa-solid fa-sun"></i> <span>Light Mode</span></button>
+        </div>
+
+        <div class="page-header">
+            <div class="header-row">
+                <div>
+                    <h1>Assignment Builder</h1>
+                    <p id="course-subtitle">Loading course...</p>
+                </div>
+                <button id="btn-create-assignment" class="primary-btn"><i class="fa-solid fa-plus"></i> Create Assignment</button>
+            </div>
+        </div>
+
+        <!-- Assignment List -->
+        <div id="assignment-list" class="assignment-list">
+            <div class="skeleton skeleton-assignment"></div>
+            <div class="skeleton skeleton-assignment"></div>
+            <div class="skeleton skeleton-assignment"></div>
+        </div>
+    </main>
+
+    <!-- Assignment Form Modal -->
+    <div id="assignment-modal" class="modal-overlay" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Create Assignment</h2>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-assignment-id">
+
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="field-title" class="form-input" placeholder="e.g. Assignment 1: Arrays">
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="field-desc" class="form-input" rows="3" placeholder="Describe the assignment..."></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <input type="date" id="field-due-date" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Due Time</label>
+                        <input type="time" id="field-due-time" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Points</label>
+                        <input type="number" id="field-points" class="form-input" value="100" min="0">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="field-type" class="form-input">
+                            <option value="code">Code</option>
+                            <option value="project">Project</option>
+                            <option value="quiz">Quiz</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Language (for code type)</label>
+                        <select id="field-language" class="form-input">
+                            <option value="python">Python</option>
+                            <option value="cpp">C++</option>
+                            <option value="java">Java</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="go">Go</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Resource Limits</label>
+                    <div class="limits-row">
+                        <div><label class="label-sm">CPU (cores)</label><input type="number" id="field-cpu" class="form-input-sm" value="1" min="0.5" step="0.5"></div>
+                        <div><label class="label-sm">Memory (MB)</label><input type="number" id="field-memory" class="form-input-sm" value="256" min="64"></div>
+                        <div><label class="label-sm">Time (sec)</label><input type="number" id="field-time-limit" class="form-input-sm" value="5" min="1"></div>
+                        <div><label class="label-sm">Disk (MB)</label><input type="number" id="field-disk" class="form-input-sm" value="50" min="10"></div>
+                    </div>
+                </div>
+
+                <!-- Test Cases -->
+                <div class="section-divider">
+                    <h3><i class="fa-solid fa-vial"></i> Test Cases</h3>
+                    <button id="btn-add-test-case" class="secondary-btn"><i class="fa-solid fa-plus"></i> Add</button>
+                </div>
+                <div id="test-cases-container" class="test-cases-container"></div>
+                <div class="batch-import-row">
+                    <button id="btn-batch-import" class="secondary-btn"><i class="fa-solid fa-upload"></i> Batch Import</button>
+                    <input type="file" id="batch-file-input" accept=".json,.csv" style="display:none">
+                </div>
+
+                <!-- Rubric -->
+                <div class="section-divider">
+                    <h3><i class="fa-solid fa-list-check"></i> Rubric</h3>
+                    <button id="btn-add-rubric" class="secondary-btn"><i class="fa-solid fa-plus"></i> Add Criterion</button>
+                </div>
+                <div id="rubric-container" class="rubric-container"></div>
+
+                <div id="form-status" class="form-status"></div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="btn-cancel" class="secondary-btn">Cancel</button>
+                <button id="btn-save" class="primary-btn"><i class="fa-solid fa-floppy-disk"></i> Save Assignment</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../react-bootstrap.js"></script>
+    <script src="../../Courses/courseData.js"></script>
+    <script src="../../services/api.js"></script>
+    <script src="./assignment-builder.js"></script>
+</body>
+</html>

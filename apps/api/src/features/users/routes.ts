@@ -1,0 +1,134 @@
+import { FastifyInstance } from 'fastify';
+import { PrismaClient } from '@prisma/client';
+import {
+  UserProfileResponseSchema,
+  UserPortfolioResponseSchema,
+} from '@nibras/contracts';
+import { requireUser } from '../../lib/auth';
+import { Errors } from '../../lib/errors';
+import { requestBaseUrl } from '../../lib/request-base-url';
+import { AppStore } from '../../store';
+import { resolveProfileVisibility } from './policies/visibility';
+import { UserProfileService } from './service';
+import { buildStudentProjectPortfolio } from '../tracking/home-dashboard';
+
+export function registerUserRoutes(
+  app: FastifyInstance,
+  store: AppStore,
+  prisma?: PrismaClient,
+): void {
+  const profileService = new UserProfileService(prisma ?? null);
+
+  app.get(
+    '/v1/users/:userId',
+    {
+      schema: {
+        tags: ['users'],
+        summary: 'Get user profile (scoped visibility)',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+
+      const params = request.params as { userId: string };
+      const apiBaseUrl = requestBaseUrl(request);
+
+      const targetExists = await profileService.loadTargetUser(
+        store,
+        apiBaseUrl,
+        params.userId,
+      );
+      if (!targetExists) {
+        return reply.code(404).send(Errors.notFound('User not found.'));
+      }
+
+      const visibility = await resolveProfileVisibility(
+        auth,
+        params.userId,
+        store,
+        apiBaseUrl,
+        prisma,
+      );
+      if (!visibility.allowed) {
+        return reply.code(403).send(Errors.forbidden());
+      }
+
+      let payload;
+      try {
+        payload = await profileService.buildProfileResponse(
+          store,
+          apiBaseUrl,
+          params.userId,
+          visibility.viewerRole,
+        );
+      } catch (err) {
+        request.log.error(
+          { err, userId: params.userId },
+          'Failed to build user profile',
+        );
+        return reply.code(500).send(Errors.internal());
+      }
+      if (!payload) {
+        return reply.code(404).send(Errors.notFound('User not found.'));
+      }
+
+      const parsed = UserProfileResponseSchema.safeParse(payload);
+      if (!parsed.success) {
+        request.log.error(
+          { issues: parsed.error.issues, userId: params.userId },
+          'User profile response validation failed',
+        );
+        return reply.code(500).send(Errors.internal());
+      }
+
+      return parsed.data;
+    },
+  );
+
+  app.get(
+    '/v1/users/:userId/portfolio',
+    {
+      schema: {
+        tags: ['users'],
+        summary: 'Aggregate completed projects portfolio',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+
+      const params = request.params as { userId: string };
+      const apiBaseUrl = requestBaseUrl(request);
+
+      const visibility = await resolveProfileVisibility(
+        auth,
+        params.userId,
+        store,
+        apiBaseUrl,
+        prisma,
+      );
+      if (!visibility.allowed) {
+        return reply.code(403).send(Errors.forbidden());
+      }
+
+      const homeStudent = await store.getStudentHomeStudentData(
+        apiBaseUrl,
+        params.userId,
+      );
+      if (!homeStudent) {
+        return reply.code(404).send(Errors.notFound('User not found.'));
+      }
+
+      const courses = buildStudentProjectPortfolio(
+        homeStudent.courses,
+        homeStudent.courseSnapshots,
+      );
+
+      return UserPortfolioResponseSchema.parse({
+        userId: params.userId,
+        courses,
+      });
+    },
+  );
+}

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Instructor Courses</title>
+    <script src="../services/auth-guard.js" data-login="../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./courses.css">
+    <link rel="stylesheet" href="./instructor-courses.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../Dashboard/instructor-dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="./instructor-courses.html" class="nav-link active"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            <li class="nav-item"><a href="../Projects/instructor-projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+
+        <div class="user-profile">
+            <div class="avatar-circle">ZA</div>
+            <div class="user-info">
+                <h4>Ziad Alaa</h4>
+                <span>Instructor</span>
+            </div>
+        </div>
+
+        <div class="reputation-box">
+            <span>Reputation</span>
+            <div class="rep-badge">1250</div>
+        </div>
+
+        <a href="../Login/loginPage/login.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+        </a>
+
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <!-- HEADER -->
+        <header class="top-header">
+            <div class="search-bar-global">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Search courses, problems">
+            </div>
+
+            <div class="header-actions">
+                <button class="icon-btn" id="themeBtn"><i class="fa-regular fa-moon"></i></button>
+                <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
+                <div class="avatar-circle profile-circle-small" style="width:32px;height:32px;font-size:0.8rem;">ZA</div>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+
+            <!-- Page Header -->
+            <div class="welcome-section" style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <h1>Courses</h1>
+                    <p>Manage your courses and track student progress</p>
+                </div>
+                <button class="inst-primary-btn"><i class="fa-solid fa-plus"></i> Create New Course</button>
+            </div>
+
+            <!-- Search and Filter Bar -->
+            <div class="inst-filter-bar">
+                <div class="inst-search-wrapper">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" placeholder="Search courses...">
+                </div>
+                <div class="inst-filter-group">
+                    <button class="inst-filter-btn inst-filter-active" data-filter="all">All Courses</button>
+                    <button class="inst-filter-btn" data-filter="active">Active</button>
+                    <button class="inst-filter-btn" data-filter="drafts">Drafts</button>
+                    <button class="inst-filter-btn" data-filter="archived">Archived</button>
+                </div>
+            </div>
+
+            <!-- Course Cards Grid -->
+            <div class="inst-course-grid" id="inst-course-grid">
+                <div class="skeleton skeleton-course-card"></div>
+                <div class="skeleton skeleton-course-card"></div>
+                <div class="skeleton skeleton-course-card"></div>
+                <div class="skeleton skeleton-course-card"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="../../react-page-utils.js"></script>
+    <script>
+        if (window.NibrasShared?.session?.updateUserInfoDisplay) {
+            window.NibrasShared.session.updateUserInfoDisplay();
+        }
+    </script>
+    <script>
+        (function initTheme() {
+            const themeBtn = document.getElementById('themeBtn');
+            const themeIcon = themeBtn?.querySelector('i');
+            const appLogo = document.getElementById('app-logo');
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            if (currentTheme === 'dark') {
+                if (themeIcon) themeIcon.className = 'fa-solid fa-sun';
+                if (appLogo) appLogo.src = '/Assets/images/logo-dark.png';
+            } else {
+                if (themeIcon) themeIcon.className = 'fa-regular fa-moon';
+                if (appLogo) appLogo.src = '/Assets/images/logo-light.png';
+            }
+            if (themeBtn) {
+                themeBtn.classList.remove('rotating');
+                void themeBtn.offsetWidth;
+                themeBtn.addEventListener('click', function () {
+                    themeBtn.classList.add('rotating');
+                    const html = document.documentElement;
+                    const current = html.getAttribute('data-theme');
+                    const newTheme = current === 'light' ? 'dark' : 'light';
+                    html.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                    if (newTheme === 'dark') {
+                        if (themeIcon) themeIcon.className = 'fa-solid fa-sun';
+                        if (appLogo) appLogo.src = '/Assets/images/logo-dark.png';
+                    } else {
+                        if (themeIcon) themeIcon.className = 'fa-regular fa-moon';
+                        if (appLogo) appLogo.src = '/Assets/images/logo-light.png';
+                    }
+                    setTimeout(function () { themeBtn.classList.remove('rotating'); }, 500);
+                });
+            }
+        })();
+    </script>
+    <script src="../../react-bootstrap.js"></script>
+    <script src="../config.js"></script>
+    <script src="../services/api.js"></script>
+    <script src="../services/gamification-ui.js"></script>
+    <script src="./instructor-courses.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</htm

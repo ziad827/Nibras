@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Set New Password</title>
+<script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CSS -->
+    <link rel="stylesheet" href="./confirm.css">
+</head>
+<body class="signup-page">
+    <div id="app-root" hidden></div>
+
+    <!-- Starry Background (Visible Only in Dark Mode) -->
+    <div class="stars-container">
+        <div id="stars"></div>
+        <div id="stars2"></div>
+        <div id="stars3"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="auth-header">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-dark.png" alt="Nibras Logo" class="auth-logo">
+        </div>
+        
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle-btn" id="themeBtn">
+            <i class="fa-solid fa-moon"></i>
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <div class="auth-container">
+        <div class="auth-card">
+            
+            <h2 class="auth-title">Reset Password</h2>
+
+            <!-- Info Message -->
+            <div class="info-message">
+                <i class="fa-solid fa-envelope-circle-check"></i>
+                <span>A verification code has been sent to <strong id="userEmail">your email</strong></span>
+            </div>
+
+            <form id="newPasswordForm">
+                
+                <!-- OTP -->
+                <div class="form-group">
+                    <label>Verification Code</label>
+                    <input type="text" placeholder="Enter 6-digit OTP" class="form-control" id="otp" maxlength="6" autocomplete="one-time-code">
+                </div>
+
+                <!-- New Password -->
+                <div class="form-group">
+                    <label>New Password</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" placeholder="Enter your password" class="form-control" id="newPass">
+                        <i class="fa-regular fa-eye toggle-password" onclick="togglePass('newPass', this)"></i>
+                    </div>
+                </div>
+
+                <!-- Confirm Password -->
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" placeholder="Enter your password" class="form-control" id="confPass">
+                        <i class="fa-regular fa-eye toggle-password" onclick="togglePass('confPass', this)"></i>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login" style="margin-top: 1.5rem;">Reset</button>
+
+            </form>
+
+        </div>
+    </div>
+
+        <script src="../../../react-bootstrap.js"></script>
+    <script src="./confirm.js"></script>
+</body>
+</html>

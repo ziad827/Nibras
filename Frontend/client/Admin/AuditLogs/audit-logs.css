@@ -1,0 +1,191 @@
+.date-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.date-label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.date-filter-group input[type="date"] {
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: inherit;
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+    min-width: 140px;
+}
+
+.date-filter-group input[type="date"]:focus {
+    border-color: var(--accent-blue);
+}
+
+.btn-cancel {
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+}
+
+.btn-cancel:hover {
+    background: var(--tag-bg);
+    color: var(--text-primary);
+}
+
+.audit-action-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.audit-action-badge.create { background: rgba(34,197,94,.12); color: #22c55e; }
+.audit-action-badge.update { background: rgba(99,102,241,.12); color: #6366f1; }
+.audit-action-badge.delete { background: rgba(239,68,68,.12); color: #ef4444; }
+.audit-action-badge.login { background: rgba(59,130,246,.12); color: #3b82f6; }
+.audit-action-badge.ban { background: rgba(239,68,68,.12); color: #ef4444; }
+.audit-action-badge.restore { background: rgba(249,115,22,.12); color: #f97316; }
+.audit-action-badge.backup { background: rgba(168,85,247,.12); color: #a855f7; }
+.audit-action-badge.config { background: rgba(20,184,166,.12); color: #14b8a6; }
+.audit-action-badge.other { background: var(--tag-bg); color: var(--text-secondary); }
+
+.audit-user-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.audit-user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.audit-timestamp {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.audit-ip {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    color: var(--text-tertiary);
+}
+
+.audit-row-detail {
+    display: none;
+}
+
+.audit-row-detail.expanded {
+    display: table-row;
+}
+
+.audit-detail-cell {
+    padding: 0.5rem 1rem 1rem 1rem !important;
+    background: var(--tag-bg);
+}
+
+.audit-detail-inner {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.audit-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.json-view {
+    margin: 0;
+    padding: 0.75rem;
+    background: #1e1e2e;
+    color: #cdd6f4;
+    border-radius: 6px;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.audit-no-details {
+    padding: 0.5rem 0;
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.expand-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.expand-btn:hover {
+    background: var(--tag-bg);
+    color: var(--text-primary);
+}
+
+.expand-btn.expanded {
+    color: var(--accent-blue);
+}
+
+.expand-btn i {
+    transition: transform 0.2s;
+}
+
+.expand-btn.expanded i {
+    transform: rotate(90deg);
+}
+
+.data-table tr.log-row {
+    cursor: pointer;
+}

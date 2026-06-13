@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Competitions</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./contest.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            
+            <li class="nav-item"><a href="../../Projects/projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../../CLI/cli.html" class="nav-link"><i class="fa-solid fa-terminal"></i> CLI</a></li><!-- Active State -->
+            <li class="nav-item"><a href="./contest.html" class="nav-link active"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="../../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <li class="nav-item"><a href="../../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <li class="nav-item"><a href="../../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+
+        <div class="user-profile">
+            <div class="avatar-circle">ZA</div>
+            <div class="user-info">
+                <h4>Ziad Alaa</h4>
+                <span>student</span>
+            </div>
+        </div>
+        
+        <div class="reputation-box">
+            <span>Reputation</span>
+            <div class="rep-badge">0</div>
+        </div>
+
+        <a href="../../Login/loginPage/login.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+        </a>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        
+        <!-- HEADER -->
+        <header class="top-header">
+            <div class="search-bar-global">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Search courses, problems">
+            </div>
+            
+            <div class="header-actions">
+                <button class="icon-btn" id="themeBtn"><i class="fa-regular fa-moon"></i></button>
+                <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
+                <div class="profile-circle-small">ZA</div>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            
+            <!-- Title Section -->
+            <div class="page-title-section">
+                <h1>Competitive Programming</h1>
+                <p>Sharpen your algorithmic skills and compete with peers</p>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="comp-stats-grid" id="stats-container">
+                <!-- JS Injected -->
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs-container">
+                <a href="./contest.html" class="tab-btn active">Contests</a>
+                <a href="../Practice/practice.html" class="tab-btn">Practice</a>
+                <a href="../History/history.html" class="tab-btn">History</a>
+                <a href="../Ranking/ranking.html" class="tab-btn">Rankings</a>
+                <a href="../Teams/team.html" class="tab-btn">Teams</a>
+            </div>
+
+            <!-- View Toggle: Calendar / List -->
+            <div class="view-toggle">
+                <button class="view-toggle-btn active" data-view="list"><i class="fa-solid fa-list"></i> List</button>
+                <button class="view-toggle-btn" data-view="calendar"><i class="fa-solid fa-calendar-days"></i> Calendar</button>
+            </div>
+
+            <!-- Platform Filters -->
+            <div class="platform-filters">
+                <button class="filter-chip active" data-platform="all">All</button>
+                <button class="filter-chip" data-platform="codeforces">CODEFORCES</button>
+                <button class="filter-chip" data-platform="leetcode">LEETCODE</button>
+                <button class="filter-chip" data-platform="atcoder">ATCODER</button>
+            </div>
+
+            <!-- Calendar View -->
+            <div id="calendar-view" class="calendar-view" style="display: none;">
+                <div class="calendar-nav">
+                    <div class="calendar-nav-btns">
+                        <button class="calendar-nav-btn" id="prev-btn">←</button>
+                        <button class="calendar-today-btn" id="today-btn">Today</button>
+                        <button class="calendar-nav-btn" id="next-btn">→</button>
+                    </div>
+                    <h2 class="calendar-nav-title" id="nav-title"></h2>
+                    <div class="calendar-view-toggle">
+                        <button class="cal-view-btn active" data-cal-view="month">Month</button>
+                        <button class="cal-view-btn" data-cal-view="week">Week</button>
+                        <button class="cal-view-btn" data-cal-view="day">Day</button>
+                    </div>
+                </div>
+                <div id="calendar-grid" class="calendar-grid"></div>
+            </div>
+
+            <!-- List View -->
+            <div id="list-view">
+                <!-- Live Contests -->
+                <section class="contest-section">
+                    <div class="section-title-row">
+                        <span class="live-dot"></span>
+                        <h3>Live Contests</h3>
+                    </div>
+                    <p class="section-desc">Currently running competitions</p>
+                    
+                    <div class="live-grid" id="live-container">
+                        <div class="contest-card skeleton skeleton-card"></div>
+                        <div class="contest-card skeleton skeleton-card"></div>
+                    </div>
+                </section>
+
+                <!-- Upcoming Contests -->
+                <section class="contest-section">
+                    <h3>Upcoming Contests</h3>
+                    <p class="section-desc">Register for future competitions</p>
+                    
+                    <div class="upcoming-list" id="upcoming-container">
+                        <div class="upcoming-card skeleton skeleton-card-sm"></div>
+                        <div class="upcoming-card skeleton skeleton-card-sm"></div>
+                    </div>
+                </section>
+
+                <!-- Bookmarked Contests -->
+                <section class="contest-section">
+                    <h3><i class="fa-solid fa-bookmark" style="color: var(--accent-purple); margin-right: 8px;"></i>Bookmarked Contests</h3>
+                    <p class="section-desc">Your saved contests</p>
+                    
+                    <div class="bookmarks-list" id="bookmarks-container">
+                        <div class="saved-card skeleton skeleton-card-sm"></div>
+                        <div class="saved-card skeleton skeleton-card-sm"></div>
+                    </div>
+                </section>
+
+                <!-- Reminders -->
+                <section class="contest-section">
+                    <h3><i class="fa-solid fa-bell" style="color: var(--accent-orange); margin-right: 8px;"></i>Reminders</h3>
+                    <p class="section-desc">Contests you've set reminders for</p>
+                    
+                    <div class="reminders-list" id="reminders-container">
+                        <div class="saved-card skeleton skeleton-card-sm"></div>
+                        <div class="saved-card skeleton skeleton-card-sm"></div>
+                    </div>
+                </section>
+            </div>
+
+        </div>
+    </main>
+
+        <script src="../../react-page-utils.js"></script>
+    <script>
+        if (window.NibrasShared?.session?.updateUserInfoDisplay) {
+            window.NibrasShared.session.updateUserInfoDisplay();
+        }
+    </script>
+    <script src="../../react-bootstrap.js"></script>
+    <script src="./contest.js"></script>
+    <script src="../../services/gamification-ui.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

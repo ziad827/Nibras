@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Login</title>
+<script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CSS -->
+    <link rel="stylesheet" href="./login.css">
+    <!-- OAuth Client IDs -->
+    <script>
+        window.NibrasApiConfig = {
+            googleClientId: '809028632276-sgttn83goo7em2anm7t0t5ar37m4v8nm.apps.googleusercontent.com',
+            microsoftClientId: '347c6c6f-1234-5678-9abc-def012345678'
+        };
+    </script>
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <div class="login-container">
+        
+        <!-- LEFT SIDE (Branding) -->
+        <div class="brand-panel">
+            <div class="brand-logo">
+                <img src="/Assets/images/logo-dark.png" alt="Nibras Logo" id="brand-logo-img"> 
+            </div>
+            
+            <div class="brand-text">
+                <h1>Welcome.</h1>
+                <h1>Start your journey<br>now with our<br>Education<br>Platform!</h1>
+            </div>
+        </div>
+
+        <!-- RIGHT SIDE (Form) -->
+        <div class="form-panel">
+            
+            <!-- Theme Toggle (Top Right) -->
+            <button class="theme-toggle-btn" id="themeBtn">
+                <i class="fa-regular fa-moon"></i>
+            </button>
+
+            <div class="form-wrapper">
+                <h2>Login to your account</h2>
+                <p id="loginNotice" class="auth-notice" hidden></p>
+                <form id="otpVerifyForm" class="otp-assist" hidden>
+                    <h3>Verify your email OTP</h3>
+                    <p class="auth-note">Your account is pending verification. Enter the OTP sent to your Gmail inbox.</p>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="otpEmailInput" placeholder="Email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>OTP code</label>
+                        <input type="text" id="otpCodeInput" inputmode="numeric" maxlength="6" placeholder="6-digit OTP" required>
+                    </div>
+                    <button type="submit" class="btn-login">Verify OTP</button>
+                </form>
+
+                <!-- Inputs -->
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="emailInput" placeholder="Email">
+                    </div>
+
+                    <div class="form-group">
+                        <div class="label-row">
+                            <label>Password</label>
+                            <a href="../Reset%20Password/Email/email.html" class="forgot-link">Forgot ?</a>
+                        </div>
+                        <div class="password-input-wrapper">
+                            <input type="password" placeholder="Enter your password" id="passwordInput">
+                            <i class="fa-regular fa-eye toggle-password" onclick="togglePassword()"></i>
+                        </div>
+                    </div>
+
+                    <div class="form-options">
+                        <label class="checkbox-container">
+                            <input type="checkbox" checked>
+                            <span class="checkmark"></span>
+                            Remember Me
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn-login">Login now</button>
+
+                    <div class="signup-link">
+                        Don't Have An Account ? <a href="../signupPage/signup.html">Sign Up</a>
+                    </div>
+                </form>
+
+                <!-- OAuth Buttons -->
+                <div class="oauth-divider"><span>or continue with</span></div>
+                <div class="oauth-buttons" id="googleSignInContainer"></div>
+                <div class="oauth-buttons" id="microsoftSignInContainer"></div>
+                <p id="microsoftAuthStatus" class="auth-notice" hidden></p>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script src="../../config.js"></script>
+    <script src="../../react-bootstrap.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer data-google-gsi="true"></script>
+    <script src="./login.js"></script>
+</body>
+</html>

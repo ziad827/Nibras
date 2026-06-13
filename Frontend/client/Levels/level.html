@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Learning Path</title>
+    <script src="../services/auth-guard.js" data-login="../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./level.css">
+</head>
+<body class="path-page">
+    <div id="app-root" hidden></div>
+
+    <!-- Navbar -->
+    <nav class="path-navbar">
+        <div class="nav-left">
+            <a href="../Dashboard/dashboard.html" class="btn-back-nav">
+                <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+        <div class="nav-center">
+            <h1>Computer Science Learning Path</h1>
+            <p>Progress through four comprehensive levels to master computer science</p>
+        </div>
+        <div class="nav-right">
+            <button class="icon-btn" id="themeBtn"><i class="fa-regular fa-moon"></i></button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="path-container">
+        
+        <!-- Level Grid -->
+        <div class="levels-grid" id="levels-container">
+            <!-- JS will inject cards here -->
+        </div>
+
+        <!-- Overall Progress Bar -->
+        <div class="overall-progress-card">
+            <div class="op-header">
+                <h3>Overall Progress</h3>
+                <span>0 of 4 levels completed</span>
+            </div>
+            <div class="op-track">
+                <div class="op-fill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Manual Selection Option -->
+        <div class="manual-choice-section">
+            <div class="manual-content">
+                <div class="manual-icon">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <div class="manual-text">
+                    <h3>Already have prior knowledge?</h3>
+                    <p>You can skip the structured path and build your own curriculum by selecting specific courses.</p>
+                </div>
+                <button class="btn-manual">Pick Courses Manually</button>
+            </div>
+        </div>
+
+    </div>
+
+        <script src="../../react-bootstrap.js"></script>
+    <script src="./level.js"></script>
+</body>
+</html>

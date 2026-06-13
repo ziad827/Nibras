@@ -1,0 +1,323 @@
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    margin-bottom: 1rem;
+}
+
+.back-link:hover {
+    color: var(--accent-blue);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.section-header h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.4rem;
+}
+
+.section-header .enrollment-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    background: var(--stat-icon-bg-blue);
+    color: var(--stat-icon-text-blue);
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.info-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.info-item label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 4px;
+}
+
+.info-item span {
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.student-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.student-table th,
+.student-table td {
+    padding: 0.7rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
+.student-table th {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: var(--tag-bg);
+}
+
+.student-table tr:last-child td {
+    border-bottom: none;
+}
+
+.student-table tr:hover td {
+    background: var(--tag-bg);
+}
+
+.student-avatar-sm {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.student-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-remove-student {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #ef4444;
+    background: transparent;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-remove-student:hover {
+    background: #ef4444;
+    color: #fff;
+}
+
+.btn-outline {
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-secondary);
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-outline:hover {
+    background: var(--tag-bg);
+    color: var(--text-primary);
+}
+
+.batch-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.88rem;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    color: var(--accent-blue);
+    border-bottom-color: var(--accent-blue);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.batch-textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: inherit;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.85rem;
+    resize: vertical;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.batch-textarea:focus {
+    border-color: var(--accent-blue);
+}
+
+.csv-upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: 10px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.csv-upload-area:hover {
+    border-color: var(--accent-blue);
+}
+
+.csv-upload-area i {
+    font-size: 2rem;
+    color: var(--accent-blue);
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+.csv-upload-area p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+}
+
+.csv-upload-area input[type="file"] {
+    display: none;
+}
+
+.preview-section {
+    margin-top: 1rem;
+}
+
+.preview-section h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+}
+
+.preview-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 0.75rem;
+}
+
+.preview-tag {
+    padding: 4px 10px;
+    background: var(--tag-bg);
+    border-radius: 6px;
+    font-size: 0.82rem;
+    color: var(--text-primary);
+}
+
+.batch-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 1rem;
+}
+
+.batch-actions button {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.batch-actions .btn-preview {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.batch-actions .btn-confirm-enroll {
+    background: var(--accent-blue);
+    color: #fff;
+}
+
+.batch-actions .btn-confirm-enroll:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .info-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .student-table th:nth-child(3),
+    .student-table td:nth-child(3) {
+        display: none;
+    }
+}

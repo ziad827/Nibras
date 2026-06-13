@@ -1,0 +1,114 @@
+import { createSpinner } from '../ui/spinner';
+import { printBox } from '../ui/box';
+import { runGlobalNpm, uninstallGlobalCli } from './global-install';
+import { parseOption, hasFlag } from '../util/args';
+
+const DEFAULT_RELEASE_API_URL =
+  'https://api.github.com/repos/EpitomeZied/nibras/releases/latest';
+const DEFAULT_PACKAGE_NAME = '@nibras/cli';
+
+function normalizeTag(value: string): string {
+  return value.startsWith('v') ? value : `v${value}`;
+}
+
+function trimTagPrefix(value: string): string {
+  return value.startsWith('v') ? value.slice(1) : value;
+}
+
+function getInstalledVersion(): string | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pkg = require('../../package.json') as { version?: string };
+    return pkg.version ? normalizeTag(pkg.version) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveTargetTag(args: string[]): Promise<string> {
+  const explicit = parseOption(args, '--version');
+  if (explicit) {
+    return normalizeTag(explicit);
+  }
+
+  const releaseUrl =
+    process.env.NIBRAS_UPDATE_RELEASE_URL || DEFAULT_RELEASE_API_URL;
+  const response = await fetch(releaseUrl, {
+    headers: {
+      accept: 'application/vnd.github+json',
+      'user-agent': 'nibras',
+    },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Failed to check the latest CLI release (${response.status}). Run \`nibras update --version <tag>\`.`,
+    );
+  }
+  const payload = (await response.json()) as { tag_name?: unknown };
+  if (typeof payload.tag_name !== 'string' || payload.tag_name.trim() === '') {
+    throw new Error('Latest release did not include a tag name.');
+  }
+  return normalizeTag(payload.tag_name.trim());
+}
+
+export async function commandUpdate(
+  args: string[],
+  plain: boolean,
+): Promise<void> {
+  const spinner = createSpinner('Checking for the latest CLI release', plain);
+  const targetTag = await resolveTargetTag(args);
+  const currentTag = getInstalledVersion();
+  const checkOnly = hasFlag(args, '--check');
+  const force = hasFlag(args, '--force');
+
+  if (checkOnly) {
+    spinner.stop();
+    printBox(
+      currentTag === targetTag ? 'CLI is up to date' : 'CLI update available',
+      [`Installed: ${currentTag ?? 'unknown'}`, `Latest:    ${targetTag}`],
+      currentTag === targetTag ? 'success' : 'warning',
+      plain,
+    );
+    return;
+  }
+
+  if (currentTag === targetTag && !force) {
+    spinner.stop();
+    printBox(
+      'CLI is already on the latest release',
+      [
+        `Installed: ${currentTag}`,
+        `Latest:    ${targetTag}`,
+        'Tip: run `nibras update --force` to reinstall it.',
+      ],
+      'info',
+      plain,
+    );
+    return;
+  }
+
+  const packageName =
+    process.env.NIBRAS_UPDATE_PACKAGE_NAME || DEFAULT_PACKAGE_NAME;
+  const installSpecifier = `${packageName}@${trimTagPrefix(targetTag)}`;
+
+  spinner.text('Removing any existing global CLI install');
+  const removedArtifacts = uninstallGlobalCli(plain);
+
+  spinner.text(`Installing ${targetTag}`);
+  runGlobalNpm(['install', '-g', installSpecifier], plain);
+  spinner.succeed(`Updated to ${targetTag}`);
+
+  printBox(
+    'CLI updated',
+    [
+      `Installed: ${targetTag}`,
+      `Source:    ${installSpecifier}`,
+      removedArtifacts.length > 0
+        ? `Cleanup:   removed ${removedArtifacts.length} stale global install path(s).`
+        : 'Cleanup:   no stale global install paths were left behind.',
+      'Next:      run `nibras --version` to confirm the active binary.',
+    ],
+    'success',
+    plain,
+  );
+}

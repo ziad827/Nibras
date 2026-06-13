@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Teams</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../Contests/contest.css">
+    <link rel="stylesheet" href="./team.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            <li class="nav-item"><a href="../../Projects/projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../../CLI/cli.html" class="nav-link"><i class="fa-solid fa-terminal"></i> CLI</a></li>
+            <li class="nav-item"><a href="../Contests/contest.html" class="nav-link active"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="../../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <li class="nav-item"><a href="../../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <li class="nav-item"><a href="../../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+        <div class="user-profile">
+            <div class="avatar-circle"></div>
+            <div class="user-info">
+                <h4></h4>
+                <span>student</span>
+            </div>
+        </div>
+        <div class="reputation-box">
+            <span>Reputation</span>
+            <div class="rep-badge">0</div>
+        </div>
+        <a href="../../Login/loginPage/login.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+        </a>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="search-bar-global">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Search courses, problems">
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" id="themeBtn"><i class="fa-regular fa-moon"></i></button>
+                <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
+                <div class="avatar-circle profile-circle-small"></div>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            <a href="../Contests/contest.html" class="back-link"><i class="fa-solid fa-chevron-left"></i> Back to Contests</a>
+
+            <div class="page-title-section">
+                <h1>Teams</h1>
+                <p>Form teams, invite members, and compete together</p>
+            </div>
+
+            <div class="teams-actions-bar">
+                <button class="btn-primary" id="createTeamBtn"><i class="fa-solid fa-plus"></i> Create Team</button>
+                <div class="teams-search-bar">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="teamSearchInput" placeholder="Search teams by name or contest...">
+                </div>
+            </div>
+
+            <div class="teams-stats-grid" id="teams-stats">
+                <div class="stat-card" data-color="purple">
+                    <div class="stat-info">
+                        <span>My Teams</span>
+                        <h2 id="my-team-count">0</h2>
+                    </div>
+                    <div class="stat-icon" style="background-color: var(--stat-icon-bg-purple); color: var(--stat-icon-text-purple);">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                </div>
+                <div class="stat-card" data-color="green">
+                    <div class="stat-info">
+                        <span>Open Teams</span>
+                        <h2 id="open-team-count">0</h2>
+                    </div>
+                    <div class="stat-icon" style="background-color: var(--stat-icon-bg-green); color: var(--stat-icon-text-green);">
+                        <i class="fa-solid fa-user-plus"></i>
+                    </div>
+                </div>
+                <div class="stat-card" data-color="blue">
+                    <div class="stat-info">
+                        <span>Pending Invites</span>
+                        <h2 id="pending-invite-count">0</h2>
+                    </div>
+                    <div class="stat-icon" style="background-color: var(--stat-icon-bg-blue); color: var(--stat-icon-text-blue);">
+                        <i class="fa-solid fa-envelope"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabs-container">
+                <button class="tab-btn active" data-tab="my-teams"><i class="fa-solid fa-users"></i> My Teams</button>
+                <button class="tab-btn" data-tab="discover"><i class="fa-solid fa-compass"></i> Discover</button>
+                <button class="tab-btn" data-tab="invitations"><i class="fa-solid fa-envelope"></i> Invitations <span class="invite-badge" id="inviteBadge" style="display:none;">0</span></button>
+            </div>
+
+            <div id="tab-my-teams" class="tab-content active">
+                <div id="my-teams-container">
+                    <div class="empty-state" id="my-teams-empty" style="display:none;">
+                        <i class="fa-solid fa-users"></i>
+                        <p>You haven't joined any teams yet.</p>
+                        <p style="font-size:0.85rem;color:var(--text-tertiary);margin-top:4px;">Create a team or discover one to join!</p>
+                    </div>
+                    <div class="teams-grid" id="my-teams-grid">
+                        <div class="skeleton skeleton-team-card"></div>
+                        <div class="skeleton skeleton-team-card"></div>
+                        <div class="skeleton skeleton-team-card"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-discover" class="tab-content">
+                <div id="discover-container">
+                    <div class="empty-state" id="discover-empty" style="display:none;">
+                        <i class="fa-solid fa-compass"></i>
+                        <p>No open teams found.</p>
+                    </div>
+                    <div class="teams-grid" id="discover-grid">
+                        <div class="skeleton skeleton-team-card"></div>
+                        <div class="skeleton skeleton-team-card"></div>
+                        <div class="skeleton skeleton-team-card"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-invitations" class="tab-content">
+                <div id="invitations-container">
+                    <div class="empty-state" id="invitations-empty" style="display:none;">
+                        <i class="fa-solid fa-envelope"></i>
+                        <p>No pending invitations.</p>
+                    </div>
+                    <div class="teams-grid" id="invitations-grid">
+                        <div class="skeleton skeleton-team-card-sm"></div>
+                        <div class="skeleton skeleton-team-card-sm"></div>
+                        <div class="skeleton skeleton-team-card-sm"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create Team Modal -->
+    <div class="modal-overlay" id="createTeamModal" style="display:none;">
+        <div class="modal-content team-modal">
+            <div class="modal-header">
+                <h3>Create New Team</h3>
+                <button class="modal-close" id="createTeamClose">&times;</button>
+            </div>
+            <form id="createTeamForm">
+                <div class="form-group">
+                    <label for="teamName">Team Name *</label>
+                    <input type="text" id="teamName" class="form-input" placeholder="Enter team name" required maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="teamDescription">Description</label>
+                    <textarea id="teamDescription" class="form-input" placeholder="Describe your team's goals, skill level, etc." rows="3" maxlength="500"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="teamMaxMembers">Max Members</label>
+                        <input type="number" id="teamMaxMembers" class="form-input" value="4" min="2" max="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="teamContest">Target Contest</label>
+                        <select id="teamContest" class="form-input">
+                            <option value="">No specific contest</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="teamOpenJoin" checked>
+                        <span>Allow anyone to join without approval</span>
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="createTeamCancel">Cancel</button>
+                    <button type="submit" class="btn-primary" id="createTeamSubmit"><i class="fa-solid fa-spinner fa-spin" style="display:none;" id="createTeamSpinner"></i> Create Team</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Team Detail Modal -->
+    <div class="modal-overlay" id="teamDetailModal" style="display:none;">
+        <div class="modal-content team-detail-modal">
+            <div class="modal-header">
+                <h3 id="teamDetailTitle">Team Details</h3>
+                <button class="modal-close" id="teamDetailClose">&times;</button>
+            </div>
+            <div id="teamDetailBody">
+                <div class="team-detail-info">
+                    <p id="teamDetailDescription" class="team-detail-description"></p>
+                    <div class="team-detail-meta">
+                        <span id="teamDetailMembers"><i class="fa-solid fa-user"></i> Members: <strong>0</strong></span>
+                        <span id="teamDetailContest"><i class="fa-solid fa-trophy"></i> Contest: <strong>None</strong></span>
+                        <span id="teamDetailStatus"><i class="fa-solid fa-toggle-on"></i> Status: <strong>Open</strong></span>
+                    </div>
+                </div>
+                <div class="team-members-section">
+                    <h4>Members</h4>
+                    <div class="team-members-list" id="teamDetailMembersList"></div>
+                </div>
+                <div class="team-detail-actions" id="teamDetailActions"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../react-bootstrap.js"></script>
+    <script src="../../services/api.js"></script>
+    <script src="../../services/gamification-ui.js"></script>
+    <script src="./team.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

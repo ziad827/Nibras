@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Instructor Projects</title>
+    <script src="../services/auth-guard.js" data-login="../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        var savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./projects.css">
+    <link rel="stylesheet" href="./instructor-projects.css">
+    <link rel="stylesheet" href="../Admin/ProjectGrading/project-grading.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../Dashboard/instructor-dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../Courses/instructor-courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            <li class="nav-item"><a href="./instructor-projects.html" class="nav-link active"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+        <div class="user-profile">
+            <div class="avatar-circle">ZA</div>
+            <div class="user-info">
+                <h4>Ziad Alaa</h4>
+                <span>Instructor</span>
+            </div>
+        </div>
+        <div class="reputation-box">
+            <span>Reputation</span>
+            <div class="rep-badge">1250</div>
+        </div>
+        <a href="../Login/loginPage/login.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+        </a>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="search-bar-global">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Search courses, problems">
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" id="themeBtn"><i class="fa-regular fa-moon"></i></button>
+                <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
+                <div class="avatar-circle profile-circle-small" style="width:32px;height:32px;font-size:0.8rem;">ZA</div>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            <!-- Breadcrumb -->
+            <div class="inst-proj-breadcrumb">
+                <a href="../Courses/instructor-courses.html">Courses</a>
+                <span class="breadcrumb-sep">/</span>
+                <span id="crumb-course-name">Projects</span>
+            </div>
+
+            <!-- Page Header -->
+            <div class="inst-proj-header">
+                <div>
+                    <h1>Projects</h1>
+                    <p class="inst-proj-subtitle">Manage projects, milestones, and review submissions</p>
+                </div>
+                <div class="inst-proj-header-actions">
+                    <button class="inst-primary-btn" id="btn-manage-templates"><i class="fa-solid fa-file"></i> Templates</button>
+                    <button class="inst-primary-btn" id="btn-new-project"><i class="fa-solid fa-plus"></i> New Project</button>
+                </div>
+            </div>
+
+            <!-- Tab Bar -->
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="projects"><i class="fa-solid fa-diagram-project"></i> Projects</button>
+                <button class="tab-btn" data-tab="grading"><i class="fa-solid fa-check-double"></i> Grading</button>
+            </div>
+
+            <!-- Projects Tab -->
+            <div id="tab-projects" class="tab-panel active">
+
+            <!-- Course Selector Bar -->
+            <div class="inst-proj-selector-bar">
+                <label>COURSE</label>
+                <select id="course-select">
+                    <option value="">Loading courses...</option>
+                </select>
+                <span id="available-count"></span>
+            </div>
+
+            <!-- Stats Row -->
+            <div class="inst-proj-stats" id="inst-proj-stats">
+                <div class="inst-proj-stat-card">
+                    <span class="inst-proj-stat-value" id="stat-projects">0</span>
+                    <span class="inst-proj-stat-label">Projects</span>
+                </div>
+                <div class="inst-proj-stat-card">
+                    <span class="inst-proj-stat-value" id="stat-students">0</span>
+                    <span class="inst-proj-stat-label">Students</span>
+                </div>
+                <div class="inst-proj-stat-card">
+                    <span class="inst-proj-stat-value" id="stat-pending">0</span>
+                    <span class="inst-proj-stat-label">Pending Reviews</span>
+                </div>
+                <div class="inst-proj-stat-card">
+                    <span class="inst-proj-stat-value" id="stat-approved">0</span>
+                    <span class="inst-proj-stat-label">Approved</span>
+                </div>
+            </div>
+
+            <!-- Two-Column Grid -->
+            <div class="inst-proj-grid">
+                <section class="inst-proj-panel" id="panel-projects">
+                    <div class="inst-proj-panel-header">
+                        <h2>Projects</h2>
+                        <span class="inst-proj-panel-count" id="project-count">0 total</span>
+                    </div>
+                    <div class="inst-proj-list" id="project-list">
+                        <div class="inst-proj-loading">Select a course to view projects.</div>
+                    </div>
+                </section>
+
+                <section class="inst-proj-panel" id="panel-review">
+                    <div class="inst-proj-panel-header">
+                        <h2>Review Queue</h2>
+                        <button class="inst-proj-panel-link" id="btn-view-all-submissions">See all</button>
+                    </div>
+                    <div class="inst-proj-review-list" id="review-list">
+                        <div class="inst-proj-loading">Select a course to view submissions.</div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- All Submissions Table -->
+            <section class="inst-proj-panel" id="panel-submissions" style="display:none;">
+                <div class="inst-proj-panel-header">
+                    <h2>All Submissions</h2>
+                    <div>
+                        <button class="inst-filter-btn inst-filter-active" data-sfilter="all">All</button>
+                        <button class="inst-filter-btn" data-sfilter="pending">Pending</button>
+                        <button class="inst-filter-btn" data-sfilter="approved">Approved</button>
+                        <button class="inst-filter-btn" data-sfilter="needs_changes">Needs Changes</button>
+                    </div>
+                </div>
+                <div class="inst-proj-table-wrapper">
+                    <table class="inst-proj-table">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Project</th>
+                                <th>Status</th>
+                                <th>Grade</th>
+                                <th>Submitted</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="submissions-tbody">
+                            <tr class="skeleton-row"><td colspan="6"><div class="skeleton" style="height:20px"></div></td></tr>
+                            <tr class="skeleton-row"><td colspan="6"><div class="skeleton" style="height:20px"></div></td></tr>
+                            <tr class="skeleton-row"><td colspan="6"><div class="skeleton" style="height:20px"></div></td></tr>
+                            <tr class="skeleton-row"><td colspan="6"><div class="skeleton" style="height:20px"></div></td></tr>
+                            <tr class="skeleton-row"><td colspan="6"><div class="skeleton" style="height:20px"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            </div><!-- /tab-projects -->
+
+            <!-- Grading Tab -->
+            <div id="tab-grading" class="tab-panel">
+
+                <!-- Project Selector -->
+                <div class="selector-bar">
+                    <label for="grade-project-select">Project:</label>
+                    <select id="grade-project-select" class="assignment-select">
+                        <option value="">— Select a project —</option>
+                    </select>
+                    <span id="grade-course-subtitle" class="course-label">Select a course on the Projects tab first.</span>
+                </div>
+
+                <!-- Final Grade Summary -->
+                <div id="grade-final-summary" class="grade-final-summary" style="display:none;margin-bottom:16px;">
+                    <div class="grade-final-header">
+                        <h3><i class="fa-solid fa-calculator"></i> Final Grade Summary</h3>
+                        <button class="inst-primary-btn" id="btn-finalize-all-grades" style="font-size:0.8rem;padding:0.5rem 1rem;">
+                            <i class="fa-solid fa-check-double"></i> Finalize All
+                        </button>
+                    </div>
+                    <div id="grade-final-breakdown" class="grade-final-breakdown">
+                        <div class="grade-final-stat">
+                            <span class="grade-final-stat-value" id="final-stat-teams">0</span>
+                            <span class="grade-final-stat-label">Teams</span>
+                        </div>
+                        <div class="grade-final-stat">
+                            <span class="grade-final-stat-value" id="final-stat-finalized">0</span>
+                            <span class="grade-final-stat-label">Finalized</span>
+                        </div>
+                        <div class="grade-final-stat">
+                            <span class="grade-final-stat-value" id="final-stat-not-finalized">0</span>
+                            <span class="grade-final-stat-label">Not Finalized</span>
+                        </div>
+                        <div class="grade-final-stat">
+                            <span class="grade-final-stat-value" id="final-stat-avg-grade">0%</span>
+                            <span class="grade-final-stat-label">Average</span>
+                        </div>
+                    </div>
+                    <div class="grade-final-member-adjustments" id="final-member-adjustments" style="display:none;">
+                        <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:8px;">
+                            <i class="fa-solid fa-sliders"></i> Per-member grade adjustments (based on contribution):
+                        </p>
+                        <div id="final-member-adjust-rows"></div>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="grade-stats" id="grade-stats" style="display:none">
+                    <div class="stat-card"><span class="stat-label">Total Teams</span><span class="stat-value" id="stat-total">0</span></div>
+                    <div class="stat-card"><span class="stat-label">Graded</span><span class="stat-value" id="stat-graded">0</span></div>
+                    <div class="stat-card"><span class="stat-label">Pending</span><span class="stat-value" id="stat-pending">0</span></div>
+                    <div class="stat-card"><span class="stat-label">Avg Score</span><span class="stat-value" id="stat-avg">--</span></div>
+                </div>
+
+                <!-- Submissions Table -->
+                <div class="table-wrapper" id="grade-table-wrapper" style="display:none">
+                    <table class="submissions-table">
+                        <thead>
+                            <tr>
+                                <th>Team / Student</th>
+                                <th>Members</th>
+                                <th>Milestones</th>
+                                <th>Status</th>
+                                <th>Score</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="grade-submissions-body"></tbody>
+                    </table>
+                </div>
+
+                <div id="grade-empty-state" class="empty-state" style="display:block">
+                    <i class="fa-solid fa-diagram-project"></i>
+                    <p>Select a project to view submissions.</p>
+                </div>
+            </div><!-- /tab-grading -->
+
+        </div>
+    </main>
+
+    <!-- Create / Edit Project Modal -->
+    <div class="modal-overlay" id="create-project-modal" style="display:none;">
+        <div class="modal-container modal-lg">
+            <div class="modal-header">
+                <h2 id="project-modal-title">Create Project</h2>
+                <button class="modal-close" id="close-create-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="create-project-form">
+                    <input type="hidden" id="edit-project-id">
+
+                    <div class="form-section">
+                        <div class="form-group">
+                            <label for="project-title">Project Title</label>
+                            <input type="text" id="project-title" required placeholder="e.g. Project 1: Buffer Overflow">
+                        </div>
+                        <div class="form-group">
+                            <label for="project-description">Description</label>
+                            <textarea id="project-description" rows="3" placeholder="Brief description shown to students."></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="project-start">Start Date</label>
+                                <input type="date" id="project-start">
+                            </div>
+                            <div class="form-group">
+                                <label for="project-end">End Date</label>
+                                <input type="date" id="project-end">
+                            </div>
+                            <div class="form-group">
+                                <label for="project-status">Status</label>
+                                <select id="project-status">
+                                    <option value="active">Active</option>
+                                    <option value="draft">Draft</option>
+                                    <option value="archived">Archived</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="project-max-score">Max Score</label>
+                                <input type="number" id="project-max-score" value="100" min="1" max="1000">
+                            </div>
+                            <div class="form-group">
+                                <label for="project-team-size">Team Size</label>
+                                <input type="number" id="project-team-size" value="0" min="0" max="20" placeholder="0 = individual">
+                            </div>
+                            <div class="form-group">
+                                <label for="project-repo-url">GitHub Repo URL</label>
+                                <input type="url" id="project-repo-url" placeholder="https://github.com/org/repo">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dynamic-section">
+                        <div class="dynamic-section-header">
+                            <span class="dynamic-section-label">Milestones</span>
+                            <button type="button" class="btn-add-row" id="add-milestone-row">+ Add milestone</button>
+                        </div>
+                        <div id="milestones-container"></div>
+                    </div>
+
+                    <div class="dynamic-section">
+                        <div class="dynamic-section-header">
+                            <span class="dynamic-section-label">Grading Rubric</span>
+                            <button type="button" class="btn-add-row" id="add-rubric-row">+ Add criterion</button>
+                        </div>
+                        <div id="rubric-container"></div>
+                    </div>
+
+                    <div class="dynamic-section">
+                        <div class="dynamic-section-header">
+                            <span class="dynamic-section-label">Resources</span>
+                            <button type="button" class="btn-add-row" id="add-resource-row">+ Add resource</button>
+                        </div>
+                        <div id="resources-container"></div>
+                    </div>
+
+                    <div class="form-error" id="create-project-error" style="display:none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="inst-action-btn inst-view-btn" id="cancel-create-btn">Cancel</button>
+                <button class="inst-primary-btn" id="submit-create-btn">Create Project</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Submission Modal -->
+    <div class="modal-overlay" id="review-modal" style="display:none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Review Submission</h2>
+                <button class="modal-close" id="close-review-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="review-info" id="review-info">
+                    <div class="review-info-row"><span class="review-label">Student:</span> <span id="review-student-name">—</span></div>
+                    <div class="review-info-row"><span class="review-label">Project:</span> <span id="review-project-name">—</span></div>
+                    <div class="review-info-row"><span class="review-label">Submitted:</span> <span id="review-submitted-at">—</span></div>
+                    <div class="review-info-row"><span class="review-label">GitHub:</span> <a id="review-github-link" href="#" target="_blank">—</a></div>
+                </div>
+                <form id="review-form">
+                    <div class="form-group">
+                        <label for="review-grade">Grade (0-100)</label>
+                        <input type="number" id="review-grade" min="0" max="100" placeholder="Enter grade">
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <div class="review-status-group">
+                            <label class="review-status-option">
+                                <input type="radio" name="review-status" value="approved" checked>
+                                <span class="review-status-label status-approved">Approved</span>
+                            </label>
+                            <label class="review-status-option">
+                                <input type="radio" name="review-status" value="needs_changes">
+                                <span class="review-status-label status-needs-changes">Needs Changes</span>
+                            </label>
+                            <label class="review-status-option">
+                                <input type="radio" name="review-status" value="pending">
+                                <span class="review-status-label status-pending">Pending</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="review-feedback">Feedback</label>
+                        <textarea id="review-feedback" rows="4" placeholder="Provide feedback to the student..."></textarea>
+                    </div>
+                    <div class="form-error" id="review-error" style="display:none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="inst-action-btn inst-view-btn" id="cancel-review-btn">Cancel</button>
+                <button class="inst-primary-btn" id="submit-review-btn">Submit Review</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grading Detail Modal -->
+    <div id="grade-detail-modal" class="modal-overlay" style="display:none">
+        <div class="modal-content modal-wide">
+            <div class="modal-header">
+                <h2 id="detail-team-name">Submission</h2>
+                <button class="modal-close" id="grade-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-tabs">
+                    <button class="detail-tab active" data-tab="milestones"><i class="fa-solid fa-flag-checkered"></i> Milestones</button>
+                    <button class="detail-tab" data-tab="contribution"><i class="fa-solid fa-chart-pie"></i> Contribution</button>
+                    <button class="detail-tab" data-tab="team"><i class="fa-solid fa-users"></i> Team</button>
+                    <button class="detail-tab" data-tab="grade"><i class="fa-solid fa-star"></i> Grade</button>
+                </div>
+
+                <div class="detail-panel active" id="grade-panel-milestones">
+                    <div class="milestone-progress" id="grade-milestone-progress">
+                        <span id="grade-ms-completed">0</span> / <span id="grade-ms-total">0</span> milestones completed
+                    </div>
+                    <div id="grade-milestone-list" class="milestone-list"></div>
+                </div>
+
+                <div class="detail-panel" id="grade-panel-contribution">
+                    <p class="panel-hint">Estimated contribution breakdown based on commit activity and milestone submissions.</p>
+                    <div id="grade-contribution-chart" class="contribution-chart"></div>
+                    <div id="grade-contribution-table" class="contribution-table-wrapper"></div>
+                    <div class="panel-actions" style="margin-top:1rem">
+                        <label class="adjust-label"><i class="fa-solid fa-sliders"></i> Adjust individual scores</label>
+                        <div id="grade-adjustment-inputs" class="adjustment-inputs"></div>
+                    </div>
+                </div>
+
+                <div class="detail-panel" id="grade-panel-team">
+                    <div id="grade-team-members" class="team-members"></div>
+                    <div class="panel-section-title" style="margin-top:1.5rem"><i class="fa-solid fa-code-branch"></i> GitHub Repo</div>
+                    <p id="grade-team-github-repo" class="github-link">No repo connected</p>
+                    <div class="panel-section-title" style="margin-top:1.5rem"><i class="fa-regular fa-clock"></i> Recent Commits</div>
+                    <div id="grade-team-commits" class="commit-list">
+                        <p class="empty-hint">No commits yet.</p>
+                    </div>
+                </div>
+
+                <div class="detail-panel" id="grade-panel-grade">
+                    <h3 class="panel-section-title"><i class="fa-solid fa-calculator"></i> Weighted Score</h3>
+                    <div id="grade-weighted-score-breakdown"></div>
+                    <div class="grade-total" id="grade-grade-total">Overall: 0 / 0 (0%)</div>
+
+                    <h3 class="panel-section-title" style="margin-top:1.5rem"><i class="fa-regular fa-comment"></i> Feedback</h3>
+                    <textarea id="grade-feedback-text" class="feedback-textarea" rows="4" placeholder="Write your feedback here..."></textarea>
+
+                    <button id="grade-btn-submit-grade" class="primary-btn" style="margin-top:1rem"><i class="fa-solid fa-floppy-disk"></i> Submit Grade</button>
+                    <span id="grade-grade-status" class="form-status"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../react-page-utils.js"></script>
+    <script>
+        if (window.NibrasShared?.session?.updateUserInfoDisplay) {
+            window.NibrasShared.session.updateUserInfoDisplay();
+        }
+    </script>
+    <script>
+        (function initTheme() {
+            var themeBtn = document.getElementById('themeBtn');
+            var themeIcon = themeBtn && themeBtn.querySelector('i');
+            var appLogo = document.getElementById('app-logo');
+            var currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            if (currentTheme === 'dark') {
+                if (themeIcon) themeIcon.className = 'fa-solid fa-sun';
+                if (appLogo) appLogo.src = '/Assets/images/logo-dark.png';
+            } else {
+                if (themeIcon) themeIcon.className = 'fa-regular fa-moon';
+                if (appLogo) appLogo.src = '/Assets/images/logo-light.png';
+            }
+            if (themeBtn) {
+                themeBtn.addEventListener('click', function () {
+                    themeBtn.classList.remove('rotating');
+                    void themeBtn.offsetWidth;
+                    themeBtn.classList.add('rotating');
+                    var html = document.documentElement;
+                    var current = html.getAttribute('data-theme');
+                    var newTheme = current === 'light' ? 'dark' : 'light';
+                    html.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                    if (newTheme === 'dark') {
+                        if (themeIcon) themeIcon.className = 'fa-solid fa-sun';
+                        if (appLogo) appLogo.src = '/Assets/images/logo-dark.png';
+                    } else {
+                        if (themeIcon) themeIcon.className = 'fa-regular fa-moon';
+                        if (appLogo) appLogo.src = '/Assets/images/logo-light.png';
+                    }
+                });
+            }
+        })();
+    </script>
+    <script src="../../react-bootstrap.js"></script>
+    <script src="../config.js"></script>
+    <script src="../services/api.js"></script>
+    <script src="../services/gamification-ui.js"></script>
+    <script src="./instructor-projects.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

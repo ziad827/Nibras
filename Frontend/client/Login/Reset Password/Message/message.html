@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Password Reset Successful</title>
+<script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CSS -->
+    <link rel="stylesheet" href="./message.css">
+</head>
+<body class="signup-page">
+    <div id="app-root" hidden></div>
+
+    <!-- Starry Background (Visible Only in Dark Mode) -->
+    <div class="stars-container">
+        <div id="stars"></div>
+        <div id="stars2"></div>
+        <div id="stars3"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="auth-header">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-dark.png" alt="Nibras Logo" class="auth-logo">
+        </div>
+        
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle-btn" id="themeBtn">
+            <i class="fa-solid fa-moon"></i>
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <div class="auth-container">
+        <div class="auth-card success-card">
+            
+            <!-- Success Icon -->
+            <div class="success-icon-box">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            
+            <h2 class="auth-title">Reset Password</h2>
+
+            <p class="success-message">
+                Your password has been Successfully Changed<br>
+                Please use your new password to log in
+            </p>
+
+            <div class="divider"></div>
+
+            <a href="../../loginPage/login.html" class="btn-login" style="display: block; text-decoration: none; line-height: 1.5;">
+                Log in
+            </a>
+
+        </div>
+    </div>
+
+        <script src="../../../../react-bootstrap.js"></script>
+    <script src="./message.js"></script>
+</body>
+</html>

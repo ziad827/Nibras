@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://nibras-backend.up.railway.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://unpkg.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; frame-src 'none';">
+    <title>Nibras - Community</title>
+    <script src="../services/auth-guard.js" data-login="../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- MARKDOWN LIBRARIES -->
+    <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
+    <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
+    <link rel="stylesheet" href="./community.css">
+
+    <style>
+        /* Global Markdown Styling */
+        .markdown-body img { max-width: 100%; border-radius: 8px; margin: 10px 0; }
+        .markdown-body pre { background: #1e1e1e; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 10px 0; }
+        .markdown-body code { font-family: monospace; font-size: 0.9em; background: rgba(128,128,128,0.1); padding: 2px 4px; border-radius: 4px; }
+        .markdown-body pre code { background: none; padding: 0; color: #abb2bf; }
+        .markdown-body ul, .markdown-body ol { padding-left: 25px; margin-bottom: 15px; }
+        .markdown-body blockquote { border-left: 4px solid var(--accent-blue); padding-left: 15px; margin: 15px 0; color: var(--text-secondary); background: rgba(128,128,128,0.05); padding: 10px 15px; border-radius: 4px; }
+        .markdown-body a { color: var(--accent-blue); text-decoration: none; }
+        .markdown-body a:hover { text-decoration: underline; }
+        
+        /* Dark Mode fixes for Editor */
+        [data-theme="dark"] .editor-toolbar { background: #1f2937; border-color: #374151; }
+        [data-theme="dark"] .editor-toolbar a { color: #f3f4f6 !important; }[data-theme="dark"] .editor-toolbar a.active, [data-theme="dark"] .editor-toolbar a:hover { background: #374151; border-color: #4b5563; }
+        [data-theme="dark"] .CodeMirror { background: #111827; color: #f3f4f6; border-color: #374151; }
+        [data-theme="dark"] .editor-statusbar { color: #9ca3af; }
+    </style>
+</head>
+<!-- (Keep the rest of your body content exactly as it is) -->
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            
+            <li class="nav-item"><a href="../Projects/projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../CLI/cli.html" class="nav-link"><i class="fa-solid fa-terminal"></i> CLI</a></li><li class="nav-item"><a href="../Competitions/Contests/contest.html" class="nav-link"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="./community.html" class="nav-link active"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <li class="nav-item"><a href="../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <li class="nav-item"><a href="../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+
+        <div class="user-profile">
+            <div class="avatar-circle">ZA</div>
+            <div class="user-info">
+                <h4>Ziad Alaa</h4>
+                <span>student</span>
+            </div>
+        </div>
+        
+        <div class="reputation-box">
+            <span>Reputation</span>
+            <div class="rep-badge">0</div>
+        </div>
+
+        <a href="../Login/loginPage/login.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+        </a>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        
+        <!-- HEADER -->
+        <header class="top-header">
+            <div class="search-bar-global">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="global-search-input" placeholder="Search courses, problems" aria-label="Search courses and problems">
+            </div>
+            
+            <div class="header-actions">
+                <button class="icon-btn" id="themeBtn" type="button" aria-label="Toggle theme"><i class="fa-regular fa-moon"></i></button>
+                <button class="icon-btn" type="button" aria-label="View notifications"><i class="fa-regular fa-bell"></i></button>
+                <div class="profile-circle-small">ZA</div>
+            </div>
+        </header>
+
+        <!-- VIEW 1: FEED VIEW -->
+        <div class="content-wrapper" id="feed-view">
+            <div class="page-title-section">
+                <h1>Community</h1>
+                <p>Ask questions, share knowledge and learn together</p>
+            </div>
+
+            <!-- Search & Filter Bar -->
+             <div class="community-toolbar">
+                 <div class="search-bar-local">
+                     <i class="fa-solid fa-magnifying-glass"></i>
+                     <input type="text" id="question-search" placeholder="Search questions, tags, or content..." aria-label="Search community questions">
+                 </div>
+                 <a class="btn-secondary-link" href="./CourseDiscussions/discussions.html"><i class="fa-solid fa-comments"></i> Course Discussions</a>
+                 <button class="btn-primary" id="openAskModalBtn" type="button"><i class="fa-solid fa-plus"></i> Ask Question</button>
+             </div>
+
+            <!-- Main Layout -->
+            <div class="community-grid">
+                
+                <!-- Left: Question Feed -->
+                <div class="feed-column">
+                    <div class="feed-tabs">
+                        <button class="feed-tab active" type="button" aria-pressed="true">Recent</button>
+                        <button class="feed-tab" type="button" aria-pressed="false">Popular</button>
+                        <button class="feed-tab" type="button" aria-pressed="false">Unanswered</button>
+                        <button class="feed-tab" type="button" aria-pressed="false">My Questions</button>
+                    </div>
+                    
+                    <div class="question-list" id="questions-container" role="region" aria-live="polite" aria-label="Community questions">
+                        <div class="skeleton skeleton-question-card"></div>
+                        <div class="skeleton skeleton-question-card"></div>
+                        <div class="skeleton skeleton-question-card"></div>
+                        <div class="skeleton skeleton-question-card"></div>
+                    </div>
+                    <nav class="questions-pagination" id="questions-pagination" aria-label="Community question pages" hidden></nav>
+                </div>
+
+                <!-- Right: Widgets -->
+                <div class="widgets-column">
+                    
+                    <!-- Popular Tags -->
+                    <div class="widget-card">
+                        <h4>Popular Tags</h4>
+                        <!-- Container to hold tags and show more button -->
+                        <div class="tags-list" id="tags-container" style="transition: max-height 0.3s ease-out; overflow: hidden;">
+                            <!-- JS Injected -->
+                        </div>
+                    </div>
+
+                    <!-- Recommended for You (hidden until data loads) -->
+                    <div class="widget-card" id="recommendations-widget" style="display: none;">
+                        <h4><i class="fa-solid fa-star" style="color: var(--tag-yellow-text, #d97706); margin-right: 6px;"></i> Recommended for You</h4>
+                        <div id="recommendations-container">
+                            <!-- JS Injected -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: QUESTION DETAIL VIEW (Hidden by default) -->
+        <div class="content-wrapper hidden" id="detail-view">
+            <button class="btn-back" id="backToFeedBtn" type="button"><i class="fa-solid fa-chevron-left"></i> Back</button>
+            
+            <div class="detail-container">
+                <!-- Question Main -->
+                <div class="q-detail-card" id="q-main-content">
+                    <!-- JS Injected -->
+                </div>
+
+                <!-- Answers Section -->
+                <div class="answers-section">
+                    <h3 id="answer-count-label">0 Answers</h3>
+                    <div id="answers-container">
+                        <!-- JS Injected -->
+                    </div>
+                </div>
+
+                <!-- Your Answer -->
+                <div class="your-answer-section">
+                    <h3>Your Answer</h3>
+                    <textarea class="answer-input" id="detail-answer-input" placeholder="Type your answer here..." aria-label="Your answer"></textarea>
+                    <button class="btn-primary" type="button" style="margin-top: 1rem;">Post Answer</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ASK QUESTION MODAL -->
+    <div class="modal-overlay" id="askModal" role="dialog" aria-modal="true" aria-labelledby="ask-modal-title" aria-hidden="true">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 id="ask-modal-title">Ask a Question</h2>
+                <button class="close-modal" id="closeAskModal" type="button" aria-label="Close ask question modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                
+                <div class="info-box">
+                    <h4>Writing a good question</h4>
+                    <ul>
+                        <li>Be specific and provide context about your problem</li>
+                        <li>Include what you've tried and what isn't working</li>
+                        <li>Use proper formatting and code blocks if applicable</li>
+                        <li>Add relevant tags to help others find your question</li>
+                    </ul>
+                </div>
+
+                <div class="form-group">
+                    <label for="question-title">Question Title <span class="required">*</span></label>
+                    <input type="text" id="question-title" placeholder="e.g., How to implement a binary search tree efficiently?">
+                    <div class="duplicate-banner" id="duplicate-banner" style="display: none;">
+                        <div class="duplicate-header">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            <span class="duplicate-msg"></span>
+                        </div>
+                        <div class="duplicate-list" id="duplicate-list"></div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="display:none;">
+                    <label for="question-course">Select Course</label>
+                    <select id="question-course">
+                        <option value="">Choose a course...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="question-body">Question Details <span class="required">*</span></label>
+                    <textarea id="question-body" placeholder="Provide detailed information about your question..." rows="6"></textarea>
+                </div>
+
+                <!-- PROFESSIONAL TAGS SECTION -->
+                <div class="form-group">
+                     <label for="modal-tag-search" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Tags <span class="required">*</span></span>
+                        <span id="tag-count-indicator" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">0/5 selected</span>
+                    </label>
+                    
+                    <!-- Search Bar for Tags -->
+                    <div class="tag-search-wrapper" style="position: relative; margin-bottom: 12px; margin-top: 5px;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af;"></i>
+                        <input type="text" id="modal-tag-search" style="width: 100%; padding: 10px 10px 10px 35px; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; font-size: 0.95rem; background: transparent; color: inherit;" placeholder="Search tags (e.g., React, Python)..." aria-label="Search and select tags">
+                    </div>
+
+                    <!-- Scrollable Tag Container -->
+                    <div id="modal-tags-container" role="group" aria-label="Select up to 5 tags" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 160px; overflow-y: auto; padding-right: 5px; padding-bottom: 5px;">
+                        <!-- JS will inject selectable tags here -->
+                    </div>
+                    
+                    <small id="tag-limit-warning" style="color: #ef4444; display: none; margin-top: 8px; font-weight: 500; transition: transform 0.2s;"><i class="fa-solid fa-circle-exclamation"></i> You can only select up to 5 tags.</small>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label class="anonymous-toggle" style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="question-anonymous" style="width: 16px; height: 16px; cursor: pointer;">
+                        <span style="font-weight: 500;">Post anonymously</span>
+                        <i class="fa-solid fa-user-secret" style="color: var(--text-secondary); opacity: 0.6;"></i>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button  class="btn-secondary" id="cancelAskBtn" type="button">Cancel</button>
+                <button class="btn-primary" id="postQuestionBtn" type="button">Post Question</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../react-page-utils.js"></script>
+    <script src="../react-bootstrap.js"></script>
+    <script src="./community.js"></script>
+    <script src="../services/gamification-ui.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,719 @@
+/* ===== CSS VARIABLES ===== */
+:root {
+    --bg-body: #f9fafb;
+    --bg-sidebar: #ffffff;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --text-on-active: #ffffff;
+    --border-color: #e5e7eb;
+    --accent-blue: #2563eb;
+    --accent-hover: #1d4ed8;
+    --active-item-bg: #2563eb;
+    --success: #10b981;
+    --locked: #9ca3af;
+    --btn-secondary-bg: #e5e7eb;
+    --btn-secondary-text: #374151;
+
+    --sidebar-width: 300px;
+    --video-bg: #000000;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+}
+
+[data-theme="dark"] {
+    --bg-body: #0b1120;
+    --bg-sidebar: #0f172a;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-on-active: #ffffff;
+    --border-color: #1e293b;
+    --accent-blue: #3b82f6;
+    --accent-hover: #60a5fa;
+    --active-item-bg: #2563eb;
+    --success: #34d399;
+    --locked: #475569;
+    --btn-secondary-bg: #1e293b;
+    --btn-secondary-text: #cbd5e1;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes spin {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@keyframes gradientShift {
+    0% { background-size: 200% 100%; background-position: 0% 50%; }
+    50% { background-size: 200% 100%; background-position: 100% 50%; }
+    100% { background-size: 200% 100%; background-position: 0% 50%; }
+}
+
+/* ===== RESET & BASE ===== */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+body {
+    background-color: var(--bg-body);
+    color: var(--text-primary);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+    width: var(--sidebar-width);
+    background-color: var(--bg-sidebar);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    animation: slideInLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.sidebar-header { padding: 1.5rem; }
+.sidebar-header h2 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem; }
+
+.sidebar-progress { margin-bottom: 0.5rem; }
+.progress-text { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: block; }
+.progress-bar-container { width: 100%; height: 4px; background-color: var(--border-color); border-radius: 2px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent-blue), #4f46e5); border-radius: 2px; transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+
+.nav-menu {
+    list-style: none;
+    padding: 0 0.75rem 0.75rem;
+}
+
+.nav-item { margin-bottom: 0.25rem; }
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0.7rem 0.9rem;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    font-weight: 450;
+}
+
+.nav-link i {
+    margin-right: 0.75rem;
+    width: 16px;
+    font-size: 0.95rem;
+    transition: transform 0.2s ease;
+}
+
+.nav-link.active {
+    background: linear-gradient(135deg, var(--accent-blue), #4f46e5);
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.nav-link.active i { color: white; }
+
+.nav-link:not(.active):hover {
+    background-color: var(--btn-secondary-bg);
+    color: var(--text-primary);
+    transform: translateX(3px);
+}
+
+.nav-link:not(.active):hover i {
+    transform: scale(1.1);
+}
+
+.lectures-label {
+    padding: 0 1.5rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lecture-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 0.75rem;
+}
+
+/* ===== LECTURE ITEM ===== */
+.lecture-item {
+    display: flex;
+    align-items: center;
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    text-decoration: none;
+    color: var(--text-primary);
+    animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.lecture-item:hover {
+    background-color: var(--btn-secondary-bg);
+    transform: translateX(3px);
+}
+
+.lecture-icon { margin-right: 12px; font-size: 1rem; min-width: 20px; text-align: center; }
+.lecture-info { display: flex; flex-direction: column; }
+.lecture-title { font-size: 0.85rem; font-weight: 500; line-height: 1.4; }
+.lecture-time { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
+
+/* Lecture Item States */
+.lecture-item.active {
+    background: linear-gradient(135deg, var(--active-item-bg), #4f46e5);
+    color: var(--text-on-active);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+.lecture-item.active .lecture-time { color: rgba(255, 255, 255, 0.8); }
+.lecture-item.active .lecture-icon { color: white; }
+.lecture-item.completed .lecture-icon { color: var(--success); }
+.lecture-item.open .lecture-icon { color: var(--text-secondary); }
+.lecture-item.locked { color: var(--text-secondary); cursor: not-allowed; }
+.lecture-item.locked:hover { transform: none; background-color: transparent; }
+.lecture-item.locked .lecture-icon { color: var(--locked); font-size: 0.85rem; }
+
+.lecture-item:nth-child(1) { animation-delay: 0.10s; }
+.lecture-item:nth-child(2) { animation-delay: 0.14s; }
+.lecture-item:nth-child(3) { animation-delay: 0.18s; }
+.lecture-item:nth-child(4) { animation-delay: 0.22s; }
+.lecture-item:nth-child(5) { animation-delay: 0.26s; }
+.lecture-item:nth-child(6) { animation-delay: 0.30s; }
+.lecture-item:nth-child(7) { animation-delay: 0.34s; }
+.lecture-item:nth-child(8) { animation-delay: 0.38s; }
+
+/* ===== SIDEBAR FOOTER ===== */
+.sidebar-footer {
+    margin-top: auto;
+    border-top: 1px solid var(--border-color);
+    padding: 1rem 1.5rem;
+}
+
+.back-btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.7rem;
+    background: linear-gradient(135deg, var(--accent-blue), #4f46e5);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.back-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+}
+
+/* ===== MAIN CONTENT ===== */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 3rem;
+    overflow-y: auto;
+    position: relative;
+}
+
+/* ===== TOP BAR ===== */
+.top-bar {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    animation: fadeSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.breadcrumbs { font-size: 0.85rem; color: var(--text-secondary); }
+
+.theme-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+    background-color: var(--btn-secondary-bg);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle-btn i {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.theme-toggle-btn.rotating i {
+    transform: rotate(180deg);
+}
+
+/* ===== VIDEO PLAYER ===== */
+.video-container {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background-color: var(--video-bg);
+    border-radius: var(--radius-md);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.1s;
+}
+
+.video-screen { width: 100%; height: 100%; }
+
+.video-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0 1.5rem 1rem;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.85), transparent);
+    color: white;
+}
+
+.progress-track {
+    width: 100%;
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.25);
+    margin-bottom: 1rem;
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+}
+
+.progress-track:hover {
+    height: 6px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-blue), #4f46e5);
+    border-radius: 2px;
+    transition: width 0.1s linear;
+}
+
+.controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.controls-left, .controls-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.control-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.control-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+.time-display {
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.9;
+}
+
+.speed-control {
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+    padding: 0.25rem 0.5rem;
+}
+
+.speed-control:hover {
+    opacity: 1;
+}
+
+/* ===== LOADING SPINNER ===== */
+.loading-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    border-top-color: var(--accent-blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 10;
+}
+
+.loading-spinner.visible {
+    opacity: 1;
+}
+
+/* ===== TIMELINE PREVIEW ===== */
+.timeline-preview {
+    position: absolute;
+    bottom: 60px;
+    left: 0;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    white-space: nowrap;
+    z-index: 15;
+}
+
+.timeline-preview.visible {
+    opacity: 1;
+}
+
+/* ===== QUALITY MENU ===== */
+.quality-menu {
+    position: absolute;
+    bottom: 50px;
+    right: 140px;
+    background-color: rgba(0, 0, 0, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    overflow: hidden;
+    min-width: 100px;
+    z-index: 20;
+    max-height: 0;
+    overflow-y: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.quality-menu.visible {
+    max-height: 200px;
+}
+
+.quality-option {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.2s;
+    font-family: 'Inter', sans-serif;
+}
+
+.quality-option:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.quality-option.active {
+    background-color: var(--accent-blue);
+    font-weight: 600;
+}
+
+/* ===== CAPTION DISPLAY ===== */
+.caption-display {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 90%;
+    text-align: center;
+    color: white;
+    font-size: 1rem;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    line-height: 1.4;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    z-index: 8;
+}
+
+.caption-display.visible {
+    opacity: 1;
+}
+
+/* ===== LESSON META ===== */
+.lesson-meta {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.15s;
+}
+
+.lesson-meta h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.meta-row {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.status-badge {
+    color: var(--success);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ===== LECTURE VIDEOS PANEL ===== */
+.lecture-videos-panel {
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-sidebar);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.2s;
+}
+
+.lecture-videos-heading {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+}
+
+.lecture-videos-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.6rem;
+}
+
+.lecture-video-chip {
+    width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--btn-secondary-bg);
+    color: var(--text-primary);
+    text-align: left;
+    padding: 0.65rem 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.lecture-video-chip:hover {
+    border-color: var(--accent-blue);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+    transform: translateY(-1px);
+}
+
+.lecture-video-chip.active {
+    background: linear-gradient(135deg, var(--accent-blue), #4f46e5);
+    border-color: var(--accent-blue);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+.lecture-video-chip-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.lecture-video-chip-time {
+    font-size: 0.75rem;
+    opacity: 0.85;
+}
+
+.lecture-video-chip.active .lecture-video-chip-time {
+    opacity: 0.9;
+}
+
+/* ===== NAV BUTTONS ===== */
+.nav-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.nav-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.nav-btn.prev {
+    background-color: var(--btn-secondary-bg);
+    color: var(--btn-secondary-text);
+    border: 1px solid var(--border-color);
+}
+
+.nav-btn.prev:hover:not(:disabled) {
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+    background-color: transparent;
+}
+
+.nav-btn.prev:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.nav-btn.next {
+    background: linear-gradient(135deg, var(--accent-blue), #4f46e5);
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.nav-btn.next:hover:not(:disabled) {
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+    transform: translateY(-1px);
+}
+
+.nav-btn.next:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* ===== SKELETON LOADING ===== */
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--border-color) 25%,
+        rgba(37, 99, 235, 0.04) 50%,
+        var(--border-color) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius-sm);
+}
+
+.skeleton-lecture {
+    height: 48px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 0.9rem;
+}
+
+.skeleton-lecture-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.skeleton-lecture-text {
+    flex: 1;
+    height: 12px;
+    border-radius: 4px;
+}
+
+.skeleton-lecture-text-sm {
+    width: 60px;
+    height: 10px;
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+[data-theme="dark"] .skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--border-color) 25%,
+        rgba(59, 130, 246, 0.06) 50%,
+        var(--border-color) 75%
+    );
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+    .sidebar { display: none; }
+    .main-content { padding: 1rem; }
+}

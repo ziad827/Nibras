@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Audit Logs</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+        else document.documentElement.setAttribute('data-theme', 'light');
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../Dashboard/dashboard.css">
+    <link rel="stylesheet" href="../Courses/courses.css">
+    <link rel="stylesheet" href="./audit-logs.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="../../Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item" style="margin-top:1rem;padding:0 1rem;font-size:0.72rem;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em;pointer-events:none;">Admin Panel</li>
+            <li class="nav-item"><a href="../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-gauge-high"></i> Admin Dashboard</a></li>
+            <li class="nav-item"><a href="../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Course Management</a></li>
+            <li class="nav-item"><a href="../Users/users.html" class="nav-link"><i class="fa-solid fa-users-gear"></i> User Management</a></li>
+            <li class="nav-item"><a href="../Roles/roles.html" class="nav-link"><i class="fa-solid fa-shield-halved"></i> Roles & Permissions</a></li>
+            <li class="nav-item"><a href="../Backups/backups.html" class="nav-link"><i class="fa-solid fa-database"></i> Backups</a></li>
+            <li class="nav-item"><a href="./audit-logs.html" class="nav-link active"><i class="fa-solid fa-clipboard-list"></i> Audit Logs</a></li>
+            <li class="nav-item"><a href="../Config/config.html" class="nav-link"><i class="fa-solid fa-sliders"></i> System Config</a></li>
+            <li class="nav-item"><a href="../moderation.html" class="nav-link"><i class="fa-solid fa-flag"></i> Moderation</a></li>
+            <li class="nav-item"><a href="../badges.html" class="nav-link"><i class="fa-solid fa-medal"></i> Badges</a></li>
+        </ul>
+        <div class="user-profile">
+            <div class="avatar-circle" id="sidebar-avatar">AD</div>
+            <div class="user-info"><h4 id="sidebar-name">Admin</h4><span id="sidebar-role">admin</span></div>
+        </div>
+        <div class="reputation-box"><span>Reputation</span><div class="rep-badge" id="sidebar-rep">0</div></div>
+        <a href="../../Login/loginPage/login.html" class="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="search-bar-global"><i class="fa-solid fa-magnifying-glass"></i><input type="text" placeholder="Search..." disabled></div>
+            <div class="header-actions">
+                <button class="icon-btn" id="themeBtn"><i class="fa-regular fa-moon"></i></button>
+                <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
+                <div class="profile-circle-small" id="header-avatar">AD</div>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            <div class="page-header">
+                <div>
+                    <h1>Audit Logs</h1>
+                    <p>Track all admin actions — user changes, course updates, role modifications, and more</p>
+                </div>
+            </div>
+
+            <div class="filter-bar" id="audit-filter-bar">
+                <input type="text" id="searchInput" placeholder="Search by user name or email...">
+                <select id="actionFilter">
+                    <option value="">All Actions</option>
+                    <option value="create">Create</option>
+                    <option value="update">Update</option>
+                    <option value="delete">Delete</option>
+                    <option value="login">Login</option>
+                    <option value="ban">Ban</option>
+                    <option value="restore">Restore</option>
+                    <option value="backup">Backup</option>
+                    <option value="config">Config</option>
+                </select>
+                <div class="date-filter-group">
+                    <label class="date-label">From:</label>
+                    <input type="date" id="dateFrom">
+                </div>
+                <div class="date-filter-group">
+                    <label class="date-label">To:</label>
+                    <input type="date" id="dateTo">
+                </div>
+                <button class="btn-primary" id="applyFiltersBtn" style="padding:9px 18px;"><i class="fa-solid fa-filter"></i> Apply</button>
+                <button class="btn-cancel" id="clearFiltersBtn" style="padding:9px 18px;">Clear</button>
+            </div>
+
+            <div id="table-container"><div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading audit logs...</p></div></div>
+
+            <div class="pagination" id="pagination" style="display:none;">
+                <div class="pagination-info" id="pagination-info"></div>
+                <div class="pagination-btns">
+                    <button class="pagination-btn" id="prevBtn" disabled><i class="fa-solid fa-chevron-left"></i> Previous</button>
+                    <button class="pagination-btn" id="nextBtn">Next <i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="../../react-bootstrap.js"></script>
+    <script src="../../react-page-utils.js"></script>
+    <script src="../../services/api.js"></script>
+    <script src="./audit-logs.js"></script>
+    <script src="../../services/gamification-ui.js"></script>
+</body>
+</html>

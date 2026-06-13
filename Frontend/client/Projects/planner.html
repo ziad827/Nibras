@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NiBras - Student Planner</title>
+    <script src="../services/auth-guard.js" data-login="../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <link rel="stylesheet" href="planner.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- SIDEBAR (Consistent with previous pages) -->
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="../Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo">
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            <li class="nav-item"><a href="./projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../CLI/cli.html" class="nav-link"><i class="fa-solid fa-terminal"></i> CLI</a></li>
+            <li class="nav-item"><a href="../Competitions/Contests/contest.html" class="nav-link"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <li class="nav-item"><a href="../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <li class="nav-item"><a href="../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+        <div class="user-profile">
+            <div class="avatar-circle">U</div>
+            <div class="user-info">
+                <h4>usa</h4>
+                <span>Student</span>
+            </div>
+        </div>
+        <div class="reputation-box">Reputation <span class="rep-badge">0</span></div>
+        <button class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <nav class="top-nav">
+                <a href="./projects.html" class="nav-tab">Projects</a>
+                <a href="./catalog.html" class="nav-tab">Catalog</a>
+                <a href="./planner.html" class="nav-tab active">Planner</a>
+            </nav>
+            <div class="header-actions">
+                <button id="theme-toggle" class="icon-btn"><i class="fas fa-moon"></i></button>
+                <button class="icon-btn"><i class="fas fa-bell"></i></button>
+                <div class="profile-circle-small">U</div>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            
+            <!-- DYNAMIC PLANNER HEADER -->
+            <section class="planner-hero" id="plannerHero">
+                <div class="hero-left">
+                    <span class="hero-label" id="heroLabel">STUDENT PLANNER</span>
+                    <h1 id="heroTitle">University-style program planning</h1>
+                    <p id="heroDesc">Organize your degree path, choose a track when eligible, file petitions, and keep a printable record of requirement progress.</p>
+                </div>
+                <div class="hero-right" id="heroActions">
+                    <button class="btn-outline" onclick="switchPlannerTab('track')">Choose Track</button>
+                    <button class="btn-planner-primary" onclick="switchPlannerTab('sheet')">Printable Sheet</button>
+                </div>
+            </section>
+
+            <!-- PLANNER TABS -->
+            <div class="planner-tabs">
+                <button class="tab-pill active" onclick="switchPlannerTab('overview')">Overview</button>
+                <button class="tab-pill" onclick="switchPlannerTab('track')">Track</button>
+                <button class="tab-pill" onclick="switchPlannerTab('petitions')">Petitions</button>
+                <button class="tab-pill" onclick="switchPlannerTab('sheet')">Sheet</button>
+            </div>
+
+            <!-- TAB CONTENT: OVERVIEW -->
+            <!-- TAB CONTENT: OVERVIEW -->
+<div id="tab-overview" class="planner-tab-content active">
+    
+    <!-- SUB-STATE 1: ENROLLMENT VIEW -->
+    <div id="enroll-section">
+        <div class="section-header-row">
+            <h3>Enroll in a program</h3>
+            <span class="count-text">1 available</span>
+        </div>
+        <div class="enroll-grid">
+            <div class="program-card">
+                <span class="prog-tag">CS</span>
+                <h2>Computer Science Program</h2>
+                <p class="prog-year">2026-2027</p>
+                <p class="prog-units">120 total units</p>
+                <!-- Added ID to this button for the JS trigger -->
+                <button class="btn-planner-primary" id="btn-enroll-now">Enroll</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUB-STATE 2: DEGREE PLAN VIEW (Hidden by default) -->
+    <div id="degree-plan-section" style="display: none;">
+        <div class="plan-header">
+            <div>
+                <h2>4-Year Degree Plan</h2>
+                <p class="plan-subtitle">CS · Computer Science Program</p>
+            </div>
+            <button class="btn-planner-primary">Save plan</button>
+        </div>
+
+        <div class="degree-planner-container">
+            <!-- Left Side: Course Palette -->
+            <aside class="course-palette">
+                <div class="palette-header">
+                    <span>COURSE PALETTE</span>
+                    <span class="palette-count">40</span>
+                </div>
+                <div class="palette-list">
+                    <div class="palette-item">Programming Fundamentals</div>
+                    <div class="palette-item">Data Structures</div>
+                    <div class="palette-item">Discrete Mathematics</div>
+                    <div class="palette-item">Computer Organization</div>
+                    <div class="palette-item">Algorithms</div>
+                    <div class="palette-item">Databases</div>
+                    <div class="palette-item">Operating Systems</div>
+                    <div class="palette-item">Software Engineering Studio</div>
+                    <div class="palette-item">Networks and Security</div>
+                    <div class="palette-item">Research Methods in Computing</div>
+                    <div class="palette-item">Capstone Planning</div>
+                    <div class="palette-item">Senior Capstone</div>
+                    <div class="palette-item">Machine Learning</div>
+                    <div class="palette-item">Natural Language Processing</div>
+                    <div class="palette-item">Computer Vision</div>
+                    <div class="palette-item">Information Retrieval</div>
+                    <div class="palette-item">Knowledge Graphs</div>
+                    <div class="palette-item">Information Visualization</div>
+                    <div class="palette-item">Theory of Computation</div>
+                    <div class="palette-item">Advanced Algorithms</div>
+                    <div class="palette-item">Cryptography Theory</div>
+                    <div class="palette-item">Graphics Programming</div>
+                    <div class="palette-item">3D Interaction</div>
+                    <div class="palette-item">Rendering Systems</div>
+                    <div class="palette-item">Computational Genomics</div>
+                    <div class="palette-item">Bioinformatics Alqorithms</div>
+                </div>
+            </aside>
+
+            <!-- Right Side: Planning Grid -->
+            <div class="planning-grid-wrapper">
+                <div class="grid-labels-top">
+                    <div class="label-spacer"></div>
+                    <div class="year-label">YEAR 1</div>
+                    <div class="year-label">YEAR 2</div>
+                    <div class="year-label">YEAR 3</div>
+                    <div class="year-label">YEAR 4</div>
+                </div>
+
+                <div class="grid-body">
+                    <!-- Fall Row -->
+                    <div class="grid-row">
+                        <div class="row-label">FALL</div>
+                        <div class="grid-cell" data-year="1" data-term="fall"></div>
+                        <div class="grid-cell" data-year="2" data-term="fall"></div>
+                        <div class="grid-cell" data-year="3" data-term="fall"></div>
+                        <div class="grid-cell" data-year="4" data-term="fall"></div>
+                    </div>
+                    <!-- Spring Row -->
+                    <div class="grid-row">
+                        <div class="row-label">SPRING</div>
+                        <div class="grid-cell" data-year="1" data-term="spring"></div>
+                        <div class="grid-cell" data-year="2" data-term="spring"></div>
+                        <div class="grid-cell" data-year="3" data-term="spring"></div>
+                        <div class="grid-cell" data-year="4" data-term="spring"></div>
+                    </div>
+                </div>
+
+                <div class="grid-labels-bottom">
+                    <div class="label-spacer">UNITS</div>
+                    <div class="unit-count">0 / 0</div>
+                    <div class="unit-count">0 / 0</div>
+                    <div class="unit-count">0 / 0</div>
+                    <div class="unit-count">0 / 0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+            <!-- TAB CONTENT: TRACK -->
+            <div id="tab-track" class="planner-tab-content">
+                <div class="track-status-grid">
+                    <div class="status-card">
+                        <span class="status-label">CURRENT TRACK</span>
+                        <h3>Not selected</h3>
+                        <p>CS</p>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">SELECTION STATUS</span>
+                        <h3>Locked</h3>
+                        <p>Unlocks in Year 3.</p>
+                    </div>
+                </div>
+                <div class="tracks-grid">
+                    <!-- Track Card Template -->
+                    <div class="track-card">
+                        <span class="track-id">ARTIFICIAL-INTELLIGENCE-AI</span>
+                        <h4>Artificial Intelligence (AI)</h4>
+                        <p>Focused depth path for Artificial Intelligence (AI).</p>
+                        <span class="track-unlock">Opens from Year 3</span>
+                        <button class="btn-track-locked">Track locked</button>
+                    </div>
+                    <div class="track-card">
+                        <span class="track-id">COMPUTATIONAL-BIO-BIOCOMP</span>
+                        <h4>Computational Bio (Biocomp)</h4>
+                        <p>Focused depth path for Computational Bio (Biocomp).</p>
+                        <span class="track-unlock">Opens from Year 3</span>
+                        <button class="btn-track-locked">Track locked</button>
+                    </div>
+                    <div class="track-card">
+                        <span class="track-id">HUMAN-COMPUTER-INTERACTION</span>
+                        <h4>Human-Computer Interaction</h4>
+                        <p>Focused depth path for Human-Computer Interaction.</p>
+                        <span class="track-unlock">Opens from Year 3</span>
+                        <button class="btn-track-locked">Track locked</button>
+                    </div>
+                    <div class="track-card">
+                        <span class="track-id">INDIVIDUALLY-DESIGNED</span>
+                        <h4>Individually Designed</h4>
+                        <p>Focused depth path for Individually Designed.</p>
+                        <span class="track-unlock">Opens from Year 3</span>
+                        <button class="btn-track-locked">Track locked</button>
+                    </div>
+                    <div class="track-card">
+                        <span class="track-id">INFORMATION</span>
+                        <h4>Information</h4>
+                        <p>Focused depth path for Information.</p>
+                        <span class="track-unlock">Opens from Year 3</span>
+                        <button class="btn-track-locked">Track locked</button>
+                    </div>
+                    <div class="track-card">
+                        <span class="track-id">SYSTEMS</span>
+                        <h4>Systems</h4>
+                        <p>Focused depth path for Systems.</p>
+                        <span class="track-unlock">Opens from Year 3</span>
+                        <button class="btn-track-locked">Track locked</button>
+                    </div>
+                    <div class="track-card">
+                        <span class="track-id">THEORY</span>
+                        <h4>Theory</h4>
+                        <p>Focused depth path for Theory.</p>
+                        <span class="track-unlock">Opens from Year 3</span>
+                        <button class="btn-track-locked">Track locked</button>
+                    </div>
+                    <div class="track-card">
+                        <span class="track-id">UNSPECIALIZED</span>
+                        <h4>Unspecialized</h4>
+                        <p>Focused depth path for Unspecialized.</p>
+                        <span class="track-unlock">Opens from Year 3</span>
+                        <button class="btn-track-locked">Track locked</button>
+                    </div>
+                    <div class="track-card">
+                        <span class="track-id">VISUAL-COMPUTING-GRAPHICS</span>
+                        <h4>Visual Computing (Graphics)</h4>
+                        <p>Focused depth path for Visual Computing (Graphics).</p>
+                        <span class="track-unlock">Opens from Year 3</span>
+                        <button class="btn-track-locked">Track locked</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB CONTENT: PETITIONS -->
+            <div id="tab-petitions" class="planner-tab-content">
+                <div class="petition-stats">
+                    <div class="stat-box-planner">
+                        <span class="stat-label">SUBMITTED</span>
+                        <div class="stat-value">0</div>
+                        <div class="stat-sub">Total requests on file</div>
+                    </div>
+                    <div class="stat-box-planner">
+                        <span class="stat-label">PENDING</span>
+                        <div class="stat-value">0</div>
+                        <div class="stat-sub">Awaiting advisor or department review</div>
+                    </div>
+                </div>
+                <div class="petition-main-grid">
+                    <div class="petition-form-card">
+                        <h3>Submit a petition</h3>
+                        <div class="form-group">
+                            <label>TYPE</label>
+                            <select>
+                                <option>Transfer / AP credit</option>
+                                <option>Course substitution</option>
+                                <option>Requirement waiver</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>REQUIREMENT GROUP</label>
+                            <select>
+                                <option>Optional target</option>
+                                <option>Year 1 Foundation</option>
+                                <option>Shared CS Core</option>
+                                <option>Capstone and Professional Practice</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>ORIGINAL / SATISFIED COURSE</label>
+                            <select id="originalCatalogCourseId">
+                                <option value="">Optional course</option>
+                                <option value="cmo34a305001iu5hoo5twzezx">CS 101 · Programming Fundamentals</option>
+                                <option value="cmo34a30c001ku5hosawmq55j">CS 102 · Data Structures</option>
+                                <option value="cmo34a30k001mu5hoidekje5g">CS 103 · Discrete Mathematics</option>
+                                <option value="cmo34a315001wu5hogja0wiz7">CS 201 · Computer Organization</option>
+                                <option value="cmo34a319001yu5ho76aav6uv">CS 202 · Algorithms</option>
+                                <option value="cmo34a31c0020u5hob0hhz62e">CS 203 · Databases</option>
+                                <option value="cmo34a31g0022u5houhxkax8h">CS 204 · Operating Systems</option>
+                                <option value="cmo34a31j0024u5hooffeuxz0">CS 205 · Software Engineering Studio</option>
+                                <option value="cmo34a31m0026u5hokyyunefe">CS 206 · Networks and Security</option>
+                                <option value="cmo34a31q0028u5ho0zgqu5cv">CS 301 · Research Methods in Computing</option>
+                                <option value="cmo34a31u002au5ho661jz9es">CS 302 · Capstone Planning</option>
+                                <option value="cmo34a31x002cu5holqczvuho">CS 303 · Senior Capstone</option>
+                                <option value="cmo34a320002eu5hoycb5qj9z">CS 311 · Machine Learning</option>
+                                <option value="cmo34a324002gu5ho3dhwmekn">CS 312 · Natural Language Processing</option>
+                                <option value="cmo34a327002iu5ho5wzm6qo3">CS 313 · Computer Vision</option>
+                                <option value="cmo34a32b002ku5ho7bjvofk5">CS 321 · Information Retrieval</option>
+                                <option value="cmo34a32f002mu5horxeh86mv">CS 322 · Knowledge Graphs</option>
+                                <option value="cmo34a32j002ou5hoshdbm3ah">CS 323 · Information Visualization</option>
+                                <option value="cmo34a32n002qu5hoknz2c206">CS 331 · Theory of Computation</option>
+                                <option value="cmo34a32q002su5hoiahfby08">CS 332 · Advanced Algorithms</option>
+                                <option value="cmo34a32u002uu5ho3jf7s6hl">CS 333 · Cryptography Theory</option>
+                                <option value="cmo34a32y002wu5hoklw76vtz">CS 341 · Graphics Programming</option>
+                                <option value="cmo34a331002yu5hoi1auyvtj">CS 342 · 3D Interaction</option>
+                                <option value="cmo34a3350030u5hogt8l2jye">CS 343 · Rendering Systems</option>
+                                <option value="cmo34a3390032u5hot6jzlyr1">CS 351 · Computational Genomics</option>
+                                <option value="cmo34a33c0034u5ho47l6rx0o">CS 352 · Bioinformatics Algorithms</option>
+                                <option value="cmo34a33g0036u5ho75i2k4pz">CS 353 · Data-Driven Biology</option>
+                                <option value="cmo34a33j0038u5hok9ta6qej">CS 361 · Human-Centered Design</option>
+                                <option value="cmo34a33n003au5ho3v730eqh">CS 362 · Interaction Engineering</option>
+                                <option value="cmo34a33q003cu5honx1ivkk2">CS 363 · Usability Research</option>
+                                <option value="cmo34a33u003eu5ho19c0lavj">CS 371 · Distributed Systems</option>
+                                <option value="cmo34a33x003gu5holeby2mpl">CS 372 · Compilers</option>
+                                <option value="cmo34a340003iu5homzkovam5">CS 373 · Cloud Infrastructure</option>
+                                <option value="cmo34a344003ku5horzn68dxu">CS 381 · Open Track Seminar</option>
+                                <option value="cmo34a346003mu5ho0482q6go">CS 382 · Interdisciplinary Computing</option>
+                                <option value="cmo34a34b003ou5hogn2bvu7n">CS 383 · Independent Study Design</option>
+                                <option value="cmo34a30w001su5ho2girxccj">ENG 101 · Academic Writing</option>
+                                <option value="cmo34a30p001ou5ho3d2bplhx">MATH 111 · Calculus I</option>
+                                <option value="cmo34a30t001qu5hodvkmfug9">MATH 112 · Calculus II</option>
+                                <option value="cmo34a311001uu5hoxjgymdsa">PHY 101 · Physics for Computing</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>SUBSTITUTE COURSE</label>
+                            <select id="substituteCatalogCourseId">
+                                <option value="">Optional course</option>
+                                <option value="cmo34a305001iu5hoo5twzezx">CS 101 · Programming Fundamentals</option>
+                                <option value="cmo34a30c001ku5hosawmq55j">CS 102 · Data Structures</option>
+                                <option value="cmo34a30k001mu5hoidekje5g">CS 103 · Discrete Mathematics</option>
+                                <option value="cmo34a315001wu5hogja0wiz7">CS 201 · Computer Organization</option>
+                                <option value="cmo34a319001yu5ho76aav6uv">CS 202 · Algorithms</option>
+                                <option value="cmo34a31c0020u5hob0hhz62e">CS 203 · Databases</option>
+                                <option value="cmo34a31g0022u5houhxkax8h">CS 204 · Operating Systems</option>
+                                <option value="cmo34a31j0024u5hooffeuxz0">CS 205 · Software Engineering Studio</option>
+                                <option value="cmo34a31m0026u5hokyyunefe">CS 206 · Networks and Security</option>
+                                <option value="cmo34a31q0028u5ho0zgqu5cv">CS 301 · Research Methods in Computing</option>
+                                <option value="cmo34a31u002au5ho661jz9es">CS 302 · Capstone Planning</option>
+                                <option value="cmo34a31x002cu5holqczvuho">CS 303 · Senior Capstone</option>
+                                <option value="cmo34a320002eu5hoycb5qj9z">CS 311 · Machine Learning</option>
+                                <option value="cmo34a324002gu5ho3dhwmekn">CS 312 · Natural Language Processing</option>
+                                <option value="cmo34a327002iu5ho5wzm6qo3">CS 313 · Computer Vision</option>
+                                <option value="cmo34a32b002ku5ho7bjvofk5">CS 321 · Information Retrieval</option>
+                                <option value="cmo34a32f002mu5horxeh86mv">CS 322 · Knowledge Graphs</option>
+                                <option value="cmo34a32j002ou5hoshdbm3ah">CS 323 · Information Visualization</option>
+                                <option value="cmo34a32n002qu5hoknz2c206">CS 331 · Theory of Computation</option>
+                                <option value="cmo34a32q002su5hoiahfby08">CS 332 · Advanced Algorithms</option>
+                                <option value="cmo34a32u002uu5ho3jf7s6hl">CS 333 · Cryptography Theory</option>
+                                <option value="cmo34a32y002wu5hoklw76vtz">CS 341 · Graphics Programming</option>
+                                <option value="cmo34a331002yu5hoi1auyvtj">CS 342 · 3D Interaction</option>
+                                <option value="cmo34a3350030u5hogt8l2jye">CS 343 · Rendering Systems</option>
+                                <option value="cmo34a3390032u5hot6jzlyr1">CS 351 · Computational Genomics</option>
+                                <option value="cmo34a33c0034u5ho47l6rx0o">CS 352 · Bioinformatics Algorithms</option>
+                                <option value="cmo34a33g0036u5ho75i2k4pz">CS 353 · Data-Driven Biology</option>
+                                <option value="cmo34a33j0038u5hok9ta6qej">CS 361 · Human-Centered Design</option>
+                                <option value="cmo34a33n003au5ho3v730eqh">CS 362 · Interaction Engineering</option>
+                                <option value="cmo34a33q003cu5honx1ivkk2">CS 363 · Usability Research</option>
+                                <option value="cmo34a33u003eu5ho19c0lavj">CS 371 · Distributed Systems</option>
+                                <option value="cmo34a33x003gu5holeby2mpl">CS 372 · Compilers</option>
+                                <option value="cmo34a340003iu5homzkovam5">CS 373 · Cloud Infrastructure</option>
+                                <option value="cmo34a344003ku5horzn68dxu">CS 381 · Open Track Seminar</option>
+                                <option value="cmo34a346003mu5ho0482q6go">CS 382 · Interdisciplinary Computing</option>
+                                <option value="cmo34a34b003ou5hogn2bvu7n">CS 383 · Independent Study Design</option>
+                                <option value="cmo34a30w001su5ho2girxccj">ENG 101 · Academic Writing</option>
+                                <option value="cmo34a30p001ou5ho3d2bplhx">MATH 111 · Calculus I</option>
+                                <option value="cmo34a30t001qu5hodvkmfug9">MATH 112 · Calculus II</option>
+                                <option value="cmo34a311001uu5hoxjgymdsa">PHY 101 · Physics for Computing</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>JUSTIFICATION</label>
+                            <textarea placeholder="Explain why this exception is needed."></textarea>
+                        </div>
+                        <button class="btn-planner-primary">Submit petition</button>
+                    </div>
+                    <div class="petition-list-card">
+                        <h3>Submitted petitions</h3>
+                        <p class="empty-msg">No petitions submitted yet.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB CONTENT: SHEET -->
+            <div id="tab-sheet" class="planner-tab-content">
+                <div class="sheet-top-stats">
+                    <div class="sheet-stat">
+                        <span class="label">PROGRAM</span>
+                        <strong>CS</strong>
+                        <span class="sub">2026-2027</span>
+                    </div>
+                    <div class="sheet-stat">
+                        <span class="label">TRACK</span>
+                        <strong>Not selected</strong>
+                        <span class="sub">enrolled</span>
+                    </div>
+                    <div class="sheet-stat">
+                        <span class="label">SNAPSHOT</span>
+                        <strong>Draft</strong>
+                        <span class="sub">Generate a stored view when ready.</span>
+                    </div>
+                </div>
+
+                <div class="sheet-container">
+                    <div class="sheet-header">
+                        <span>Computer Science Program · 2026-2027</span>
+                        <span class="draft-view">Draft view</span>
+                    </div>
+                    <div class="sheet-row">
+                        <span class="row-label">Student</span>
+                        <span class="row-val">AbdallahRT · AbdallahRT@users.noreply.github.com</span>
+                    </div>
+                    <div class="sheet-row">
+                        <span class="row-label">Track</span>
+                        <span class="row-val">Not selected</span>
+                    </div>
+                    <div class="sheet-row">
+                        <span class="row-label">Status</span>
+                        <span class="row-val">enrolled</span>
+                    </div>
+
+                    <div class="sheet-section">
+                        <div class="section-head"><span>Year 1 Foundation</span><span class="pending">pending</span></div>
+                        <p class="section-info">Minimum 7 courses · 22 units</p>
+                        <p class="section-desc">Common first-year foundation shared by all students before track selection.</p>
+                        <p class="section-empty">No planned courses matched yet.</p>
+                    </div>
+
+                    <div class="sheet-section">
+                        <div class="section-head"><span>Shared CS Core</span><span class="pending">pending</span></div>
+                        <p class="section-info">Minimum 6 courses · 21 units</p>
+                        <p class="section-desc">Core CS courses shared across every specialization.</p>
+                        <p class="section-empty">No planned courses matched yet.</p>
+                    </div>
+
+                    <div class="sheet-section">
+                        <div class="section-head"><span>Capstone and Professional Practice</span><span class="pending">pending</span></div>
+                        <p class="section-info">Minimum 3 courses · 9 units</p>
+                        <p class="section-desc">Final-year integration and professional synthesis.</p>
+                        <p class="section-empty">No planned courses matched yet.</p>
+                    </div>
+
+                    <div class="sheet-footer-grid">
+                        <div class="sheet-footer-box">
+                            <h4>Petitions</h4>
+                            <p class="empty-msg">No petitions on file.</p>
+                        </div>
+                        <div class="sheet-footer-box">
+                            <h4>Approvals</h4>
+                            <div class="approval-row"><span>advisor</span><span class="pending">pending</span></div>
+                            <div class="approval-row"><span>department</span><span class="pending">pending</span></div>
+                        </div>
+                    </div>
+
+                    <div class="sheet-policies">
+                        <h4>Policies</h4>
+                        <p>Students complete the common Year 1 foundation, select one track from Year 2 onward, and must maintain advisor then department approval for exceptions.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../react-page-utils.js"></script>
+    <script>if (window.NibrasShared?.session?.updateUserInfoDisplay) window.NibrasShared.session.updateUserInfoDisplay();</script>
+    <script src="../config.js"></script>
+    <script src="../services/api.js"></script>
+    <script src="../react-bootstrap.js"></script>
+    <script src="./planner.js"></script>
+    <script src="../services/gamification-ui.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

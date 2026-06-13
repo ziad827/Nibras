@@ -1,147 +1,128 @@
-# Nibras Backend
+# Nibras — Full Service Platform
 
-NestJS backend services for the [Nibras](https://github.com/NibrasPlatform/Nibras) educational platform — collaborative learning, competitive programming, and project-based assessment.
+Collaborative learning, competitive programming, and project-based assessment — unified static frontend, NestJS API, Fastify platform API, and CLI.
 
 [![CI](https://github.com/NibrasPlatform/Nibras/actions/workflows/ci.yml/badge.svg)](https://github.com/NibrasPlatform/Nibras/actions/workflows/ci.yml)
+
+## Architecture
+
+| Component   | Port | Role                                                              |
+| ----------- | ---- | ----------------------------------------------------------------- |
+| **Gateway** | 8080 | Serves `Frontend/client`, routes `/api` → NestJS, `/v1` → Fastify |
+| **NestJS**  | 3000 | Auth, community, competitions, courses (`/api/*`)                 |
+| **Fastify** | 4848 | Projects, CLI, tracking, programs (`/v1/*`)                       |
+| **Worker**  | 9090 | Submission verification, grading jobs                             |
+| **CLI**     | —    | `nibras login`, `test`, `submit`                                  |
 
 ## Prerequisites
 
 - **Node.js** 20+
 - **npm** 10+
-- **Docker** and Docker Compose (optional, for local MongoDB + Redis)
+- **Docker** and Docker Compose (MongoDB, PostgreSQL, Redis)
+- **Python** 3.11+ (optional, for AI tutor)
 
-## Quick start
+## Quick start (full stack)
 
 ```bash
 cp .env.example .env
+docker compose up -d mongodb redis postgres
 npm ci
-npm run start:dev
+npm run build:platform
+npm run db:deploy
+npm run dev:full
 ```
 
-The API listens on [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:8080/Login/loginPage/login.html](http://localhost:8080/Login/loginPage/login.html)
 
-## Docker
-
-Start the API with MongoDB and Redis:
+### Docker (all services)
 
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
 
-Compose overrides `MONGO_URI` and `REDIS_HOST` with container DNS names, so `.env` can keep localhost values for non-Docker development.
+Gateway: [http://localhost:8080](http://localhost:8080)
 
 ## Scripts
 
-| Script                 | Description                                 |
-| ---------------------- | ------------------------------------------- |
-| `npm run start:dev`    | Start with hot reload                       |
-| `npm run start:prod`   | Run compiled output (`dist/main.js`)        |
-| `npm run build`        | Compile TypeScript and resolve path aliases |
-| `npm run lint`         | ESLint + Prettier                           |
-| `npm test`             | Unit tests (Jest)                           |
-| `npm run test:e2e`     | E2E tests (in-memory Mongo + Redis)         |
-| `npm run dev:session`  | Create a local instructor session token     |
-| `npm run smoke:local`  | HTTP smoke test against a running API       |
-| `npm run smoke:socket` | Listen for `contest-standings` (Socket.io)  |
-| Bruno collection       | See [`bruno/README.md`](bruno/README.md)    |
-| `npm run format`       | Format source and test files                |
+| Script                      | Description                                  |
+| --------------------------- | -------------------------------------------- |
+| `npm run dev:full`          | NestJS + Fastify platform + worker + gateway |
+| `npm run dev:platform`      | Fastify API, worker, and package watch build |
+| `npm run start:dev`         | NestJS API only (port 3000)                  |
+| `npm run proxy:dev`         | Gateway only (port 8080)                     |
+| `npm run build`             | Compile NestJS backend                       |
+| `npm run build:platform`    | Build Fastify API, worker, CLI, packages     |
+| `npm run build:all`         | Build platform + NestJS                      |
+| `npm run build:cli:package` | Build CLI for local install (`npm link`)     |
+| `npm test`                  | NestJS unit tests (Jest)                     |
+| `npm run test:platform`     | Monorepo integration tests                   |
+| `npm run test:e2e`          | NestJS E2E tests                             |
+| `npm run dev:session`       | Create local instructor session token        |
+| `npm run smoke:local`       | HTTP smoke test against NestJS API           |
+| `npm run db:deploy`         | Apply Prisma migrations                      |
+| `npm run seed:screenshot`   | Seed demo data for UI screenshots            |
 
-## API
-
-| Endpoint        | Description                                                     |
-| --------------- | --------------------------------------------------------------- |
-| `GET /api/ping` | Health check — MongoDB and Redis status (503 if either is down) |
-| `GET /api/docs` | Swagger UI (OpenAPI)                                            |
-
-Example:
+## CLI
 
 ```bash
-curl -s http://localhost:3000/api/ping | jq .
+npm run build:cli:package
+npm link
+nibras login
+nibras list
+nibras test
+nibras submit
+```
+
+CLI targets the gateway at `http://localhost:8080` by default (`NIBRAS_API_BASE_URL` in `.env`).
+
+## API endpoints
+
+| Endpoint         | Backend | Description                     |
+| ---------------- | ------- | ------------------------------- |
+| `GET /api/ping`  | NestJS  | Health — MongoDB + Redis        |
+| `GET /api/docs`  | NestJS  | Swagger UI                      |
+| `GET /v1/health` | Fastify | Platform health                 |
+| `GET /docs`      | Fastify | Platform Swagger (when enabled) |
+
+Via gateway:
+
+```bash
+curl -s http://localhost:8080/api/ping | jq .
+curl -s http://localhost:8080/v1/health | jq .
 ```
 
 ## Environment
 
-Copy [`.env.example`](.env.example) to `.env`. All variables are validated at boot via Joi (`src/config/validation.ts`).
+Copy [`.env.example`](.env.example) to `.env`. Sections cover NestJS, Fastify/platform, and gateway settings.
 
-Required for local development without Docker:
+Key variables:
 
-- `MONGO_URI` — e.g. `mongodb://localhost:27017/nibras`
-- `REDIS_HOST` — e.g. `localhost`
-- `AUTH_SECRET` — non-empty string (see `.env.example`)
-
-## Bruno API collection
-
-Open the [`bruno/`](bruno/) folder in [Bruno](https://www.usebruno.com/) (File → Open Collection).
-
-1. Select the **local** environment.
-2. Run `npm run dev:session` and paste the `web_…` token into `token`.
-3. Run requests by folder, or follow the ordered flow in [`bruno/flows/README.md`](bruno/flows/README.md).
-
-Optional CLI: `npx @usebruno/cli run bruno --env local` (API must be running).
-
-## Local full-system test
-
-End-to-end check of the running API (health, auth, users, competitions, integrations, ranking).
-
-**1. Infrastructure**
-
-```bash
-docker compose up mongodb redis -d   # or ensure local Mongo + Redis are running
-cp .env.example .env                 # COMPETITIONS_SYNC_ENABLED=false recommended
-npm ci
-```
-
-**2. Start API** (terminal 1)
-
-```bash
-npm run start:dev
-```
-
-Swagger: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
-
-**3. Automated tests** (optional)
-
-```bash
-npm test
-npm run test:e2e
-```
-
-**4. HTTP smoke** (terminal 2 — API must be running)
-
-```bash
-npm run smoke:local
-```
-
-Optional live HackerRank (network + public handle):
-
-```bash
-HR_HANDLE=your_hackerrank_username npm run smoke:local
-```
-
-**5. Socket.io** (terminal 3 — use `CONTEST_ID` printed by smoke)
-
-```bash
-CONTEST_ID=<contestId> npm run smoke:socket
-```
-
-Submit again in another terminal to see `contest-standings` events.
-
-**Troubleshooting**
-
-- `Config validation error: AUTH_SECRET` — set a non-empty secret in `.env`
-- `EACCES` on `dist/` — `sudo chown -R "$USER:$USER" dist` or `rm -rf dist && npm run build`
-- Smoke fails on `/api/ping` — start Mongo/Redis and ensure `npm run start:dev` is up
+- `MONGO_URI`, `REDIS_HOST`, `AUTH_SECRET` — NestJS
+- `DATABASE_URL` — PostgreSQL for Fastify/Prisma
+- `NIBRAS_STATIC_ROOT=Frontend/client` — static UI root for gateway
+- `NIBRAS_NESTJS_ORIGIN`, `NIBRAS_FASTIFY_ORIGIN` — gateway upstreams
 
 ## Project layout
 
 ```
-src/
-  config/     # Typed configuration + Joi validation
-  database/   # MongoDB (Mongoose) and Redis (cache) modules
-  modules/    # Feature modules (health, …)
-  common/     # Shared utilities
-test/         # Unit and e2e tests
+src/              NestJS backend (auth, community, competitions)
+Frontend/client/  Static student/instructor dashboard
+apps/
+  api/            Fastify platform API
+  cli/            @nibras/cli
+  worker/         Job processor
+  proxy/          Unified gateway
+  tutor/          AI tutor (Flask)
+packages/         Shared contracts, core, grading, github
+prisma/           PostgreSQL schema + seeds
+courses/          Sample course assignments
+bin/nibras.js     CLI entry point
 ```
+
+## Bruno API collection
+
+See [`bruno/README.md`](bruno/README.md) for NestJS API testing.
 
 ## License
 

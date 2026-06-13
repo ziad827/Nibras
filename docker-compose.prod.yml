@@ -1,0 +1,115 @@
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nibras
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nibras}
+      POSTGRES_DB: nibras
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nibras']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nestjs-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/nibras
+      REDIS_HOST: redis
+      PORT: 3000
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/api/ping']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  fastify-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.monorepo
+      target: api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://nibras:${POSTGRES_PASSWORD:-nibras}@postgres:5432/nibras?schema=public
+      PORT: 4848
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:4848/v1/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://nibras:${POSTGRES_PASSWORD:-nibras}@postgres:5432/nibras?schema=public
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.monorepo
+      target: proxy
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NIBRAS_NESTJS_ORIGIN: http://nestjs-api:3000
+      NIBRAS_FASTIFY_ORIGIN: http://fastify-api:4848
+      NIBRAS_STATIC_ROOT: Frontend/client
+    ports:
+      - '8080:8080'
+    depends_on:
+      nestjs-api:
+        condition: service_healthy
+      fastify-api:
+        condition: service_healthy
+
+volumes:
+  mongodb_data:
+  postgres_data:

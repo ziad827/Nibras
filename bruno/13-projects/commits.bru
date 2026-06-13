@@ -1,0 +1,15 @@
+meta {
+  name: Project Commits
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{trackingBaseUrl}}/v1/tracking/projects/{{projectId}}/commits
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{trackingToken}}
+}

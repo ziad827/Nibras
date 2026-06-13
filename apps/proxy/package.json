@@ -1,0 +1,17 @@
+{
+  "name": "@nibras/proxy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -w -p tsconfig.json --preserveWatchOutput"
+  },
+  "dependencies": {
+    "http-proxy": "^1.18.1"
+  },
+  "devDependencies": {
+    "@types/http-proxy": "^1.17.16"
+  }
+}

@@ -1,0 +1,21 @@
+.create-form-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: var(--shadow);
+}
+
+.create-form-card h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+@media (max-width: 768px) {
+    .create-form-card {
+        padding: 1.25rem;
+    }
+}

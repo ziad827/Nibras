@@ -1,0 +1,13 @@
+{
+  "name": "@nibras/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -w -p tsconfig.json --preserveWatchOutput"
+  },
+  "dependencies": {
+    "zod": "^3.24.4"
+  }
+}

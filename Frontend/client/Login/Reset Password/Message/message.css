@@ -1,0 +1,374 @@
+/* ===== CSS VARIABLES ===== */
+:root {
+    --card-bg: #ffffff;
+    --text-main: #111827;
+    --text-secondary: #6b7280;
+
+    --input-bg: #f9fafb;
+    --input-border: #e5e7eb;
+    --input-focus: #2563eb;
+
+    --btn-primary: #2563eb;
+    --btn-hover: #1d4ed8;
+
+    --label-color: #374151;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.2);
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+
+    --star-color: #ffffff;
+}
+
+[data-theme="dark"] {
+    --card-bg: #121212;
+    --text-main: #ffffff;
+    --text-secondary: #9ca3af;
+
+    --input-bg: #1e1e1e;
+    --input-border: #333333;
+    --input-focus: #3b82f6;
+
+    --btn-primary: #3b82f6;
+    --btn-hover: #60a5fa;
+
+    --label-color: #d1d5db;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 0 50px rgba(255, 255, 255, 0.05);
+
+    --star-color: #ffffff;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-24px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0.88); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes gradientShift {
+    0% { background-size: 200% 200%; background-position: 0% 50%; }
+    50% { background-size: 200% 200%; background-position: 100% 50%; }
+    100% { background-size: 200% 200%; background-position: 0% 50%; }
+}
+
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.15); }
+    50% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
+}
+
+@keyframes rotateIn {
+    from { transform: rotate(-90deg) scale(0); opacity: 0; }
+    to { transform: rotate(0) scale(1); opacity: 1; }
+}
+
+@keyframes rotating {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes animStar {
+    from { transform: translateY(0px); }
+    to { transform: translateY(-2000px); }
+}
+
+/* ===== ENTRANCE ANIMATION CLASSES ===== */
+.animate-in {
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-stagger-1 { animation-delay: 0.04s; }
+.animate-stagger-2 { animation-delay: 0.08s; }
+.animate-stagger-3 { animation-delay: 0.12s; }
+.animate-stagger-4 { animation-delay: 0.16s; }
+.animate-stagger-5 { animation-delay: 0.20s; }
+.animate-stagger-6 { animation-delay: 0.24s; }
+.animate-stagger-7 { animation-delay: 0.28s; }
+.animate-stagger-8 { animation-delay: 0.32s; }
+
+/* ===== RESET ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+    outline: 2px solid var(--input-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+/* ===== PAGE BACKGROUND ===== */
+.signup-page {
+    background: linear-gradient(135deg, #051030 0%, #0a1e5e 100%);
+    min-height: 100vh;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s ease;
+}
+
+[data-theme="dark"] .signup-page {
+    background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+}
+
+/* ===== STARRY BACKGROUND ===== */
+.stars-container {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 1; pointer-events: none; overflow: hidden;
+}
+
+[data-theme="dark"] .stars-container {
+    display: block;
+}
+
+#stars {
+    width: 1px; height: 1px; background: transparent;
+    box-shadow: 48px 258px var(--star-color), 956px 995px var(--star-color), 1193px 589px var(--star-color), 489px 1625px var(--star-color), 1626px 742px var(--star-color), 309px 1045px var(--star-color), 944px 72px var(--star-color), 1075px 1909px var(--star-color), 1873px 1446px var(--star-color), 184px 1634px var(--star-color), 434px 587px var(--star-color), 1035px 1252px var(--star-color), 42px 1489px var(--star-color), 1364px 787px var(--star-color), 1430px 698px var(--star-color), 1392px 872px var(--star-color), 158px 771px var(--star-color), 260px 1323px var(--star-color), 643px 29px var(--star-color), 1440px 1454px var(--star-color), 1973px 843px var(--star-color), 1745px 581px var(--star-color), 971px 1631px var(--star-color), 618px 345px var(--star-color), 1362px 1593px var(--star-color), 1256px 1127px var(--star-color), 1681px 404px var(--star-color), 1978px 1387px var(--star-color), 1424px 375px var(--star-color), 1478px 1806px var(--star-color), 115px 1503px var(--star-color), 819px 1150px var(--star-color), 63px 883px var(--star-color), 483px 896px var(--star-color), 1687px 428px var(--star-color), 1263px 1373px var(--star-color), 270px 141px var(--star-color), 1033px 991px var(--star-color), 1493px 1408px var(--star-color), 331px 387px var(--star-color), 1320px 1925px var(--star-color), 88px 1553px var(--star-color), 909px 1965px var(--star-color), 1283px 813px var(--star-color), 1147px 1252px var(--star-color), 1468px 1012px var(--star-color), 1870px 1267px var(--star-color), 522px 270px var(--star-color), 1107px 599px var(--star-color), 950px 1768px var(--star-color), 843px 416px var(--star-color), 277px 160px var(--star-color), 1926px 346px var(--star-color), 705px 7px var(--star-color), 1825px 1799px var(--star-color), 1462px 1472px var(--star-color), 1364px 276px var(--star-color), 232px 350px var(--star-color), 1474px 1098px var(--star-color), 641px 1027px var(--star-color), 1074px 562px var(--star-color), 444px 633px var(--star-color), 1950px 1138px var(--star-color), 122px 688px var(--star-color), 1950px 225px var(--star-color), 17px 1178px var(--star-color), 497px 252px var(--star-color), 1158px 274px var(--star-color), 1642px 282px var(--star-color), 895px 1078px var(--star-color), 871px 609px var(--star-color), 219px 1033px var(--star-color), 1680px 299px var(--star-color), 739px 109px var(--star-color), 1174px 225px var(--star-color), 801px 1722px var(--star-color), 1441px 1058px var(--star-color), 892px 20px var(--star-color), 1745px 1173px var(--star-color), 176px 1355px var(--star-color), 1348px 1021px var(--star-color), 709px 1900px var(--star-color), 878px 1392px var(--star-color), 1929px 679px var(--star-color), 290px 1206px var(--star-color), 1869px 562px var(--star-color), 189px 1177px var(--star-color), 557px 1528px var(--star-color), 303px 817px var(--star-color), 1634px 923px var(--star-color), 1238px 755px var(--star-color), 1752px 1757px var(--star-color), 1255px 1123px var(--star-color), 1497px 1797px var(--star-color), 412px 1050px var(--star-color), 348px 497px var(--star-color), 637px 1839px var(--star-color), 1923px 379px var(--star-color), 93px 1399px var(--star-color), 1445px 1689px var(--star-color);
+    animation: animStar 50s linear infinite;
+}
+
+#stars:after {
+    content: " "; position: absolute; top: 2000px; width: 1px; height: 1px; background: transparent;
+    box-shadow: 48px 258px var(--star-color), 956px 995px var(--star-color), 1193px 589px var(--star-color), 489px 1625px var(--star-color), 1626px 742px var(--star-color), 309px 1045px var(--star-color), 944px 72px var(--star-color), 1075px 1909px var(--star-color), 1873px 1446px var(--star-color), 184px 1634px var(--star-color), 434px 587px var(--star-color), 1035px 1252px var(--star-color), 42px 1489px var(--star-color), 1364px 787px var(--star-color), 1430px 698px var(--star-color), 1392px 872px var(--star-color), 158px 771px var(--star-color), 260px 1323px var(--star-color), 643px 29px var(--star-color), 1440px 1454px var(--star-color), 1973px 843px var(--star-color), 1745px 581px var(--star-color), 971px 1631px var(--star-color), 618px 345px var(--star-color), 1362px 1593px var(--star-color), 1256px 1127px var(--star-color), 1681px 404px var(--star-color), 1978px 1387px var(--star-color), 1424px 375px var(--star-color), 1478px 1806px var(--star-color), 115px 1503px var(--star-color), 819px 1150px var(--star-color), 63px 883px var(--star-color), 483px 896px var(--star-color), 1687px 428px var(--star-color), 1263px 1373px var(--star-color), 270px 141px var(--star-color), 1033px 991px var(--star-color), 1493px 1408px var(--star-color), 331px 387px var(--star-color), 1320px 1925px var(--star-color), 88px 1553px var(--star-color), 909px 1965px var(--star-color), 1283px 813px var(--star-color), 1147px 1252px var(--star-color), 1468px 1012px var(--star-color), 1870px 1267px var(--star-color), 522px 270px var(--star-color), 1107px 599px var(--star-color), 950px 1768px var(--star-color), 843px 416px var(--star-color), 277px 160px var(--star-color), 1926px 346px var(--star-color), 705px 7px var(--star-color), 1825px 1799px var(--star-color), 1462px 1472px var(--star-color), 1364px 276px var(--star-color), 232px 350px var(--star-color), 1474px 1098px var(--star-color), 641px 1027px var(--star-color), 1074px 562px var(--star-color), 444px 633px var(--star-color), 1950px 1138px var(--star-color), 122px 688px var(--star-color), 1950px 225px var(--star-color), 17px 1178px var(--star-color), 497px 252px var(--star-color), 1158px 274px var(--star-color), 1642px 282px var(--star-color), 895px 1078px var(--star-color), 871px 609px var(--star-color), 219px 1033px var(--star-color), 1680px 299px var(--star-color), 739px 109px var(--star-color), 1174px 225px var(--star-color), 801px 1722px var(--star-color), 1441px 1058px var(--star-color), 892px 20px var(--star-color), 1745px 1173px var(--star-color), 176px 1355px var(--star-color), 1348px 1021px var(--star-color), 709px 1900px var(--star-color), 878px 1392px var(--star-color), 1929px 679px var(--star-color), 290px 1206px var(--star-color), 1869px 562px var(--star-color), 189px 1177px var(--star-color), 557px 1528px var(--star-color), 303px 817px var(--star-color), 1634px 923px var(--star-color), 1238px 755px var(--star-color), 1752px 1757px var(--star-color), 1255px 1123px var(--star-color), 1497px 1797px var(--star-color), 412px 1050px var(--star-color), 348px 497px var(--star-color), 637px 1839px var(--star-color), 1923px 379px var(--star-color), 93px 1399px var(--star-color), 1445px 1689px var(--star-color);
+}
+
+#stars2 {
+    width: 2px; height: 2px; background: transparent;
+    box-shadow: 1785px 1839px var(--star-color), 1605px 267px var(--star-color), 641px 309px var(--star-color), 1551px 1372px var(--star-color), 1712px 428px var(--star-color), 1660px 1273px var(--star-color), 90px 1904px var(--star-color), 1617px 1453px var(--star-color), 954px 487px var(--star-color), 1622px 780px var(--star-color), 388px 354px var(--star-color), 1333px 1099px var(--star-color), 59px 1996px var(--star-color), 580px 435px var(--star-color), 965px 149px var(--star-color), 857px 683px var(--star-color), 802px 921px var(--star-color), 24px 1726px var(--star-color), 182px 1919px var(--star-color), 1179px 1270px var(--star-color), 1224px 949px var(--star-color), 1604px 316px var(--star-color), 670px 234px var(--star-color), 205px 428px var(--star-color), 52px 99px var(--star-color), 1539px 1842px var(--star-color), 1767px 203px var(--star-color), 1660px 1716px var(--star-color), 1383px 657px var(--star-color), 1116px 220px var(--star-color), 86px 1622px var(--star-color), 1349px 1779px var(--star-color), 483px 784px var(--star-color), 813px 1313px var(--star-color), 1688px 1635px var(--star-color), 1243px 670px var(--star-color), 1512px 1437px var(--star-color), 873px 1135px var(--star-color), 1783px 486px var(--star-color), 1096px 755px var(--star-color), 807px 1643px var(--star-color), 1145px 129px var(--star-color), 26px 1745px var(--star-color), 1891px 1503px var(--star-color), 1343px 1499px var(--star-color), 1231px 974px var(--star-color), 814px 198px var(--star-color), 770px 1177px var(--star-color), 112px 252px var(--star-color), 963px 779px var(--star-color);
+    animation: animStar 100s linear infinite;
+}
+
+#stars2:after {
+    content: " "; position: absolute; top: 2000px; width: 2px; height: 2px; background: transparent;
+    box-shadow: 1785px 1839px var(--star-color), 1605px 267px var(--star-color), 641px 309px var(--star-color), 1551px 1372px var(--star-color), 1712px 428px var(--star-color), 1660px 1273px var(--star-color), 90px 1904px var(--star-color), 1617px 1453px var(--star-color), 954px 487px var(--star-color), 1622px 780px var(--star-color), 388px 354px var(--star-color), 1333px 1099px var(--star-color), 59px 1996px var(--star-color), 580px 435px var(--star-color), 965px 149px var(--star-color), 857px 683px var(--star-color), 802px 921px var(--star-color), 24px 1726px var(--star-color), 182px 1919px var(--star-color), 1179px 1270px var(--star-color), 1224px 949px var(--star-color), 1604px 316px var(--star-color), 670px 234px var(--star-color), 205px 428px var(--star-color), 52px 99px var(--star-color), 1539px 1842px var(--star-color), 1767px 203px var(--star-color), 1660px 1716px var(--star-color), 1383px 657px var(--star-color), 1116px 220px var(--star-color), 86px 1622px var(--star-color), 1349px 1779px var(--star-color), 483px 784px var(--star-color), 813px 1313px var(--star-color), 1688px 1635px var(--star-color), 1243px 670px var(--star-color), 1512px 1437px var(--star-color), 873px 1135px var(--star-color), 1783px 486px var(--star-color), 1096px 755px var(--star-color), 807px 1643px var(--star-color), 1145px 129px var(--star-color), 26px 1745px var(--star-color), 1891px 1503px var(--star-color), 1343px 1499px var(--star-color), 1231px 974px var(--star-color), 814px 198px var(--star-color), 770px 1177px var(--star-color), 112px 252px var(--star-color), 963px 779px var(--star-color);
+}
+
+#stars3 {
+    width: 3px; height: 3px; background: transparent;
+    box-shadow: 196px 1281px var(--star-color), 1143px 1473px var(--star-color), 1694px 305px var(--star-color), 951px 1053px var(--star-color), 1491px 1202px var(--star-color), 320px 674px var(--star-color), 1666px 31px var(--star-color), 734px 675px var(--star-color), 665px 83px var(--star-color), 992px 758px var(--star-color), 310px 392px var(--star-color), 13px 1620px var(--star-color), 249px 1428px var(--star-color), 1817px 1221px var(--star-color), 1841px 1894px var(--star-color), 1555px 1385px var(--star-color), 1580px 1056px var(--star-color), 1944px 1189px var(--star-color), 363px 1759px var(--star-color), 885px 996px var(--star-color);
+    animation: animStar 150s linear infinite;
+}
+
+#stars3:after {
+    content: " "; position: absolute; top: 2000px; width: 3px; height: 3px; background: transparent;
+    box-shadow: 196px 1281px var(--star-color), 1143px 1473px var(--star-color), 1694px 305px var(--star-color), 951px 1053px var(--star-color), 1491px 1202px var(--star-color), 320px 674px var(--star-color), 1666px 31px var(--star-color), 734px 675px var(--star-color), 665px 83px var(--star-color), 992px 758px var(--star-color), 310px 392px var(--star-color), 13px 1620px var(--star-color), 249px 1428px var(--star-color), 1817px 1221px var(--star-color), 1841px 1894px var(--star-color), 1555px 1385px var(--star-color), 1580px 1056px var(--star-color), 1944px 1189px var(--star-color), 363px 1759px var(--star-color), 885px 996px var(--star-color);
+}
+
+/* ===== AUTH HEADER ===== */
+.auth-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 2rem 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 50;
+    animation: fadeSlideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.auth-logo {
+    width: 140px;
+    height: auto;
+    object-fit: contain;
+}
+
+/* ===== THEME TOGGLE ===== */
+.signup-page .theme-toggle-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #ffffff !important;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.signup-page .theme-toggle-btn:hover {
+    transform: scale(1.1);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.signup-page .theme-toggle-btn:active {
+    transform: scale(0.95);
+}
+
+.signup-page .theme-toggle-btn.rotating i {
+    animation: rotating 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ===== AUTH CONTAINER + CARD ===== */
+.auth-container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 5;
+    padding: 1rem;
+}
+
+.auth-card {
+    background-color: var(--card-bg);
+    width: 100%;
+    max-width: 480px;
+    padding: 3.5rem 3rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+    transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+    animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.15s;
+}
+
+[data-theme="dark"] .auth-card {
+    border: 1px solid #333;
+    box-shadow: var(--shadow-lg);
+}
+
+.auth-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    color: var(--text-main);
+    background: linear-gradient(135deg, var(--text-main), var(--btn-primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ===== SUCCESS PAGE SPECIFIC ===== */
+.success-card {
+    padding: 3rem 2rem;
+}
+
+.success-icon-box {
+    width: 80px;
+    height: 80px;
+    border: 3px solid var(--text-main);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 2rem auto;
+    font-size: 2.5rem;
+    color: var(--text-main);
+    animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.25s;
+}
+
+[data-theme="dark"] .success-icon-box {
+    border-color: #ffffff;
+    color: #ffffff;
+}
+
+.success-message {
+    font-size: 1rem;
+    color: var(--label-color);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+    font-weight: 500;
+    animation: fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.30s;
+}
+
+[data-theme="dark"] .success-message {
+    color: var(--label-color);
+}
+
+.divider {
+    height: 1px;
+    background-color: var(--input-border);
+    width: 100%;
+    margin-bottom: 2rem;
+}
+
+[data-theme="dark"] .divider {
+    background-color: #334155;
+}
+
+/* ===== BUTTON ===== */
+.btn-login {
+    width: 100%;
+    padding: 0.9rem;
+    background: linear-gradient(135deg, var(--btn-primary), #3b82f6);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    text-decoration: none;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+.btn-login:hover {
+    background: linear-gradient(135deg, var(--btn-hover), #2563eb);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.btn-login:active {
+    transform: translateY(0);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 600px) {
+    .auth-card { padding: 2rem; }
+    .auth-header { padding: 1.5rem; }
+    .auth-title { font-size: 1.5rem; }
+    .success-icon-box {
+        width: 60px;
+        height: 60px;
+        font-size: 1.8rem;
+    }
+}

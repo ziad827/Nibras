@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assignment Details</title>
+    <script src="../../../services/auth-guard.js" data-login="../../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+</script>
+
+    <!-- Preserve courseId in navigation links -->
+    <script>
+    (function () {
+        const params = new URLSearchParams(window.location.search);
+        const courseId = params.get('courseId') || localStorage.getItem('selectedCourseId');
+        if (courseId) {
+            localStorage.setItem('selectedCourseId', courseId);
+        }
+
+        function updateLinks() {
+            const storedCourseId = localStorage.getItem('selectedCourseId');
+            if (!storedCourseId) return;
+
+            function withCourseId(path) {
+                if (path.includes('courseId=')) return path;
+                const separator = path.includes('?') ? '&' : '?';
+                return `${path}${separator}courseId=${encodeURIComponent(storedCourseId)}`;
+            }
+
+            const navLinks = [
+                { key: "courseContent", path: "../../Course Description/courseContent.html" },
+                { key: "videos", path: "../../Videos/videos.html" },
+                { key: "assignments", path: "../Assignments.html" },
+                { key: "grades", path: "../../Grades/grades.html" },
+            ];
+
+            navLinks.forEach(({ key, path }) => {
+                const el = document.querySelector(`[data-nav-link="${key}"]`);
+                if (el) el.setAttribute("href", withCourseId(path));
+            });
+
+            const backBtn = document.querySelector(".back-btn");
+            if (backBtn) backBtn.setAttribute("href", withCourseId("../../courses.html"));
+
+            const crumbLink = document.querySelector(".crumb-link");
+            if (crumbLink) crumbLink.setAttribute("href", withCourseId("../Assignments.html"));
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', updateLinks);
+        } else {
+            updateLinks();
+        }
+    })();
+    </script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CSS -->
+    <link rel="stylesheet" href="./AssignmentContent.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>Course Content</h2>
+            <div class="sidebar-progress">
+                <span class="progress-text">2 of 8 lectures completed</span>
+                <div class="progress-bar-container">
+                    <div class="progress-fill" style="width: 25%"></div>
+                </div>
+            </div>
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../../Course%20Description/courseContent.html" class="nav-link" data-nav-link="courseContent"><i class="fa-solid fa-book-open"></i> Course Overview</a></li>
+            <li class="nav-item"><a href="../../Videos/videos.html" class="nav-link" data-nav-link="videos"><i class="fa-solid fa-video"></i> Videos</a></li>
+            <li class="nav-item"><a href="../Assignments.html" class="nav-link active" data-nav-link="assignments"><i class="fa-regular fa-file-lines"></i> Assignments</a></li>
+            <li class="nav-item">
+</li>
+            <li class="nav-item"><a href="../../Grades/grades.html" class="nav-link" data-nav-link="grades"><i class="fa-solid fa-award"></i> Grades</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+        <a href="../../courses.html" class="back-btn">
+                <i class="fa-solid fa-arrow-left-long" style="margin-right:8px"></i>
+                    Return to Courses
+        </a>
+            <div class="course-meta">
+                <h4>Loading course...</h4>
+                <span>Fall 2024 &bull; Week 4</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <!-- TOP BAR -->
+        <div class="top-bar">
+            <div class="breadcrumbs">
+                <a href="../Assignments.html" class="crumb-link">Assignments</a>
+                <span class="crumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+                <span class="crumb-current" id="crumb-title">Loading...</span>
+            </div>
+
+            <button class="theme-toggle-btn" id="themeBtn">
+                <i class="fa-solid fa-sun"></i> <span>Light Mode</span>
+            </button>
+        </div>
+
+        <div class="details-container">
+
+            <!-- 1. Header Card -->
+            <section class="card detail-header-card">
+                <div class="detail-header-top">
+                    <h1 id="assign-title">Loading...</h1>
+                    <span class="points-label"><span id="assign-points">0</span> points</span>
+                </div>
+
+                <div class="detail-desc-row">
+                    <p id="assign-desc">...</p>
+                    <div class="score-badge">
+                        <i class="fa-solid fa-medal"></i> <span id="assign-score">0/0</span>
+                    </div>
+                </div>
+
+                <div class="meta-row border-top">
+                    <div class="meta-item"><i class="fa-regular fa-calendar"></i> Due: <span id="meta-due">...</span></div>
+                    <div class="meta-item"><i class="fa-regular fa-clock"></i> <span id="meta-time">...</span></div>
+                    <div class="meta-item"><i class="fa-solid fa-upload"></i> <span id="meta-type">...</span></div>
+                </div>
+            </section>
+
+            <!-- 2. Instructions -->
+            <section class="card">
+                <h3 class="section-title">Instructions</h3>
+                <div class="instruction-content" id="instructions-container">
+                    <div class="skeleton" style="width: 100%; height: 16px;"></div>
+                    <div style="margin-top: 12px;">
+                        <div class="skeleton" style="width: 75%; height: 14px; margin-bottom: 8px;"></div>
+                        <div class="skeleton" style="width: 60%; height: 14px; margin-bottom: 8px;"></div>
+                        <div class="skeleton" style="width: 85%; height: 14px;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Attached Files -->
+            <section class="card">
+                <h3 class="section-title">Attached Files</h3>
+                <div class="file-list" id="files-container">
+                    <div class="skeleton" style="height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 12px;">
+                        <div class="skeleton" style="width: 18px; height: 18px; border-radius: 4px;"></div>
+                        <div class="skeleton" style="flex: 1; height: 14px;"></div>
+                        <div class="skeleton" style="width: 70px; height: 14px;"></div>
+                    </div>
+                    <div class="skeleton" style="height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 12px;">
+                        <div class="skeleton" style="width: 18px; height: 18px; border-radius: 4px;"></div>
+                        <div class="skeleton" style="flex: 1; height: 14px;"></div>
+                        <div class="skeleton" style="width: 70px; height: 14px;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Grading Rubric -->
+            <section class="card">
+                <h3 class="section-title">Grading Rubric</h3>
+                <div class="rubric-list" id="rubric-container">
+                    <div class="skeleton" style="height: 42px; display: flex; justify-content: space-between; align-items: center; padding: 0 12px;">
+                        <div class="skeleton" style="width: 40%; height: 14px;"></div>
+                        <div class="skeleton" style="width: 60px; height: 14px;"></div>
+                    </div>
+                    <div class="skeleton" style="height: 42px; display: flex; justify-content: space-between; align-items: center; padding: 0 12px;">
+                        <div class="skeleton" style="width: 35%; height: 14px;"></div>
+                        <div class="skeleton" style="width: 60px; height: 14px;"></div>
+                    </div>
+                    <div class="skeleton" style="height: 42px; display: flex; justify-content: space-between; align-items: center; padding: 0 12px;">
+                        <div class="skeleton" style="width: 50%; height: 14px;"></div>
+                        <div class="skeleton" style="width: 60px; height: 14px;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. Submit Assignment (Tabbed) -->
+            <section class="card" id="submit-section">
+                <h3 class="section-title"><i class="fa-solid fa-cloud-arrow-up"></i> Submit Assignment</h3>
+
+                <!-- Submission Tabs -->
+                <div class="sub-tabs" id="sub-tabs">
+                    <button class="sub-tab active" data-tab="code"><i class="fa-solid fa-code"></i> Code</button>
+                    <button class="sub-tab" data-tab="file"><i class="fa-solid fa-upload"></i> File Upload</button>
+                </div>
+
+                <!-- Code Tab -->
+                <div class="sub-panel active" id="panel-code">
+                    <p class="step-desc" style="margin-bottom: 1rem;">Write or paste your code below for automated evaluation.</p>
+                    <div class="code-submit-row">
+                        <select id="code-language" class="code-lang-select">
+                            <option value="python">Python 3.11</option>
+                            <option value="cpp">C++ (GCC 12)</option>
+                            <option value="java">Java 17</option>
+                            <option value="javascript">JavaScript (Node 20)</option>
+                            <option value="go">Go 1.21</option>
+                        </select>
+                    </div>
+                    <textarea id="code-editor" class="code-editor" placeholder="// Write your code here..." spellcheck="false"></textarea>
+                    <div class="code-actions">
+                        <button id="btn-submit-code" class="back-btn" style="width: auto; margin-bottom: 0;">Submit Code</button>
+                        <span id="code-status" class="sub-status"></span>
+                    </div>
+                </div>
+
+                <!-- File Upload Tab -->
+                <div class="sub-panel" id="panel-file">
+                    <p class="step-desc" style="margin-bottom: 1rem;">Upload your assignment file(s) for evaluation.</p>
+                    <div class="file-submit-row">
+                        <input type="file" id="file-input" class="file-input" multiple />
+                    </div>
+                    <div id="file-list-names" class="file-list-names"></div>
+                    <div class="code-actions">
+                        <button id="btn-submit-file" class="back-btn" style="width: auto; margin-bottom: 0;">Upload & Submit</button>
+                        <span id="file-status" class="sub-status"></span>
+                    </div>
+                </div>
+
+                <!-- GitHub URL (legacy) -->
+                <div class="github-legacy" id="github-section">
+                    <details>
+                        <summary style="cursor: pointer; font-size: 0.85rem; color: var(--text-secondary);"><i class="fa-brands fa-github"></i> Or submit via GitHub URL</summary>
+                        <div style="margin-top: 0.75rem;">
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="github-url" placeholder="https://github.com/username/repo" style="flex: 1; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-primary);">
+                                <button id="btn-submit-github" class="back-btn" style="width: auto; margin-bottom: 0;">Submit</button>
+                            </div>
+                            <div style="display: flex; gap: 10px; margin-top: 0.75rem;">
+                                <input type="text" id="submission-branch" placeholder="Branch (optional, default: main)" style="flex: 1; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-primary);" value="main">
+                                <input type="text" id="submission-commit-sha" placeholder="Commit SHA (optional)" style="flex: 1; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-primary);">
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </section>
+
+            <!-- 6. Submission Pulse Tracker -->
+            <section class="card pulse-card" id="submission-pulse">
+                <h3 class="section-title"><i class="fa-solid fa-bolt"></i> Grading Pipeline</h3>
+                <div class="pulse-steps">
+                    <div class="pulse-step" id="step-init">
+                        <div class="step-icon"><i class="fa-solid fa-terminal"></i></div>
+                        <div class="step-text">
+                            <span class="step-title">Initializing Pipeline</span>
+                            <span class="step-desc">Preparing the isolated environment...</span>
+                        </div>
+                    </div>
+                    <div class="pulse-step" id="step-clone">
+                        <div class="step-icon"><i class="fa-solid fa-code-branch"></i></div>
+                        <div class="step-text">
+                            <span class="step-title">Processing Submission</span>
+                            <span class="step-desc">Validating and preparing your submission...</span>
+                        </div>
+                    </div>
+                    <div class="pulse-step" id="step-test">
+                        <div class="step-icon"><i class="fa-solid fa-flask"></i></div>
+                        <div class="step-text">
+                            <span class="step-title">Running Test Cases</span>
+                            <span class="step-desc">Executing against test suite in sandboxed environment...</span>
+                        </div>
+                    </div>
+                    <div class="pulse-step" id="step-grade">
+                        <div class="step-icon"><i class="fa-solid fa-chart-simple"></i></div>
+                        <div class="step-text">
+                            <span class="step-title">Generating Report</span>
+                            <span class="step-desc">Compiling results, style analysis, and benchmarks...</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 7. Test Results -->
+            <section class="card" id="test-results-section" style="display: none;">
+                <h3 class="section-title"><i class="fa-solid fa-vial"></i> Test Results</h3>
+                <div class="test-summary" id="test-summary">
+                    <span class="test-summary-pass" id="test-pass-count">0 passed</span>
+                    <span class="test-summary-fail" id="test-fail-count">0 failed</span>
+                    <span class="test-summary-total" id="test-total-count">0 total</span>
+                </div>
+                <div class="test-cases" id="test-cases-container">
+                </div>
+            </section>
+
+            <!-- 8. Style Report -->
+            <section class="card" id="style-section" style="display: none;">
+                <h3 class="section-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Code Style Analysis</h3>
+                <div class="style-summary" id="style-summary">
+                    <span id="style-tool">Tool: --</span>
+                    <span id="style-issues" class="style-issues-count">0 issues</span>
+                </div>
+                <div class="style-issues" id="style-issues-container">
+                </div>
+            </section>
+
+            <!-- 9. Performance Benchmark -->
+            <section class="card" id="benchmark-section" style="display: none;">
+                <h3 class="section-title"><i class="fa-solid fa-gauge-high"></i> Performance Benchmark</h3>
+                <div class="benchmark-grid" id="benchmark-container">
+                </div>
+            </section>
+
+            <!-- 10. Instructor Feedback -->
+            <section class="card feedback-card" id="feedback-section" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 class="section-title success-text" style="margin-bottom: 0;"><i class="fa-regular fa-circle-check"></i> Instructor Feedback</h3>
+                </div>
+
+                <!-- Rubric Scores -->
+                <div id="feedback-rubric-container" class="feedback-rubric"></div>
+
+                <!-- Text Feedback -->
+                <div class="feedback-box" id="feedback-text-container">
+                    <p id="feedback-text">No feedback yet.</p>
+                </div>
+
+                <!-- Video Feedback -->
+                <div id="feedback-video-container" style="display: none; margin-bottom: 1rem;">
+                    <a id="feedback-video-link" href="#" target="_blank" class="feedback-video-btn">
+                        <i class="fa-solid fa-video"></i> View Video Feedback
+                    </a>
+                </div>
+
+                <!-- Peer Reviews -->
+                <div id="peer-reviews-container" style="display: none;">
+                    <h4 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem;"><i class="fa-solid fa-users"></i> Peer Reviews</h4>
+                    <div id="peer-reviews-list"></div>
+                </div>
+
+                <div class="feedback-footer" style="margin-top: 1rem;">
+                    Graded by: <span id="grader-name">--</span> &bull; <span id="graded-date">--</span>
+                </div>
+            </section>
+
+            <!-- 11. AI Analysis (legacy) -->
+            <section class="card" id="ai-analysis-wrapper" style="display: none;">
+                <button id="toggle-ai-analysis" class="theme-toggle-btn" style="display: flex; gap: 6px;">
+                    <i class="fa-solid fa-brain"></i> View AI Analysis
+                </button>
+                <div id="ai-analysis-container" style="display: none; margin-top: 1.5rem; border-top: 1px dashed var(--border-color); padding-top: 1.5rem;">
+                    <div class="ai-reasoning-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h4 style="font-size: 0.95rem; font-weight: 600;"><i class="fa-solid fa-microchip"></i> Semantic Reasoning</h4>
+                        <span id="ai-confidence" class="score-badge" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Confidence: --%</span>
+                    </div>
+                    <div class="ai-reasoning-box" style="background: var(--bg-body); padding: 1rem; border-radius: 8px; font-size: 0.9rem; color: var(--text-primary); border-left: 3px solid var(--accent-blue); margin-bottom: 1.5rem;">
+                        <p id="ai-reasoning-text">...</p>
+                    </div>
+                    <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem;"><i class="fa-solid fa-code"></i> AI Found Evidence</h4>
+                    <div class="evidence-block" style="background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 8px; font-family: 'Fira Code', 'Courier New', monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre;">
+                        <code id="ai-evidence-code">...</code>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+        <script src="../../../react-bootstrap.js"></script>
+    <script src="../../courseData.js"></script>
+    <script src="../../Projects/projectsApi.js?v=20260417-5"></script>
+    <script src="./AssignmentContent.js?v=20260417-3"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

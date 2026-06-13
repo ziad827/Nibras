@@ -1,0 +1,14 @@
+{
+  "name": "@nibras/github",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -w -p tsconfig.json --preserveWatchOutput"
+  },
+  "dependencies": {
+    "jose": "^6.1.0"
+  }
+}

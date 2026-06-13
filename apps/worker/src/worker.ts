@@ -1,0 +1,1290 @@
+import { execFile } from 'node:child_process';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { promisify } from 'node:util';
+import { Prisma, PrismaClient, SubmissionStatus } from '@prisma/client';
+import { createServer } from 'node:http';
+import * as Sentry from '@sentry/node';
+import { Worker as BullWorker, type Job } from 'bullmq';
+import {
+  gradeSemanticAnswer,
+  gradeMCQ,
+  gradeExam,
+  gradeFile,
+  type AiConfig,
+  type GradingConfig,
+  type GradingQuestion,
+  type AiGradeResult,
+} from '@nibras/grading';
+import { runSandboxed } from './sandbox';
+import {
+  VERIFICATION_QUEUE_NAME,
+  parseRedisUrl,
+  type VerificationJobPayload,
+} from './queue';
+import {
+  COMPETITIONS_QUEUE_NAME,
+  type CompetitionsJobPayload,
+} from './competitions-queue';
+import {
+  NOTIFICATION_EMAIL_PREF,
+  resolveOutboundEmail,
+} from '@nibras/contracts';
+import { sendSubmissionStatusEmail, sendReviewReadyEmail } from './email';
+import { isEmailPreferenceEnabled } from './notification-prefs';
+import {
+  MAX_CLAIM_AGE_MS,
+  DEFAULT_POLL_INTERVAL_MS,
+  DEFAULT_HEALTH_PORT,
+  MAX_STUDENT_LEVEL,
+  GIT_CLONE_TIMEOUT_MS,
+} from './constants';
+import { runContestSync } from './competitions-jobs/contest-sync';
+import { runProblemSync } from './competitions-jobs/problem-sync';
+import { runAccountVerify } from './competitions-jobs/account-verify';
+import { runAccountStatsSync } from './competitions-jobs/account-stats-sync';
+import { runRankingCalc } from './competitions-jobs/ranking-calc';
+import { runContestReminder } from './competitions-jobs/contest-reminder';
+import { runDailyProblemSweep } from './competitions-jobs/daily-problem-sweep';
+import { runDailyProblemReminder } from './competitions-jobs/daily-problem-reminder';
+import { runDailyProblemWeeklyDigest } from './competitions-jobs/daily-problem-weekly-digest';
+import { runAnalyticsSnapshot } from './analytics-jobs/snapshot';
+
+const execFileAsync = promisify(execFile);
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 0.1,
+  });
+}
+
+const POLL_INTERVAL_MS = parseInt(
+  process.env.WORKER_POLL_INTERVAL_MS || String(DEFAULT_POLL_INTERVAL_MS),
+  10,
+);
+const HEALTH_PORT = parseInt(
+  process.env.WORKER_HEALTH_PORT || String(DEFAULT_HEALTH_PORT),
+  10,
+);
+
+let shuttingDown = false;
+
+type ClaimedJob = {
+  id: string;
+  submissionAttemptId: string;
+  attempt: number;
+  maxAttempts: number;
+};
+
+function log(
+  level: 'info' | 'warn' | 'error',
+  message: string,
+  extra?: Record<string, unknown>,
+) {
+  const entry = {
+    level,
+    time: new Date().toISOString(),
+    pid: process.pid,
+    msg: message,
+    ...extra,
+  };
+  process.stdout.write(JSON.stringify(entry) + '\n');
+}
+
+async function claimJob(prisma: PrismaClient): Promise<ClaimedJob | null> {
+  const staleBefore = new Date(Date.now() - MAX_CLAIM_AGE_MS);
+  return prisma.$transaction(async (tx) => {
+    const claimed = await tx.$queryRaw<ClaimedJob[]>(Prisma.sql`
+      WITH candidate AS (
+        SELECT id
+        FROM "VerificationJob"
+        WHERE
+          "status" = 'queued'::"SubmissionStatus"
+          OR (
+            "status" = 'running'::"SubmissionStatus"
+            AND "claimedAt" IS NOT NULL
+            AND "claimedAt" < ${staleBefore}
+          )
+        ORDER BY "createdAt" ASC
+        FOR UPDATE SKIP LOCKED
+        LIMIT 1
+      ),
+      claimed AS (
+        UPDATE "VerificationJob"
+        SET
+          "status" = 'running'::"SubmissionStatus",
+          "claimedAt" = NOW(),
+          "finishedAt" = NULL,
+          "updatedAt" = NOW()
+        WHERE id IN (SELECT id FROM candidate)
+        RETURNING id, "submissionAttemptId", attempt, "maxAttempts"
+      )
+      SELECT * FROM claimed
+    `);
+    const job = claimed[0] || null;
+    if (!job) {
+      return null;
+    }
+
+    await tx.submissionAttempt.update({
+      where: { id: job.submissionAttemptId },
+      data: {
+        status: SubmissionStatus.running,
+        summary: 'Verification is running.',
+      },
+    });
+    await tx.verificationRun.updateMany({
+      where: {
+        submissionAttemptId: job.submissionAttemptId,
+        attempt: job.attempt,
+        startedAt: null,
+      },
+      data: {
+        status: SubmissionStatus.running,
+        startedAt: new Date(),
+        log: 'Verification is running.',
+      },
+    });
+    return job;
+  });
+}
+
+async function runVerification(
+  submissionAttemptId: string,
+  prisma: PrismaClient,
+): Promise<{ exitCode: number; log: string }> {
+  // Fetch the submission context
+  const attempt = await prisma.submissionAttempt.findUniqueOrThrow({
+    where: { id: submissionAttemptId },
+    include: {
+      project: {
+        include: {
+          releases: { orderBy: { createdAt: 'desc' }, take: 1 },
+        },
+      },
+      userProjectRepo: true,
+      teamProjectRepo: true,
+    },
+  });
+
+  const manifest = attempt.project.releases[0]?.manifestJson as {
+    test?: { command?: string };
+  } | null;
+  const testCommand = manifest?.test?.command || 'npm test';
+
+  // If there are stored local test results, use them directly without re-running.
+  if (attempt.localTestExitCode !== null) {
+    return {
+      exitCode: attempt.localTestExitCode,
+      log: `Using stored local test result. Exit code: ${attempt.localTestExitCode}`,
+    };
+  }
+
+  // Run the test command in an isolated sandbox (ulimit + optional network namespace).
+  const cloneUrl =
+    attempt.teamProjectRepo?.cloneUrl || attempt.userProjectRepo?.cloneUrl;
+  if (!cloneUrl) {
+    return {
+      exitCode: 1,
+      log: 'No clone URL available for verification.',
+    };
+  }
+
+  return runSandboxed(cloneUrl, attempt.branch, testCommand);
+}
+
+type AiRunResult = {
+  gradeResult: AiGradeResult;
+  model: string;
+  gradedAt: Date;
+  reviewRequired: boolean;
+};
+
+function loadAiConfig(): AiConfig | null {
+  const apiKey = process.env.NIBRAS_AI_API_KEY;
+  if (!apiKey) return null;
+  const model = process.env.NIBRAS_AI_MODEL ?? 'gpt-4o-mini';
+  return {
+    apiKey,
+    model,
+    baseUrl: process.env.NIBRAS_AI_BASE_URL,
+    timeoutMs: process.env.NIBRAS_AI_TIMEOUT_MS
+      ? Number(process.env.NIBRAS_AI_TIMEOUT_MS)
+      : undefined,
+    maxRetries: process.env.NIBRAS_AI_MAX_RETRIES
+      ? Number(process.env.NIBRAS_AI_MAX_RETRIES)
+      : undefined,
+    minConfidence: process.env.NIBRAS_AI_MIN_CONFIDENCE
+      ? Number(process.env.NIBRAS_AI_MIN_CONFIDENCE)
+      : undefined,
+  };
+}
+
+async function runAiGrading(
+  submissionAttemptId: string,
+  prisma: PrismaClient,
+): Promise<AiRunResult | null> {
+  const aiConfig = loadAiConfig();
+  if (!aiConfig) return null;
+
+  const attempt = await prisma.submissionAttempt.findUniqueOrThrow({
+    where: { id: submissionAttemptId },
+    include: {
+      project: {
+        include: { releases: { orderBy: { createdAt: 'desc' }, take: 1 } },
+      },
+      userProjectRepo: true,
+      teamProjectRepo: true,
+    },
+  });
+
+  type ManifestJson = {
+    projectKey?: string;
+    grading?: {
+      questions: Array<{
+        id: string;
+        mode: string;
+        prompt?: string;
+        points: number;
+        answerFile: string;
+        rubric?: Array<{ id: string; description: string; points: number }>;
+        examples?: Array<{ label: string; answer: string }>;
+        minConfidence?: number;
+        // MCQ fields
+        options?: string[];
+        // Exam fields
+        type?: 'mcq' | 'short_answer' | 'long_answer' | 'true_false';
+        modelAnswer?: string;
+        gradingCriteria?: string;
+        // File fields
+        fileType?: 'pdf' | 'text' | 'code' | 'other';
+        assignmentInstructions?: string;
+        modelAnswerQuestions?: Array<{
+          id: string;
+          question: string;
+          type: 'mcq' | 'short_answer' | 'long_answer' | 'true_false';
+          maxScore: number;
+          modelAnswer: string;
+          gradingCriteria?: string;
+        }>;
+      }>;
+    };
+  };
+
+  const manifest = attempt.project.releases[0]
+    ?.manifestJson as ManifestJson | null;
+  const manifestGrading = manifest?.grading;
+  if (!manifestGrading) return null;
+  if (manifestGrading.questions.length === 0) return null;
+
+  const cloneUrl =
+    attempt.teamProjectRepo?.cloneUrl || attempt.userProjectRepo?.cloneUrl;
+  if (!cloneUrl) return null;
+
+  const tmpDir = await mkdtemp(join(tmpdir(), 'nibras-ai-'));
+  try {
+    await execFileAsync(
+      'git',
+      ['clone', '--depth=1', '--branch', attempt.branch, cloneUrl, tmpDir],
+      {
+        timeout: GIT_CLONE_TIMEOUT_MS,
+      },
+    );
+
+    const projectKey = manifest?.projectKey ?? attempt.project.slug;
+    const minConfidence = aiConfig.minConfidence ?? 0.8;
+
+    const gradingConfig: GradingConfig = {
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
+      baseURL: aiConfig.baseUrl,
+      minConfidence: aiConfig.minConfidence,
+      maxRetries: aiConfig.maxRetries,
+      timeoutMs: aiConfig.timeoutMs,
+    };
+
+    let totalEarned = 0;
+    let anyNeedsReview = false;
+    const allCriterionScores: AiGradeResult['criterionScores'] = [];
+    const allEvidenceQuotes: string[] = [];
+    const allConfidences: number[] = [];
+    const allReasoningSummaries: string[] = [];
+    let gradedAny = false;
+
+    const allQuestions = manifestGrading.questions;
+
+    for (const q of allQuestions) {
+      const answerPath = join(tmpDir, q.answerFile);
+      let answerText: string;
+      try {
+        answerText = await readFile(answerPath, 'utf8');
+      } catch {
+        log('warn', 'AI grading: answer file not found', {
+          answerFile: q.answerFile,
+          questionId: q.id,
+        });
+        anyNeedsReview = true;
+        continue;
+      }
+
+      try {
+        if (
+          q.mode === 'semantic' &&
+          Array.isArray(q.rubric) &&
+          q.rubric.length > 0
+        ) {
+          // ── Semantic path ─────────────────────────────────────────
+          const question: GradingQuestion = {
+            id: q.id,
+            prompt: q.prompt ?? q.id,
+            points: q.points,
+            rubric: q.rubric ?? [],
+            examples: q.examples,
+            minConfidence: q.minConfidence,
+          };
+          const result = await gradeSemanticAnswer({
+            aiConfig,
+            subject: 'Programming',
+            project: projectKey,
+            question,
+            answerText,
+          });
+          totalEarned += result.score;
+          allCriterionScores.push(...result.criterionScores);
+          allEvidenceQuotes.push(...result.evidenceQuotes);
+          allConfidences.push(result.confidence);
+          allReasoningSummaries.push(result.reasoningSummary);
+          if (
+            result.needsReview ||
+            result.confidence < (q.minConfidence ?? minConfidence)
+          ) {
+            anyNeedsReview = true;
+          }
+          gradedAny = true;
+        } else if (q.mode === 'mcq') {
+          // ── MCQ path ──────────────────────────────────────────────
+          const result = await gradeMCQ(
+            [
+              {
+                id: q.id,
+                question: q.prompt ?? q.id,
+                options: q.options ?? [],
+                studentAnswer: answerText.trim(),
+              },
+            ],
+            gradingConfig,
+          );
+          const r = result.results[0];
+          if (r) {
+            const earned = r.isCorrect ? q.points : 0;
+            totalEarned += earned;
+            allCriterionScores.push({
+              id: r.questionId,
+              points: q.points,
+              earned,
+              justification: r.explanation,
+            });
+            allConfidences.push(r.confidence);
+            allReasoningSummaries.push(
+              `${q.prompt ?? q.id}: ${r.isCorrect ? 'Correct' : 'Incorrect'} — ${r.explanation}`,
+            );
+            if (r.confidence < (q.minConfidence ?? minConfidence)) {
+              anyNeedsReview = true;
+            }
+            gradedAny = true;
+          }
+        } else if (q.mode === 'exam') {
+          // ── Exam path ─────────────────────────────────────────────
+          const result = await gradeExam(
+            [
+              {
+                id: q.id,
+                question: q.prompt ?? q.id,
+                type: q.type ?? 'short_answer',
+                maxScore: q.points,
+                modelAnswer: q.modelAnswer ?? '',
+                gradingCriteria: q.gradingCriteria,
+              },
+            ],
+            [{ questionId: q.id, answer: answerText }],
+            gradingConfig,
+          );
+          const r = result.results[0];
+          if (r) {
+            totalEarned += r.score;
+            allCriterionScores.push({
+              id: r.questionId,
+              points: r.maxScore,
+              earned: r.score,
+              justification: r.feedback,
+            });
+            allConfidences.push(r.confidence);
+            allReasoningSummaries.push(r.feedback);
+            if (r.needsHumanReview) anyNeedsReview = true;
+            gradedAny = true;
+          }
+        } else if (q.mode === 'file') {
+          // ── File path ─────────────────────────────────────────────
+          const modelAnswerQuestions = (q.modelAnswerQuestions ?? []).map(
+            (mq) => ({
+              id: mq.id,
+              question: mq.question,
+              type: mq.type,
+              maxScore: mq.maxScore,
+              modelAnswer: mq.modelAnswer,
+              gradingCriteria: mq.gradingCriteria,
+            }),
+          );
+
+          if (modelAnswerQuestions.length === 0) {
+            log(
+              'warn',
+              'AI grading: file mode question has no modelAnswerQuestions',
+              {
+                questionId: q.id,
+              },
+            );
+            anyNeedsReview = true;
+            continue;
+          }
+
+          const result = await gradeFile(
+            {
+              fileContent: answerText,
+              fileType: q.fileType ?? 'text',
+              modelAnswerQuestions,
+              assignmentInstructions: q.assignmentInstructions,
+            },
+            gradingConfig,
+          );
+
+          totalEarned += result.totalScore;
+          for (const r of result.results) {
+            allCriterionScores.push({
+              id: r.questionId,
+              points: r.maxScore,
+              earned: r.score,
+              justification: r.feedback,
+            });
+            allConfidences.push(r.confidence);
+          }
+          const summaryText = result.extractionNotes
+            ? `[File Extraction Notes: ${result.extractionNotes}]\n\n${result.results.map((r) => r.feedback).join('\n')}`
+            : result.results.map((r) => r.feedback).join('\n');
+          allReasoningSummaries.push(summaryText);
+          if (result.needsHumanReview) anyNeedsReview = true;
+          gradedAny = true;
+        } else {
+          log('warn', 'AI grading: unknown question mode, skipping', {
+            questionId: q.id,
+            mode: q.mode,
+          });
+        }
+      } catch (err) {
+        log('warn', 'AI grading failed for question', {
+          questionId: q.id,
+          mode: q.mode,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        anyNeedsReview = true;
+      }
+    }
+
+    if (!gradedAny) return null;
+
+    const avgConfidence =
+      allConfidences.length > 0
+        ? allConfidences.reduce((sum, c) => sum + c, 0) / allConfidences.length
+        : 0;
+
+    // Enforce aggregate confidence threshold: flag for review if average confidence
+    // falls below minConfidence, even if no individual question triggered the flag.
+    const globalNeedsReview = anyNeedsReview || avgConfidence < minConfidence;
+
+    const aggregated: AiGradeResult = {
+      score: totalEarned,
+      confidence: avgConfidence,
+      needsReview: globalNeedsReview,
+      criterionScores: allCriterionScores,
+      reasoningSummary: allReasoningSummaries.join('\n\n'),
+      evidenceQuotes: allEvidenceQuotes,
+    };
+
+    return {
+      gradeResult: aggregated,
+      model: aiConfig.model,
+      gradedAt: new Date(),
+      reviewRequired: globalNeedsReview,
+    };
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true });
+  }
+}
+
+async function finalizeJob(
+  jobId: string,
+  submissionAttemptId: string,
+  attempt: number,
+  exitCode: number,
+  verificationLog: string,
+  aiResult: AiRunResult | null,
+  prisma: PrismaClient,
+): Promise<void> {
+  const verificationPassed = exitCode === 0;
+  const finalStatus = !verificationPassed
+    ? SubmissionStatus.failed
+    : aiResult?.reviewRequired
+      ? SubmissionStatus.needs_review
+      : SubmissionStatus.passed;
+
+  const summary = !verificationPassed
+    ? 'Verification failed.'
+    : aiResult?.reviewRequired
+      ? 'Verification passed — AI flagged for human review.'
+      : 'Verification passed.';
+
+  await prisma.$transaction(async (tx) => {
+    await tx.verificationJob.update({
+      where: { id: jobId },
+      data: { status: finalStatus, claimedAt: null, finishedAt: new Date() },
+    });
+    await tx.verificationRun.update({
+      where: { submissionAttemptId_attempt: { submissionAttemptId, attempt } },
+      data: {
+        status: finalStatus,
+        log: verificationLog,
+        finishedAt: new Date(),
+      },
+    });
+    await tx.submissionAttempt.update({
+      where: { id: submissionAttemptId },
+      data: { status: finalStatus, summary },
+    });
+
+    // Create a draft review with AI results when AI grading ran
+    if (verificationPassed && aiResult) {
+      const r = aiResult.gradeResult;
+      // Use the first admin user as reviewer; fall back to the submission owner
+      const [submission, adminUser] = await Promise.all([
+        tx.submissionAttempt.findUniqueOrThrow({
+          where: { id: submissionAttemptId },
+          select: { userId: true },
+        }),
+        tx.user.findFirst({
+          where: { systemRole: 'admin' },
+          select: { id: true },
+          orderBy: { createdAt: 'asc' },
+        }),
+      ]);
+      const reviewerUserId = adminUser?.id ?? submission.userId;
+      if (!adminUser) {
+        log(
+          'warn',
+          'AI review: no admin user found, attributing review to submission owner',
+          {
+            submissionAttemptId,
+          },
+        );
+      }
+      await tx.review.create({
+        data: {
+          submissionAttemptId,
+          reviewerUserId,
+          status: 'pending',
+          score: r.score,
+          feedback: r.reasoningSummary,
+          rubricJson: [],
+          aiConfidence: r.confidence,
+          aiNeedsReview: r.needsReview,
+          aiReasoningSummary: r.reasoningSummary,
+          aiCriterionScores: r.criterionScores,
+          aiEvidenceQuotes: r.evidenceQuotes,
+          aiModel: aiResult.model,
+          aiGradedAt: aiResult.gradedAt,
+        },
+      });
+    }
+  });
+
+  // ── Post-transaction side-effects ──────────────────────────────────────────
+  // Fetch the submission details needed for notifications/emails
+  const submission = await prisma.submissionAttempt.findUnique({
+    where: { id: submissionAttemptId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          notificationEmail: true,
+        },
+      },
+      project: { select: { name: true, slug: true, courseId: true } },
+    },
+  });
+  if (!submission) return;
+
+  if (
+    finalStatus === SubmissionStatus.passed ||
+    finalStatus === SubmissionStatus.failed
+  ) {
+    const field =
+      finalStatus === SubmissionStatus.passed
+        ? 'passedSubmissions'
+        : 'failedSubmissions';
+    void prisma.userGamificationMetrics
+      .upsert({
+        where: { userId: submission.userId },
+        create: { userId: submission.userId, [field]: 1 },
+        update: { [field]: { increment: 1 } },
+      })
+      .catch(() => undefined);
+  }
+
+  const webBase = process.env.NIBRAS_WEB_BASE_URL ?? '';
+  const submissionUrl = webBase
+    ? `${webBase}/submissions/${submissionAttemptId}`
+    : `/submissions/${submissionAttemptId}`;
+
+  // Send student notification email
+  const studentEmailStatus =
+    finalStatus === SubmissionStatus.passed
+      ? 'passed'
+      : finalStatus === SubmissionStatus.needs_review
+        ? 'needs_review'
+        : 'failed';
+  try {
+    const sendStatusEmail = await isEmailPreferenceEnabled(
+      prisma,
+      submission.user.id,
+      NOTIFICATION_EMAIL_PREF.SUBMISSION_RESULTS,
+    );
+    if (sendStatusEmail) {
+      const studentEmail = resolveOutboundEmail(submission.user);
+      if (studentEmail) {
+        await sendSubmissionStatusEmail({
+          studentEmail,
+          studentName: submission.user.username,
+          projectName: submission.project.name,
+          status: studentEmailStatus,
+          submissionUrl,
+        });
+      }
+    }
+  } catch (err) {
+    log('warn', 'Failed to send student status email (non-fatal)', {
+      submissionAttemptId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  // When the submission needs human review, notify all course instructors and TAs
+  if (
+    finalStatus === SubmissionStatus.needs_review &&
+    submission.project.courseId
+  ) {
+    const courseId = submission.project.courseId;
+    const reviewQueueUrl = webBase
+      ? `${webBase}/instructor/courses/${courseId}/review-queue`
+      : `/instructor/courses/${courseId}/review-queue`;
+
+    try {
+      const instructorMemberships = await prisma.courseMembership.findMany({
+        where: { courseId, role: { in: ['instructor', 'ta'] } },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              notificationEmail: true,
+            },
+          },
+        },
+      });
+
+      await Promise.allSettled(
+        instructorMemberships.map(async (membership) => {
+          const instructor = (
+            membership as unknown as {
+              user: {
+                id: string;
+                username: string;
+                email: string;
+                notificationEmail: string | null;
+              };
+            }
+          ).user;
+          // In-app notification
+          try {
+            await prisma.notification.create({
+              data: {
+                userId: instructor.id,
+                type: 'review_ready',
+                title: `Review needed — ${submission.project.name}`,
+                body: `${submission.user.username}'s submission for ${submission.project.name} needs review.`,
+                link: reviewQueueUrl,
+              },
+            });
+          } catch (err) {
+            log('warn', 'Failed to create instructor notification', {
+              instructorId: instructor.id,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+          // Email notification
+          try {
+            const sendReviewEmail = await isEmailPreferenceEnabled(
+              prisma,
+              instructor.id,
+              NOTIFICATION_EMAIL_PREF.REVIEW_QUEUE,
+            );
+            if (sendReviewEmail) {
+              const instructorEmail = resolveOutboundEmail(instructor);
+              if (instructorEmail) {
+                await sendReviewReadyEmail({
+                  instructorEmail,
+                  instructorName: instructor.username,
+                  studentName: submission.user.username,
+                  projectName: submission.project.name,
+                  reviewQueueUrl,
+                });
+              }
+            }
+          } catch (err) {
+            log(
+              'warn',
+              'Failed to send review-ready email to instructor (non-fatal)',
+              {
+                instructorId: instructor.id,
+                error: err instanceof Error ? err.message : String(err),
+              },
+            );
+          }
+        }),
+      );
+    } catch (err) {
+      log(
+        'warn',
+        'Failed to notify instructors of needs_review submission (non-fatal)',
+        {
+          submissionAttemptId,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      );
+    }
+  }
+}
+
+async function checkAndAutoUpgradeStudentLevel(
+  submissionAttemptId: string,
+  prisma: PrismaClient,
+): Promise<void> {
+  const submission = await prisma.submissionAttempt.findUnique({
+    where: { id: submissionAttemptId },
+    include: { project: true },
+  });
+  if (!submission?.project.courseId) return;
+
+  const { userId } = submission;
+
+  // Read the student's GLOBAL year level (single source of truth).
+  const userRow = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { yearLevel: true },
+  });
+  if (!userRow) return;
+  const currentLevel: number =
+    (userRow as { yearLevel: number }).yearLevel ?? 1;
+  if (currentLevel >= MAX_STUDENT_LEVEL) return;
+
+  // Gather all active courses at this year level.
+  const yearCourses = await prisma.course.findMany({
+    where: {
+      isActive: true,
+      termLabel: { startsWith: `Year ${currentLevel}` },
+    },
+    select: { id: true },
+  });
+  if (yearCourses.length === 0) return;
+
+  // Every published project (with all its milestones) across every Year-N course
+  // must have a 'passed' submission from this student before we promote.
+  for (const course of yearCourses) {
+    const projects = await prisma.project.findMany({
+      where: { courseId: course.id, status: 'published' },
+      include: { milestones: true },
+    });
+    // A year with no published projects does not block advancement.
+    if (projects.length === 0) continue;
+
+    for (const proj of projects) {
+      for (const milestone of proj.milestones) {
+        const passedSub = await prisma.submissionAttempt.findFirst({
+          where: {
+            userId,
+            projectId: proj.id,
+            milestoneId: milestone.id,
+            status: 'passed',
+          },
+        });
+        if (!passedSub) return; // still work remaining
+      }
+    }
+  }
+
+  // All Year-N courses are complete — atomically promote the student globally.
+  // Use updateMany with a WHERE yearLevel = currentLevel guard so that if two
+  // workers race on the same student, only one transaction wins.
+  const nextLevel = currentLevel + 1;
+  await prisma.$transaction(async (tx) => {
+    // 1. Advance the global year level — idempotent guard prevents double-promotion.
+    const updated = await tx.user.updateMany({
+      where: { id: userId, yearLevel: currentLevel },
+      data: { yearLevel: nextLevel },
+    });
+    if (updated.count === 0) {
+      // Another worker already promoted this student — skip remaining steps.
+      return;
+    }
+
+    // 2. Sync every existing student membership.
+    await tx.courseMembership.updateMany({
+      where: { userId, role: 'student' },
+      data: { level: nextLevel },
+    });
+
+    // 3. Auto-enrol in every active Year-(N+1) course.
+    const nextYearCourses = await tx.course.findMany({
+      where: { isActive: true, termLabel: { startsWith: `Year ${nextLevel}` } },
+      select: { id: true },
+    });
+    for (const course of nextYearCourses) {
+      await tx.courseMembership.upsert({
+        where: { courseId_userId: { courseId: course.id, userId } },
+        update: { level: nextLevel },
+        create: {
+          courseId: course.id,
+          userId,
+          role: 'student',
+          level: nextLevel,
+        },
+      });
+    }
+  });
+
+  log(
+    'info',
+    `Student auto-promoted globally: level ${currentLevel} → ${nextLevel}`,
+    {
+      userId,
+      fromLevel: currentLevel,
+      toLevel: nextLevel,
+    },
+  );
+}
+
+async function failJob(
+  jobId: string,
+  submissionAttemptId: string,
+  attempt: number,
+  maxAttempts: number,
+  errorMessage: string,
+  prisma: PrismaClient,
+): Promise<void> {
+  const nextAttempt = attempt + 1;
+  const exhausted = nextAttempt >= maxAttempts;
+  const nextStatus = exhausted
+    ? SubmissionStatus.failed
+    : SubmissionStatus.queued;
+  const summary = exhausted
+    ? `Verification failed after ${maxAttempts} attempts: ${errorMessage}`
+    : `Attempt ${nextAttempt}/${maxAttempts} failed, will retry: ${errorMessage}`;
+  await prisma.$transaction(async (tx) => {
+    await tx.verificationJob.update({
+      where: { id: jobId },
+      data: {
+        status: nextStatus,
+        attempt: nextAttempt,
+        claimedAt: null,
+        finishedAt: exhausted ? new Date() : null,
+      },
+    });
+    await tx.verificationRun.update({
+      where: {
+        submissionAttemptId_attempt: {
+          submissionAttemptId,
+          attempt,
+        },
+      },
+      data: {
+        status: exhausted ? SubmissionStatus.failed : SubmissionStatus.queued,
+        log: errorMessage,
+        finishedAt: exhausted ? new Date() : null,
+      },
+    });
+    if (!exhausted) {
+      await tx.verificationRun.create({
+        data: {
+          submissionAttemptId,
+          attempt: nextAttempt,
+          status: SubmissionStatus.queued,
+          log: 'Queued for retry',
+        },
+      });
+    }
+    await tx.submissionAttempt.update({
+      where: { id: submissionAttemptId },
+      data: {
+        status: exhausted ? SubmissionStatus.failed : SubmissionStatus.queued,
+        summary,
+      },
+    });
+  });
+}
+
+/**
+ * Core job execution logic shared by the DB-polling path (`tick`) and the
+ * BullMQ path (`processBullJob`).  Runs verification, optional AI grading,
+ * persists results, and triggers the student auto-upgrade check.
+ *
+ * @param rethrow - When true, re-throws after recording a failure so the
+ *   caller (BullMQ) can mark the job as failed and trigger its own retry.
+ */
+async function executeJob(
+  jobId: string,
+  submissionAttemptId: string,
+  attempt: number,
+  maxAttempts: number,
+  prisma: PrismaClient,
+  rethrow = false,
+): Promise<void> {
+  const transaction = process.env.SENTRY_DSN
+    ? Sentry.startInactiveSpan({ name: 'verification-job', op: 'worker.job' })
+    : null;
+
+  try {
+    const { exitCode, log: verificationLog } = await runVerification(
+      submissionAttemptId,
+      prisma,
+    );
+    let aiResult: AiRunResult | null = null;
+    if (exitCode === 0) {
+      try {
+        aiResult = await runAiGrading(submissionAttemptId, prisma);
+      } catch (err) {
+        log('warn', 'AI grading error (non-fatal)', {
+          jobId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    await finalizeJob(
+      jobId,
+      submissionAttemptId,
+      attempt,
+      exitCode,
+      verificationLog,
+      aiResult,
+      prisma,
+    );
+    if (exitCode === 0) {
+      try {
+        await checkAndAutoUpgradeStudentLevel(submissionAttemptId, prisma);
+      } catch (err) {
+        log('warn', 'Auto-upgrade check error (non-fatal)', {
+          jobId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    log('info', 'Job completed', { jobId, exitCode, aiRan: aiResult !== null });
+    transaction?.setStatus({ code: 1, message: 'ok' });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log('error', 'Job failed', { jobId, error: message });
+    if (process.env.SENTRY_DSN)
+      Sentry.captureException(err, { tags: { jobId } });
+    transaction?.setStatus({ code: 2, message: 'internal_error' });
+    await failJob(
+      jobId,
+      submissionAttemptId,
+      attempt,
+      maxAttempts,
+      message,
+      prisma,
+    );
+    if (rethrow) throw err;
+  } finally {
+    transaction?.end();
+  }
+}
+
+async function tick(prisma: PrismaClient): Promise<void> {
+  const job = await claimJob(prisma);
+  if (!job) {
+    return;
+  }
+  log('info', 'Claimed job', {
+    jobId: job.id,
+    submissionAttemptId: job.submissionAttemptId,
+  });
+  await executeJob(
+    job.id,
+    job.submissionAttemptId,
+    job.attempt,
+    job.maxAttempts,
+    prisma,
+    false,
+  );
+}
+
+async function processBullJob(
+  job: Job<VerificationJobPayload>,
+  prisma: PrismaClient,
+): Promise<void> {
+  const { jobId, submissionAttemptId, attempt, maxAttempts } = job.data;
+  log('info', 'BullMQ job received', { jobId, submissionAttemptId });
+  // rethrow=true so BullMQ can mark the job as failed and trigger its own retries.
+  await executeJob(
+    jobId,
+    submissionAttemptId,
+    attempt,
+    maxAttempts,
+    prisma,
+    true,
+  );
+}
+
+async function main(): Promise<void> {
+  const prisma = new PrismaClient();
+  const healthServer = createServer((request, response) => {
+    if (request.url === '/healthz') {
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ ok: true }));
+      return;
+    }
+    response.writeHead(404, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ error: 'Not found' }));
+  });
+
+  process.on('SIGTERM', () => {
+    log('info', 'Received SIGTERM, draining and shutting down');
+    shuttingDown = true;
+  });
+  process.on('SIGINT', () => {
+    log('info', 'Received SIGINT, draining and shutting down');
+    shuttingDown = true;
+  });
+
+  await new Promise<void>((resolve) => {
+    healthServer.listen(HEALTH_PORT, '0.0.0.0', resolve);
+  });
+
+  const redisUrl = process.env.REDIS_URL;
+
+  if (redisUrl) {
+    // ── BullMQ mode: instant dispatch via Redis ───────────────────────────────
+    log('info', 'Starting in BullMQ mode', {
+      queue: VERIFICATION_QUEUE_NAME,
+      concurrency: Number(process.env.WORKER_CONCURRENCY ?? 1),
+    });
+
+    const bullWorker = new BullWorker<VerificationJobPayload>(
+      VERIFICATION_QUEUE_NAME,
+      (job) => processBullJob(job, prisma),
+      {
+        connection: parseRedisUrl(redisUrl),
+        concurrency: Number(process.env.WORKER_CONCURRENCY ?? 1),
+      },
+    );
+
+    bullWorker.on('error', (err) => {
+      log('error', 'BullMQ worker error', { error: err.message });
+      if (process.env.SENTRY_DSN) Sentry.captureException(err);
+    });
+
+    // ── Competitions BullMQ worker ─────────────────────────────────────────
+    const compWorker = new BullWorker<CompetitionsJobPayload>(
+      COMPETITIONS_QUEUE_NAME,
+      async (job) => {
+        const payload = job.data;
+        log('info', `Competitions job: ${payload.type}`, {
+          jobName: payload.type,
+        });
+        switch (payload.type) {
+          case 'contest-sync':
+            await runContestSync(prisma);
+            break;
+          case 'problem-sync':
+            await runProblemSync(prisma);
+            break;
+          case 'account-verify':
+            await runAccountVerify(
+              prisma,
+              payload.userId,
+              payload.platform,
+              payload.handle,
+            );
+            break;
+          case 'account-stats-sync':
+            await runAccountStatsSync(prisma);
+            break;
+          case 'ranking-calc':
+            await runRankingCalc(prisma);
+            break;
+          case 'contest-reminder':
+            await runContestReminder(prisma);
+            break;
+          case 'daily-problem-sweep':
+            await runDailyProblemSweep(prisma);
+            break;
+          case 'daily-problem-reminder':
+            await runDailyProblemReminder(prisma);
+            break;
+          case 'daily-problem-weekly-digest':
+            await runDailyProblemWeeklyDigest(prisma);
+            break;
+          case 'analytics-snapshot':
+            await runAnalyticsSnapshot(prisma);
+            break;
+        }
+      },
+      {
+        connection: parseRedisUrl(redisUrl),
+        concurrency: 1,
+      },
+    );
+
+    compWorker.on('error', (err) => {
+      log('error', 'Competitions worker error', { error: err.message });
+      if (process.env.SENTRY_DSN) Sentry.captureException(err);
+    });
+
+    // Register repeatable jobs
+    const compQueue = (await import('bullmq')).Queue;
+    const compQ = new compQueue<CompetitionsJobPayload>(
+      COMPETITIONS_QUEUE_NAME,
+      {
+        connection: parseRedisUrl(redisUrl),
+      },
+    );
+    await compQ.add(
+      'contest-sync',
+      { type: 'contest-sync' },
+      {
+        repeat: { every: 15 * 60 * 1000 },
+        jobId: 'contest-sync-repeat',
+      },
+    );
+    await compQ.add(
+      'problem-sync',
+      { type: 'problem-sync' },
+      {
+        repeat: { every: 6 * 60 * 60 * 1000 },
+        jobId: 'problem-sync-repeat',
+      },
+    );
+    await compQ.add(
+      'account-stats-sync',
+      { type: 'account-stats-sync' },
+      {
+        repeat: { every: 2 * 60 * 60 * 1000 },
+        jobId: 'account-stats-sync-repeat',
+      },
+    );
+    await compQ.add(
+      'ranking-calc',
+      { type: 'ranking-calc' },
+      {
+        repeat: { every: 30 * 60 * 1000 },
+        jobId: 'ranking-calc-repeat',
+      },
+    );
+    await compQ.add(
+      'contest-reminder',
+      { type: 'contest-reminder' },
+      {
+        repeat: { every: 60 * 1000 },
+        jobId: 'contest-reminder-repeat',
+      },
+    );
+    await compQ.add(
+      'daily-problem-sweep',
+      { type: 'daily-problem-sweep' },
+      {
+        repeat: { every: 60 * 60 * 1000 },
+        jobId: 'daily-problem-sweep-repeat',
+      },
+    );
+    await compQ.add(
+      'daily-problem-reminder',
+      { type: 'daily-problem-reminder' },
+      {
+        repeat: { every: 15 * 60 * 1000 },
+        jobId: 'daily-problem-reminder-repeat',
+      },
+    );
+    await compQ.add(
+      'daily-problem-weekly-digest',
+      { type: 'daily-problem-weekly-digest' },
+      {
+        repeat: { every: 6 * 60 * 60 * 1000 },
+        jobId: 'daily-problem-weekly-digest-repeat',
+      },
+    );
+    await compQ.add(
+      'analytics-snapshot',
+      { type: 'analytics-snapshot' },
+      {
+        repeat: { every: 24 * 60 * 60 * 1000 },
+        jobId: 'analytics-snapshot-repeat',
+      },
+    );
+    log('info', 'Competitions repeatable jobs registered');
+
+    // Wait until shutdown signal
+    await new Promise<void>((resolve) => {
+      const check = () => (shuttingDown ? resolve() : setTimeout(check, 500));
+      check();
+    });
+
+    await compWorker.close();
+    await compQ.close();
+    await bullWorker.close();
+  } else {
+    // ── DB polling mode: backward-compatible fallback ─────────────────────────
+    log('info', 'Starting in DB polling mode', {
+      pollIntervalMs: POLL_INTERVAL_MS,
+    });
+
+    while (!shuttingDown) {
+      try {
+        await tick(prisma);
+      } catch (err) {
+        log('error', 'Unexpected error in worker tick', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      if (!shuttingDown) {
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, POLL_INTERVAL_MS),
+        );
+      }
+    }
+  }
+
+  await prisma.$disconnect();
+  await new Promise<void>((resolve, reject) => {
+    healthServer.close((error) => (error ? reject(error) : resolve()));
+  });
+  log('info', 'Worker shut down cleanly');
+}
+
+main().catch((err) => {
+  console.error('Worker crashed:', err);
+  process.exit(1);
+});

@@ -1,0 +1,15 @@
+meta {
+  name: Video Analytics
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{trackingBaseUrl}}/v1/tracking/courses/{{courseId}}/videos/analytics
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{trackingToken}}
+}

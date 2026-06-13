@@ -1,16 +1,16 @@
 services:
-  api:
+  nestjs-api:
     build:
       context: .
       target: dev
-    container_name: nibras-api
+    container_name: nibras-nestjs-api
     env_file:
       - path: .env
         required: false
     environment:
-      # Override host-friendly values from .env with container DNS names.
       MONGO_URI: mongodb://mongodb:27017/nibras
       REDIS_HOST: redis
+      PORT: 3000
     ports:
       - '3000:3000'
     volumes:
@@ -21,6 +21,83 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  fastify-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.monorepo
+      target: api
+    container_name: nibras-fastify-api
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://nibras:nibras@postgres:5432/nibras?schema=public
+      PORT: 4848
+      HOST: 0.0.0.0
+      REDIS_URL: redis://redis:6379
+    ports:
+      - '4848:4848'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.monorepo
+      target: worker
+    container_name: nibras-worker
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://nibras:nibras@postgres:5432/nibras?schema=public
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      fastify-api:
+        condition: service_started
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.monorepo
+      target: gateway
+    container_name: nibras-gateway
+    environment:
+      NIBRAS_PROXY_HOST: 0.0.0.0
+      NIBRAS_PROXY_PORT: 8080
+      NIBRAS_NESTJS_ORIGIN: http://nestjs-api:3000
+      NIBRAS_FASTIFY_ORIGIN: http://fastify-api:4848
+      NIBRAS_STATIC_ROOT: Frontend/client
+    ports:
+      - '8080:8080'
+    depends_on:
+      - nestjs-api
+      - fastify-api
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: nibras-postgres
+    environment:
+      POSTGRES_DB: nibras
+      POSTGRES_USER: nibras
+      POSTGRES_PASSWORD: nibras
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nibras -d nibras']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   mongodb:
     image: mongo:7
@@ -53,6 +130,22 @@ services:
       timeout: 3s
       retries: 5
 
+  tutor:
+    build: ./apps/tutor
+    container_name: nibras-tutor
+    profiles:
+      - tutor
+    ports:
+      - '5000:5000'
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TUTOR_PORT: '5000'
+      NIBRAS_API_URL: http://fastify-api:4848/v1/community
+      NIBRAS_API_ORIGIN: http://fastify-api:4848
+
 volumes:
   mongo-data:
   redis-data:
+  postgres-data:

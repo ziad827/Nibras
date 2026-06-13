@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://nibras-backend.up.railway.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://unpkg.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://nibras-backend.up.railway.app; frame-src 'none'; object-src 'none';">
+    <title>Nibras - AI Tutor</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./ai_tutor.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="/Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="../../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Courses</a></li>
+            
+            <li class="nav-item"><a href="../../Projects/projects.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Projects</a></li>
+            <li class="nav-item"><a href="../../CLI/cli.html" class="nav-link"><i class="fa-solid fa-terminal"></i> CLI</a></li><li class="nav-item"><a href="../../Competitions/Contests/contest.html" class="nav-link"><i class="fa-solid fa-trophy"></i> Competitions</a></li>
+            <li class="nav-item"><a href="../../Community/community.html" class="nav-link"><i class="fa-solid fa-users"></i> Community</a></li>
+            <li class="nav-item"><a href="../../Achievements/Achievements/achievements.html" class="nav-link"><i class="fa-solid fa-medal"></i> Achievements</a></li>
+            <!-- Active State -->
+            <li class="nav-item"><a href="./ai_tutor.html" class="nav-link active"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
+            <li class="nav-item"><a href="../../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
+            <li class="nav-item"><a href="../../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
+            <li class="nav-item"><a href="../../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+            <li class="nav-item"><a href="../../StudyRooms/rooms.html" class="nav-link"><i class="fa-solid fa-video"></i> Study Rooms</a></li>
+        </ul>
+
+        <div class="user-profile">
+            <div class="avatar-circle">ZA</div>
+            <div class="user-info">
+                <h4>Ziad Alaa</h4>
+                <span>student</span>
+            </div>
+        </div>
+        
+        <div class="reputation-box">
+            <span>Reputation</span>
+            <div class="rep-badge">0</div>
+        </div>
+
+        <a href="../../Login/loginPage/login.html" class="logout-btn">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+        </a>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        
+        <!-- HEADER -->
+        <header class="top-header">
+            <div class="search-bar-global">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Search courses, problems" aria-label="Search courses and problems">
+            </div>
+            
+            <div class="header-actions">
+                <button class="icon-btn" id="themeBtn" type="button" aria-label="Toggle theme"><i class="fa-regular fa-moon"></i></button>
+                <button class="icon-btn" type="button" aria-label="View notifications"><i class="fa-regular fa-bell"></i></button>
+                <div class="profile-circle-small">ZA</div>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            
+            <!-- Page Title -->
+            <div class="page-title-section">
+                <h1><i class="fa-solid fa-robot" style="color:var(--accent-blue); margin-right:10px;"></i> AI Learning Assistant</h1>
+                <p>Get personalized help and intelligent tutoring</p>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <div class="ai-tabs-container">
+                <a href="./ai_tutor.html" class="ai-tab active">AI Tutor</a>
+                <a href="../Recommendations/recommendation.html" class="ai-tab">Recommendations</a>
+                <a href="../Learning%20Insights/learning_insights.html" class="ai-tab">Learning Insights</a>
+                <a href="../Smart%20Routing/smart_routing.html" class="ai-tab">Smart Routing</a>
+            </div>
+
+            <div class="ai-grid-layout">
+                
+                <!-- LEFT COLUMN -->
+                <div class="ai-left-col">
+                    
+<!-- Input Section -->
+                    <section class="card input-card">
+                        <div class="card-header-simple">
+                            <h3><i class="fa-regular fa-message"></i> Ask the AI Tutor</h3>
+                        </div>
+                        <p class="input-desc">Get instant help with programming concepts, algorithms, and problem-solving</p>
+                        
+                        <label class="input-label" for="ai-question-input">Your Question</label>
+                        <textarea class="ai-textarea" id="ai-question-input" placeholder="Ask questions about algorithms, data structures, programming concepts..." dir="auto"></textarea>
+                        
+                        <!-- Initial State -->
+                        <div class="input-actions" id="initial-actions">
+                            <button class="btn-ask" id="ask-ai-btn" type="button"><i class="fa-solid fa-paper-plane"></i> Ask AI Tutor</button>
+                        </div>
+
+                        <!-- Dynamic AI Interaction Area -->
+                        <div id="ai-interaction-area" aria-live="polite" style="display: none; margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(156, 163, 175, 0.3);">
+                            
+                            <h4 id="interaction-title" style="margin-bottom: 15px; font-weight: 600;">Question Submitted! How would you like to proceed?</h4>
+                            
+                            <!-- The Two Choices -->
+                            <div id="choice-actions" class="input-actions" style="margin-bottom: 20px;">
+                                <button class="btn-ask" id="view-answer-btn" type="button"><i class="fa-solid fa-eye"></i> View AI Answer</button>
+                                <button class="btn-hint" id="get-hint-btn" type="button"><i class="fa-regular fa-lightbulb"></i> Get Hint</button>
+                            </div>
+
+                            <!-- Where hints drop in progressively -->
+                            <div id="hints-container" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+                            </div>
+
+                            <!-- Community Match Banner -->
+                            <div id="community-match-banner" class="community-match-banner" dir="auto" style="display: none; margin-bottom: 20px;">
+                                <div class="match-banner-icon">
+                                    <i class="fa-solid fa-comments"></i>
+                                </div>
+                                <div class="match-banner-body">
+                                    <div class="match-banner-header">
+                                        <i class="fa-solid fa-link" style="margin-right: 6px;"></i>
+                                        Similar Question Found
+                                    </div>
+                                    <a id="match-question-title" class="match-question-title" href="#" target="_blank"></a>
+                                    <div class="match-question-meta" id="match-question-meta"></div>
+                                </div>
+                                <a id="match-view-btn" href="#" class="btn-match-view" target="_blank">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    View in Community
+                                </a>
+                            </div>
+
+                            <!-- Where full answer is displayed -->
+                            <div id="full-answer-container" dir="auto" style="display: none; background-color: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.2); padding: 20px; border-radius: 8px; line-height: 1.6;">
+                            </div>
+                            
+                            <!-- Community Match Banner (inside full answer) -->
+                            <div id="community-match-banner-full" class="community-match-banner community-match-banner-inline" dir="auto" style="display: none; margin-top: 16px;">
+                                <div class="match-banner-icon">
+                                    <i class="fa-solid fa-comments"></i>
+                                </div>
+                                <div class="match-banner-body">
+                                    <div class="match-banner-header">
+                                        <i class="fa-solid fa-link" style="margin-right: 6px;"></i>
+                                        Similar Question Found
+                                    </div>
+                                    <a id="match-question-title-full" class="match-question-title" href="#" target="_blank"></a>
+                                    <div class="match-question-meta" id="match-question-meta-full"></div>
+                                </div>
+                                <a id="match-view-btn-full" href="#" class="btn-match-view" target="_blank">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    View in Community
+                                </a>
+                            </div>
+
+                            <!-- Post Answer Actions -->
+                            <div id="post-answer-actions" style="display: none; margin-top: 15px; gap: 10px; flex-wrap: wrap;">
+                                <button class="btn-ask" id="reset-chat-btn" type="button"><i class="fa-solid fa-rotate-right"></i> Ask Another Question</button>
+                                <button class="btn-ask" id="push-community-btn" type="button" style="background-color: var(--stat-bar-purple); border-color: var(--stat-bar-purple);"><i class="fa-solid fa-users"></i> Push to Community</button>
+                                <button class="btn-ask" id="xai-btn" type="button" style="background: linear-gradient(90deg, #a855f7, #6366f1); border-color: #a855f7;"><i class="fa-solid fa-magnifying-glass"></i> xai</button>
+                            </div>
+
+                        </div>
+                    </section>
+                    <!-- Quick Topics -->
+                    <section class="card">
+                        <div class="card-header-simple">
+                            <h3>Quick Topics</h3>
+                        </div>
+                        <div class="quick-topics-grid" id="quick-topics-container">
+                            <div class="skeleton-container" aria-hidden="true">
+                                <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                                <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                                <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Recent Conversations -->
+                    <section class="card">
+                        <div class="card-header-simple">
+                            <h3>Recent AI Conversations</h3>
+                        </div>
+                        <div class="recent-ai-list" id="recent-ai-container">
+                            <div class="skeleton-container" aria-hidden="true">
+                                <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                                <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                                <div class="skeleton-row"><div class="skeleton-line skeleton"></div><div class="skeleton-line-sm skeleton"></div></div>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+
+                <!-- RIGHT COLUMN -->
+                <div class="ai-right-col">
+                    
+                    <!-- Stats -->
+                    <section class="card stats-card">
+                        <div class="card-header-simple">
+                            <h3>AI Tutor Stats</h3>
+                        </div>
+                        <div class="stats-list" id="stats-container">
+                            <div class="skeleton-container" aria-hidden="true">
+                                <div class="skeleton-card skeleton"></div>
+                                <div class="skeleton-card skeleton" style="margin-top: 0.75rem;"></div>
+                                <div class="skeleton-card skeleton" style="margin-top: 0.75rem;"></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Tips -->
+                    <section class="card">
+                        <div class="card-header-simple">
+                            <h3>Tips for Better Answers</h3>
+                        </div>
+                        <ul class="tips-list">
+                            <li>Be specific about your problem</li>
+                            <li>Include context about what you've tried</li>
+                            <li>Ask follow-up questions for clarity</li>
+                            <li>Use examples to illustrate your question</li>
+                        </ul>
+                    </section>
+
+                    <!-- Popular Topics -->
+                    <section class="card">
+                        <div class="card-header-simple">
+                            <h3>Popular Topics</h3>
+                        </div>
+                        <div class="pop-topics-list" id="pop-topics-container">
+                            <div class="skeleton-container" aria-hidden="true">
+                                <div class="skeleton-row"><div class="skeleton-line skeleton"></div></div>
+                                <div class="skeleton-row"><div class="skeleton-line skeleton"></div></div>
+                                <div class="skeleton-row"><div class="skeleton-line skeleton"></div></div>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+    <!-- PUSH TO COMMUNITY MODAL -->
+    <div id="community-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="community-modal-title" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="community-modal-title"><i class="fa-solid fa-users" style="color: var(--stat-bar-purple); margin-right: 8px;"></i> Push to Community</h3>
+                <button id="close-modal-btn" type="button" aria-label="Close push to community modal" class="icon-btn" style="background: none; border: none; cursor: pointer; font-size: 1.2rem; color: inherit;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="modal-body">
+                <label class="input-label" for="modal-title-input" style="display: block; margin-bottom: 5px; font-weight: 600;">Question Title</label>
+                <input type="text" id="modal-title-input" class="ai-textarea" style="min-height: 45px; margin-bottom: 15px; width: 100%; box-sizing: border-box;" placeholder="e.g., How to optimize Binary Search?">
+                
+                <label class="input-label" style="display: block; margin-bottom: 5px; font-weight: 600;">Your Question</label>
+                <div id="modal-question-display" class="modal-text-box" dir="auto"></div>
+                
+                <label class="input-label" style="display: block; margin-bottom: 5px; font-weight: 600;">AI Answer</label>
+                <div id="modal-answer-display" class="modal-text-box" dir="auto"></div>
+
+                <!-- ADDED: Tags Display -->
+                <label class="input-label" style="display: block; margin-top: 15px; margin-bottom: 5px; font-weight: 600;">Generated Tags</label>
+                <div id="modal-tags-display" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+            </div>
+            
+            <div class="modal-footer">
+                <button id="cancel-modal-btn" type="button" class="btn-hint" style="background: transparent; border: 1px solid #9ca3af; color: inherit;">Cancel</button>
+                <button id="confirm-push-btn" type="button" class="btn-ask" style="background-color: var(--stat-bar-purple); border-color: var(--stat-bar-purple);">Publish Post</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EX AI EXPLANATION MODAL -->
+    <div id="explain-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="explain-modal-title" aria-hidden="true">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 id="explain-modal-title"><i class="fa-solid fa-magnifying-glass" style="color: #a855f7; margin-right: 8px;"></i> AI Explanation</h3>
+                <button id="close-explain-btn" type="button" class="icon-btn" style="background: none; border: none; cursor: pointer; font-size: 1.2rem; color: inherit;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="explain-loading" style="text-align: center; padding: 2rem; display: none;">
+                    <div class="nibras-spinner" style="width: 32px; height: 32px; border: 3px solid #e5e7eb; border-top-color: #a855f7; border-radius: 50%; animation: nibras-spin 0.8s linear infinite; margin: 0 auto 1rem;"></div>
+                    <p style="color: var(--text-secondary);">Generating explanation...</p>
+                </div>
+                <div id="explain-content" class="modal-text-box markdown-body" style="display: none;" dir="auto"></div>
+                <div id="explain-error" style="display: none; color: #ef4444; text-align: center; padding: 1rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="close-explain-modal-btn" type="button" class="btn-hint" style="background: transparent; border: 1px solid #9ca3af; color: inherit;">Close</button>
+            </div>
+        </div>
+    </div>
+
+        <script src="../../config.js"></script>
+        <script src="../../react-page-utils.js"></script>
+    <script>
+        if (window.NibrasShared?.session?.updateUserInfoDisplay) {
+            window.NibrasShared.session.updateUserInfoDisplay();
+        }
+    </script>
+        <script src="../../react-bootstrap.js"></script>
+    <script src="./ai_tutor.js"></script>
+    <script src="../../services/gamification-ui.js"></script>
+    <script>
+    (function() {
+        try {
+            var _u = JSON.parse(localStorage.getItem('user') || '{}');
+            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
+            if (_r === 'instructor') {
+                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor', 'Study Rooms'];
+                document.querySelectorAll('.nav-link').forEach(function(link) {
+                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
+                        var item = link.closest('.nav-item');
+                        if (item) item.style.display = 'none';
+                    }
+                });
+            }
+        } catch (_) {}
+    })();
+    </script>
+</body>
+</html>

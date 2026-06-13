@@ -1,0 +1,53 @@
+# syntax=docker/dockerfile:1
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/cli/package.json ./apps/cli/
+COPY apps/worker/package.json ./apps/worker/
+COPY apps/proxy/package.json ./apps/proxy/
+COPY packages/contracts/package.json ./packages/contracts/
+COPY packages/core/package.json ./packages/core/
+COPY packages/github/package.json ./packages/github/
+COPY packages/grading/package.json ./packages/grading/
+COPY packages/daily-problem/package.json ./packages/daily-problem/
+RUN npm ci --ignore-scripts
+
+FROM deps AS build
+COPY . .
+RUN npm run build:platform
+
+FROM node:20-alpine AS api
+WORKDIR /app
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=4848
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/package.json ./apps/api/package.json
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/courses ./courses
+EXPOSE 4848
+CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && node apps/api/dist/server.js"]
+
+FROM node:20-alpine AS worker
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/apps/worker/dist ./apps/worker/dist
+COPY --from=build /app/apps/worker/package.json ./apps/worker/package.json
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/prisma ./prisma
+CMD ["sh", "-c", "npx prisma generate && node apps/worker/dist/worker.js"]
+
+FROM node:20-alpine AS gateway
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NIBRAS_STATIC_ROOT=Frontend/client
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/apps/proxy/dist ./apps/proxy/dist
+COPY --from=build /app/apps/proxy/package.json ./apps/proxy/package.json
+COPY Frontend/client ./Frontend/client
+EXPOSE 8080
+CMD ["node", "apps/proxy/dist/server.js"]

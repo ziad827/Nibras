@@ -1,0 +1,31 @@
+export const COMPETITIONS_QUEUE_NAME = 'nibras-competitions';
+
+export type ContestSyncPayload = { type: 'contest-sync' };
+export type ProblemSyncPayload = { type: 'problem-sync' };
+export type AccountVerifyPayload = {
+  type: 'account-verify';
+  userId: string;
+  platform: string;
+  handle: string;
+};
+export type AccountStatsSyncPayload = { type: 'account-stats-sync' };
+export type RankingCalcPayload = { type: 'ranking-calc' };
+export type ContestReminderPayload = { type: 'contest-reminder' };
+export type DailyProblemSweepPayload = { type: 'daily-problem-sweep' };
+export type DailyProblemReminderPayload = { type: 'daily-problem-reminder' };
+export type DailyProblemWeeklyDigestPayload = {
+  type: 'daily-problem-weekly-digest';
+};
+export type AnalyticsSnapshotPayload = { type: 'analytics-snapshot' };
+
+export type CompetitionsJobPayload =
+  | ContestSyncPayload
+  | ProblemSyncPayload
+  | AccountVerifyPayload
+  | AccountStatsSyncPayload
+  | RankingCalcPayload
+  | ContestReminderPayload
+  | DailyProblemSweepPayload
+  | DailyProblemReminderPayload
+  | DailyProblemWeeklyDigestPayload
+  | AnalyticsSnapshotPayload;

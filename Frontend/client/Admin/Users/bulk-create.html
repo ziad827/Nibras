@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Bulk Create Users</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+        else document.documentElement.setAttribute('data-theme', 'light');
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../Dashboard/dashboard.css">
+    <link rel="stylesheet" href="../Sections/section-detail.css">
+    <link rel="stylesheet" href="../Courses/course-form.css">
+    <link rel="stylesheet" href="./bulk-create.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img src="../../Assets/images/logo-light.png" alt="Nibras Logo" class="sidebar-logo" id="app-logo">
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item" style="margin-top:1rem;padding:0 1rem;font-size:0.72rem;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em;pointer-events:none;">Admin Panel</li>
+            <li class="nav-item"><a href="../Dashboard/dashboard.html" class="nav-link"><i class="fa-solid fa-gauge-high"></i> Admin Dashboard</a></li>
+            <li class="nav-item"><a href="../Courses/courses.html" class="nav-link"><i class="fa-solid fa-book-open"></i> Course Management</a></li>
+            <li class="nav-item"><a href="./users.html" class="nav-link active"><i class="fa-solid fa-users-gear"></i> User Management</a></li>
+            <li class="nav-item"><a href="../Roles/roles.html" class="nav-link"><i class="fa-solid fa-shield-halved"></i> Roles & Permissions</a></li>
+            <li class="nav-item"><a href="../Backups/backups.html" class="nav-link"><i class="fa-solid fa-database"></i> Backups</a></li>
+            <li class="nav-item"><a href="../AuditLogs/audit-logs.html" class="nav-link"><i class="fa-solid fa-clipboard-list"></i> Audit Logs</a></li>
+            <li class="nav-item"><a href="../Config/config.html" class="nav-link"><i class="fa-solid fa-sliders"></i> System Config</a></li>
+            <li class="nav-item"><a href="../moderation.html" class="nav-link"><i class="fa-solid fa-flag"></i> Moderation</a></li>
+            <li class="nav-item"><a href="../badges.html" class="nav-link"><i class="fa-solid fa-medal"></i> Badges</a></li>
+        </ul>
+        <div class="user-profile">
+            <div class="avatar-circle" id="sidebar-avatar">AD</div>
+            <div class="user-info"><h4 id="sidebar-name">Admin</h4><span id="sidebar-role">admin</span></div>
+        </div>
+        <div class="reputation-box"><span>Reputation</span><div class="rep-badge" id="sidebar-rep">0</div></div>
+        <a href="../../Login/loginPage/login.html" class="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="search-bar-global"><i class="fa-solid fa-magnifying-glass"></i><input type="text" placeholder="Search..." disabled></div>
+            <div class="header-actions">
+                <button class="icon-btn" id="themeBtn"><i class="fa-regular fa-moon"></i></button>
+                <button class="icon-btn"><i class="fa-regular fa-bell"></i></button>
+                <div class="profile-circle-small" id="header-avatar">AD</div>
+            </div>
+        </header>
+
+        <div class="content-wrapper" style="max-width:900px;">
+            <a href="./users.html" class="back-link" style="display:inline-flex;align-items:center;gap:6px;font-size:0.85rem;color:var(--text-secondary);text-decoration:none;margin-bottom:1rem;"><i class="fa-solid fa-arrow-left"></i> Back to User List</a>
+
+            <div class="page-header" style="margin-bottom:1.5rem;">
+                <div>
+                    <h1 style="margin:0 0 0.25rem;font-size:1.5rem;">Bulk Create Users</h1>
+                    <p style="margin:0;color:var(--text-secondary);font-size:0.9rem;">Import multiple users via CSV upload or paste data</p>
+                </div>
+            </div>
+
+            <div class="import-page-card">
+                <h2>Input Data</h2>
+                <div class="tab-bar">
+                    <button class="tab-btn active" data-tab="csv">CSV Upload</button>
+                    <button class="tab-btn" data-tab="paste">Paste Data</button>
+                </div>
+
+                <div class="batch-modal-body" style="margin-top:1rem;">
+                    <div class="tab-content active" id="tab-csv">
+                        <div class="csv-upload-area" id="csv-upload-area" style="border:2px dashed var(--border-color);border-radius:10px;padding:2rem;text-align:center;cursor:pointer;">
+                            <i class="fa-solid fa-cloud-arrow-up" style="font-size:2rem;color:var(--accent-blue);display:block;margin-bottom:0.75rem;"></i>
+                            <p style="margin:0;color:var(--text-secondary);font-size:0.88rem;">Click to upload a CSV file</p>
+                            <p style="margin:4px 0 0;font-size:0.8rem;color:var(--text-tertiary);">Expected columns: <strong>name, email, password, role, institution</strong></p>
+                            <input type="file" id="csv-file-input" accept=".csv" style="display:none;">
+                        </div>
+                    </div>
+                    <div class="tab-content" id="tab-paste">
+                        <textarea class="batch-textarea" id="paste-textarea" placeholder="Paste data with headers in the first row:&#10;name, email, role, institution&#10;John Doe, john@example.com, student, MIT&#10;Jane Smith, jane@example.com, instructor, Harvard" style="width:100%;min-height:180px;padding:12px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-input);color:inherit;font-family:'Consolas','Monaco',monospace;font-size:0.85rem;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;margin-top:1rem;">
+                    <button class="btn-outline" id="parse-btn"><i class="fa-solid fa-eye"></i> Preview Data</button>
+                </div>
+            </div>
+
+            <div id="preview-section" style="display:none;">
+                <div class="import-page-card">
+                    <h2>Preview</h2>
+                    <div class="import-summary" id="import-summary"></div>
+                    <div id="preview-table-container"><p style="color:var(--text-secondary);">No data to preview</p></div>
+                </div>
+
+                <div class="form-actions" style="margin-top:0;">
+                    <a href="./users.html" class="btn-secondary" style="padding:10px 24px;border-radius:8px;border:1px solid var(--border-color);background:transparent;color:var(--text-secondary);font-weight:500;cursor:pointer;font-size:0.9rem;text-decoration:none;display:inline-flex;align-items:center;gap:8px;"><i class="fa-solid fa-xmark"></i> Cancel</a>
+                    <button class="btn-primary" id="import-btn" disabled style="padding:10px 24px;border-radius:8px;border:none;background:var(--accent-blue);color:#fff;font-weight:500;cursor:pointer;font-size:0.9rem;display:inline-flex;align-items:center;gap:8px;"><i class="fa-solid fa-upload"></i> <span id="import-btn-text">Import Users</span></button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="loading-overlay">
+        <div class="modal-box" style="max-width:300px;text-align:center;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem;color:var(--accent-blue);display:block;margin-bottom:0.75rem;"></i>
+            <p style="margin:0;color:var(--text-secondary);font-size:0.9rem;" id="loading-text">Importing users...</p>
+        </div>
+    </div>
+
+    <script src="../../react-bootstrap.js"></script>
+    <script src="../../react-page-utils.js"></script>
+    <script src="../../services/api.js"></script>
+    <script src="./bulk-create.js"></script>
+    <script src="../../services/gamification-ui.js"></script>
+</body>
+</html>

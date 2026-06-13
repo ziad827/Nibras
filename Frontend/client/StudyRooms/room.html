@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nibras - Study Room</title>
+    <script src="../services/auth-guard.js" data-login="../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./rooms.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <main class="main-content" style="margin-left:0;">
+        <div class="room-page-wrapper">
+            <div class="room-header">
+                <div>
+                    <h1 id="room-name-display">Study Room</h1>
+                    <span id="room-meta-display" class="room-meta"></span>
+                </div>
+                <a href="./rooms.html" class="btn btn-outline btn-sm"><i class="fa-solid fa-arrow-left"></i> All Rooms</a>
+            </div>
+
+            <div class="room-layout">
+                <div class="video-area">
+                    <div class="video-grid" id="video-grid">
+                        <div class="skeleton-container" id="loading-video">
+                            <div class="empty-state">
+                                <div class="empty-state-icon"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                                <h3>Connecting to room...</h3>
+                            </div>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0.5rem;margin-top:0.5rem;">
+                                <div class="skeleton skeleton-video-box"></div>
+                                <div class="skeleton skeleton-video-box"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="controls-bar" id="controls-bar">
+                        <button id="btn-mic" class="btn btn-active" title="Toggle Microphone"><i class="fa-solid fa-microphone"></i></button>
+                        <button id="btn-camera" class="btn btn-active" title="Toggle Camera"><i class="fa-solid fa-video"></i></button>
+                        <button id="btn-screen-share" class="btn btn-inactive" title="Share Screen"><i class="fa-solid fa-desktop"></i></button>
+                        <button id="btn-record" class="btn btn-inactive" title="Record"><i class="fa-solid fa-circle"></i></button>
+                        <span id="recording-timer" class="recording-timer" style="display:none;"><i class="fa-solid fa-circle" style="font-size:0.6rem;"></i> <span id="recording-time">00:00</span></span>
+                        <button id="btn-leave" class="btn leave-btn"><i class="fa-solid fa-phone-slash"></i> Leave</button>
+                    </div>
+                </div>
+
+                <div class="participants-sidebar">
+                    <h3><i class="fa-solid fa-users"></i> <span id="participant-count">0</span> Participants</h3>
+                    <div class="participants-list" id="participants-list">
+                        <div class="skeleton-container" id="loading-participants">
+                            <div style="padding:1rem;text-align:center;color:var(--text-tertiary);font-size:0.85rem;">Connecting...</div>
+                            <div class="skeleton-participant-row">
+                                <div class="skeleton skeleton-participant-dot"></div>
+                                <div class="skeleton skeleton-participant-name"></div>
+                            </div>
+                            <div class="skeleton-participant-row">
+                                <div class="skeleton skeleton-participant-dot"></div>
+                                <div class="skeleton skeleton-participant-name" style="width:60%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../react-page-utils.js"></script>
+    <script src="../react-bootstrap.js"></script>
+    <script src="./room.js?v=1"></script>
+</body>
+</html>

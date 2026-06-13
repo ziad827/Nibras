@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grading Dashboard</title>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script>
+    (function () {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./grading.css">
+</head>
+<body>
+    <div id="app-root" hidden></div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>Course Content</h2>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="../../Courses/Course%20Description/courseContent.html" class="nav-link" data-nav-link="courseContent"><i class="fa-solid fa-book-open"></i> Course Overview</a></li>
+            <li class="nav-item"><a href="../AssignmentBuilder/assignment-builder.html" class="nav-link" data-nav-link="assignments"><i class="fa-regular fa-file-lines"></i> Assignments</a></li>
+            <li class="nav-item"><a href="./grading.html" class="nav-link active" data-nav-link="grading"><i class="fa-solid fa-check-double"></i> Grading</a></li>
+            <li class="nav-item"><a href="../InstructorGrades/instructor-grades.html" class="nav-link" data-nav-link="grades"><i class="fa-solid fa-award"></i> Grades</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            <a href="../../Courses/courses.html" class="back-btn">
+                <i class="fa-solid fa-arrow-left-long" style="margin-right:8px"></i> Return to Courses
+            </a>
+            <div class="course-meta">
+                <h4 id="sidebar-course-code">Loading course...</h4>
+                <span id="sidebar-term">Loading...</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <div class="top-bar">
+            <div class="breadcrumbs"><span class="crumb-current">Grading Dashboard</span></div>
+            <button class="theme-toggle-btn" id="themeBtn"><i class="fa-solid fa-sun"></i> <span>Light Mode</span></button>
+        </div>
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="header-row">
+                <h1>Grading Dashboard</h1>
+            </div>
+        </div>
+
+        <!-- Assignment Selector -->
+        <div class="selector-bar">
+            <label for="assignment-select">Assignment:</label>
+            <select id="assignment-select" class="assignment-select">
+                <option value="">— Select an assignment —</option>
+            </select>
+            <span id="course-subtitle" class="course-label">Loading course...</span>
+        </div>
+
+        <!-- Stats -->
+        <div class="grade-stats" id="grade-stats" style="display:none">
+            <div class="stat-card"><span class="stat-label">Total</span><span class="stat-value" id="stat-total">0</span></div>
+            <div class="stat-card"><span class="stat-label">Graded</span><span class="stat-value" id="stat-graded">0</span></div>
+            <div class="stat-card"><span class="stat-label">Pending</span><span class="stat-value" id="stat-pending">0</span></div>
+            <div class="stat-card"><span class="stat-label">Avg Score</span><span class="stat-value" id="stat-avg">--</span></div>
+        </div>
+
+        <!-- Submissions Table -->
+        <div class="table-wrapper" id="table-wrapper" style="display:none">
+            <table class="submissions-table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Status</th>
+                        <th>Score</th>
+                        <th>Submitted</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="submissions-body">
+                    <tr class="skeleton-row"><td colspan="5"><div class="skeleton" style="height:20px"></div></td></tr>
+                    <tr class="skeleton-row"><td colspan="5"><div class="skeleton" style="height:20px"></div></td></tr>
+                    <tr class="skeleton-row"><td colspan="5"><div class="skeleton" style="height:20px"></div></td></tr>
+                    <tr class="skeleton-row"><td colspan="5"><div class="skeleton" style="height:20px"></div></td></tr>
+                    <tr class="skeleton-row"><td colspan="5"><div class="skeleton" style="height:20px"></div></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="empty-state" class="empty-state" style="display:none">
+            <i class="fa-solid fa-inbox"></i>
+            <p>Select an assignment to view submissions.</p>
+        </div>
+    </main>
+
+    <!-- Submission Detail Modal -->
+    <div id="detail-modal" class="modal-overlay" style="display:none">
+        <div class="modal-content modal-wide">
+            <div class="modal-header">
+                <h2 id="detail-student-name">Submission</h2>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-tabs">
+                    <button class="detail-tab active" data-tab="code"><i class="fa-solid fa-code"></i> Code</button>
+                    <button class="detail-tab" data-tab="tests"><i class="fa-solid fa-vial"></i> Tests</button>
+                    <button class="detail-tab" data-tab="style"><i class="fa-solid fa-wand-magic-sparkles"></i> Style</button>
+                    <button class="detail-tab" data-tab="grade"><i class="fa-solid fa-star"></i> Grade</button>
+                    <button class="detail-tab" data-tab="peer"><i class="fa-solid fa-users"></i> Peer Review</button>
+                </div>
+
+                <!-- Code Panel -->
+                <div class="detail-panel active" id="panel-code">
+                    <div class="panel-header">
+                        <span id="detail-language" class="lang-badge">python</span>
+                    </div>
+                    <pre class="code-viewer" id="code-viewer"><code>Loading code...</code></pre>
+                </div>
+
+                <!-- Tests Panel -->
+                <div class="detail-panel" id="panel-tests">
+                    <div class="test-summary" id="detail-test-summary">
+                        <span id="detail-test-pass">0 passed</span>
+                        <span id="detail-test-fail">0 failed</span>
+                        <span id="detail-test-total">0 total</span>
+                    </div>
+                    <div id="detail-test-cases" class="test-cases"></div>
+                </div>
+
+                <!-- Style Panel -->
+                <div class="detail-panel" id="panel-style">
+                    <div id="style-tool-info">Tool: <span id="detail-style-tool">--</span></div>
+                    <div id="detail-style-issues" class="style-issues"></div>
+                </div>
+
+                <!-- Grade Panel -->
+                <div class="detail-panel" id="panel-grade">
+                    <h3 class="panel-section-title"><i class="fa-solid fa-list-check"></i> Rubric Scoring</h3>
+                    <div id="grade-rubric-scores"></div>
+                    <div class="grade-total" id="grade-total">Total: 0 / 0 (0%)</div>
+
+                    <h3 class="panel-section-title" style="margin-top:1.5rem"><i class="fa-regular fa-comment"></i> Feedback</h3>
+                    <textarea id="grade-feedback-text" class="feedback-textarea" rows="4" placeholder="Write your feedback here..."></textarea>
+
+                    <div class="form-group">
+                        <label>Video Feedback URL (optional)</label>
+                        <input type="url" id="grade-video-url" class="form-input" placeholder="https://drive.google.com/file/...">
+                    </div>
+
+                    <button id="btn-submit-grade" class="primary-btn" style="margin-top:1rem"><i class="fa-solid fa-floppy-disk"></i> Submit Grade</button>
+                    <span id="grade-status" class="form-status"></span>
+                </div>
+
+                <!-- Peer Review Panel -->
+                <div class="detail-panel" id="panel-peer">
+                    <div class="panel-header">
+                        <span>Assigned Peer Reviews</span>
+                        <button id="btn-assign-peer" class="secondary-btn"><i class="fa-solid fa-user-plus"></i> Assign Reviewers</button>
+                    </div>
+                    <div id="peer-review-list" class="peer-list">
+                        <p class="empty-hint">No peer reviews assigned.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../react-bootstrap.js"></script>
+    <script src="../../Courses/courseData.js"></script>
+    <script src="../../services/api.js"></script>
+    <script src="./grading.js"></script>
+</body>
+</html>

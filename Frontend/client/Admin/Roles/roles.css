@@ -1,0 +1,145 @@
+.role-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.role-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+}
+
+.role-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.role-card-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.role-card-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0 0 1rem;
+    line-height: 1.4;
+    flex: 1;
+}
+
+.role-permissions-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 1rem;
+}
+
+.perm-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    background: var(--stat-icon-bg-blue);
+    color: var(--stat-icon-text-blue);
+}
+
+.perm-badge.more {
+    background: var(--tag-bg);
+    color: var(--text-tertiary);
+}
+
+.role-card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.role-card-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.user-search-wrapper {
+    position: relative;
+}
+
+.user-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 0 0 8px 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    display: none;
+}
+
+.user-suggestions.active {
+    display: block;
+}
+
+.user-suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 0.88rem;
+}
+
+.user-suggestion-item:hover {
+    background: var(--tag-bg);
+}
+
+.user-suggestion-item .email {
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+}
+
+.selected-user-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--stat-icon-bg-blue);
+    color: var(--stat-icon-text-blue);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-top: 8px;
+}
+
+.selected-user-badge .remove {
+    cursor: pointer;
+    opacity: 0.6;
+    font-size: 0.9rem;
+}
+
+.selected-user-badge .remove:hover {
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    .role-grid {
+        grid-template-columns: 1fr;
+    }
+}
