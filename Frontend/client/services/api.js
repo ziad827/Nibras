@@ -2720,6 +2720,40 @@
       return unwrapApiData(payload) || payload || {};
     },
 
+    async getCpRoadmapTopic(topicId) {
+      const payload = await requestCompetitionsWithCompatibility(
+        `/practice/cp-roadmap/topics/${encodeURIComponent(String(topicId || ''))}`,
+        {
+          method: 'GET',
+          auth: true,
+        },
+      );
+      return unwrapApiData(payload) || payload || {};
+    },
+
+    async setCpRoadmapProblemSolved(problemId, solved = true) {
+      const id = encodeURIComponent(String(problemId || ''));
+      if (solved) {
+        const payload = await requestCompetitionsWithCompatibility(
+          `/practice/cp-roadmap/problems/${id}/solved`,
+          {
+            method: 'POST',
+            auth: true,
+            body: { solved: true },
+          },
+        );
+        return unwrapApiData(payload) || payload || {};
+      }
+      const payload = await requestCompetitionsWithCompatibility(
+        `/practice/cp-roadmap/problems/${id}/solved`,
+        {
+          method: 'DELETE',
+          auth: true,
+        },
+      );
+      return unwrapApiData(payload) || payload || {};
+    },
+
     async getProgress() {
       try {
         const payload = await requestCompetitionsWithCompatibility(
@@ -2739,7 +2773,8 @@
       const query = buildQueryString({
         q: filters.q,
         sort: filters.sort,
-        status: filters.status,
+        solved: filters.solved ?? filters.status,
+        difficulty: filters.difficulty,
         page: filters.page,
         limit: filters.limit,
       });
@@ -2747,6 +2782,29 @@
         `/practice/nibras-75/problems${query}`,
         {
           method: 'GET',
+          auth: true,
+        },
+      );
+      return unwrapApiData(payload) || payload || {};
+    },
+
+    async setNibras75ProblemSolved(slug, solved = true) {
+      const problemSlug = encodeURIComponent(String(slug || ''));
+      if (solved) {
+        const payload = await requestCompetitionsWithCompatibility(
+          `/practice/nibras-75/problems/${problemSlug}/solved`,
+          {
+            method: 'POST',
+            auth: true,
+            body: { solved: true },
+          },
+        );
+        return unwrapApiData(payload) || payload || {};
+      }
+      const payload = await requestCompetitionsWithCompatibility(
+        `/practice/nibras-75/problems/${problemSlug}/solved`,
+        {
+          method: 'DELETE',
           auth: true,
         },
       );

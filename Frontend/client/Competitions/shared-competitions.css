@@ -95,6 +95,43 @@
 .comp-badge.hard { background: #fee2e2; color: #991b1b; }
 .comp-badge.solved { background: #dbeafe; color: #1d4ed8; }
 
+.comp-status-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.comp-status-checkbox-label {
+  cursor: pointer;
+  user-select: none;
+}
+
+.comp-status-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #16a34a;
+}
+
+.comp-status-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.comp-status-label {
+  font-weight: 500;
+}
+
+.comp-status-label.solved {
+  color: #16a34a;
+}
+
+.comp-status-label.unsolved {
+  color: var(--text-tertiary);
+}
+
 .comp-empty,
 .comp-loading,
 .comp-error {

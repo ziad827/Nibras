@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nibras - CP Roadmap</title>
-    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html" data-api="https://nibras-backend.up.railway.app/api"></script>
+    <script src="../../services/auth-guard.js" data-login="../../Login/loginPage/login.html"></script>
     <script>
     (function () {
         const savedTheme = localStorage.getItem('theme');
@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../Contests/contest.css">
     <link rel="stylesheet" href="../shared-competitions.css">
+    <link rel="stylesheet" href="./cp-roadmap.css">
 </head>
 <body>
     <div id="app-root" hidden></div>
@@ -70,9 +71,17 @@
                 <a href="../Ranking/ranking.html" class="tab-btn">Rankings</a>
                 <a href="../Teams/team.html" class="tab-btn">Teams</a>
             </div>
-            <div class="comp-panel">
+            <div class="comp-panel cp-roadmap-panel">
+                <div class="cp-roadmap-toolbar">
+                    <select id="progress-filter" aria-label="Filter by progress">
+                        <option value="all">All topics</option>
+                        <option value="incomplete">In progress</option>
+                        <option value="complete">Completed</option>
+                    </select>
+                </div>
+                <div id="topic-detail" class="cp-topic-detail" hidden></div>
                 <div id="notice" class="comp-loading">Loading CP roadmap...</div>
-                <div id="roadmap-root" hidden></div>
+                <div id="roadmap-root" class="cp-roadmap-root" hidden></div>
             </div>
         </div>
     </main>
