@@ -10,7 +10,7 @@
       }
     })(() => {
   const shared = window.NibrasShared || {};
-  const uiStates = shared.uiStates;
+  shared.session?.updateUserInfoDisplay?.();
   const competitionsService = window.NibrasServices?.competitionsService;
   const token = (() => {
     try {
@@ -24,6 +24,16 @@
   const titleEl = document.getElementById('practice-title');
   const statsLine = document.getElementById('stats-line');
   const pagination = document.getElementById('pagination');
+  const contentWrapper = document.querySelector('.content-wrapper');
+  const feedbackNotice = document.createElement('div');
+  feedbackNotice.hidden = true;
+  feedbackNotice.style.marginBottom = '14px';
+  if (contentWrapper) {
+    contentWrapper.insertBefore(
+      feedbackNotice,
+      contentWrapper.querySelector('.practice-toolbar') || null,
+    );
+  }
 
   let allProblems = [];
   let selectedPlatform = 'all';
@@ -36,6 +46,9 @@
   let pageSize = 50;
   let totalItems = 0;
   let totalPages = 1;
+  let solvedOverall = 0;
+  let upstreamWarning = '';
+  let statusToggleBusy = false;
 
   const normalizeProblem = (problem) => {
     const tags = Array.isArray(problem?.tags) ? problem.tags : [];
@@ -50,12 +63,70 @@
     };
   };
 
-  const getStatusIcon = (status) => {
-    if (status === 'solved')
-      return '<span class="status-cell status-solved"><i class="fa-regular fa-circle-check"></i> Solved</span>';
-    if (status === 'unsolved')
-      return '<span class="status-cell status-unsolved"><i class="fa-regular fa-circle"></i> Unsolved</span>';
-    return '<span class="status-cell status-na">—</span>';
+  const platformFilterLabel = (platform) => {
+    if (!platform || platform === 'all') return '';
+    return platform.toUpperCase();
+  };
+
+  const showFeedback = (message) => {
+    if (!message) {
+      feedbackNotice.hidden = true;
+      feedbackNotice.textContent = '';
+      return;
+    }
+    feedbackNotice.hidden = false;
+    feedbackNotice.textContent = message;
+    feedbackNotice.style.color = 'var(--text-secondary)';
+    feedbackNotice.style.fontSize = '0.9rem';
+  };
+
+  const getStatusCheckbox = (problem) => {
+    const checked = problem.status === 'solved';
+    const disabled = !token || !problem.id || statusToggleBusy;
+    const safeId = shared.safeHtml(problem.id);
+    const safeTitle = shared.safeHtml(problem.title);
+    return `<label class="status-cell status-checkbox-label">
+      <input
+        type="checkbox"
+        class="status-checkbox"
+        data-problem-id="${safeId}"
+        ${checked ? 'checked' : ''}
+        ${disabled ? 'disabled' : ''}
+        aria-label="Mark ${safeTitle} as solved"
+      />
+      <span class="status-label ${checked ? 'status-solved' : 'status-unsolved'}">${checked ? 'Solved' : 'Unsolved'}</span>
+    </label>`;
+  };
+
+  const updateProblemStatus = (problemId, solved) => {
+    const entry = allProblems.find((problem) => problem.id === problemId);
+    if (!entry) return;
+    entry.status = solved ? 'solved' : 'unsolved';
+    solvedOverall = allProblems.filter((problem) => problem.status === 'solved').length;
+  };
+
+  const handleStatusToggle = async (checkbox) => {
+    if (!competitionsService || !token || !checkbox?.dataset?.problemId) return;
+    const problemId = checkbox.dataset.problemId;
+    const nextSolved = checkbox.checked;
+    const previousSolved = !nextSolved;
+
+    statusToggleBusy = true;
+    updateProblemStatus(problemId, nextSolved);
+    renderTable();
+
+    try {
+      await competitionsService.setProblemSolved(problemId, nextSolved);
+      showFeedback('');
+    } catch (error) {
+      checkbox.checked = previousSolved;
+      updateProblemStatus(problemId, previousSolved);
+      renderTable();
+      showFeedback(error?.message || 'Could not update problem status.');
+    } finally {
+      statusToggleBusy = false;
+      renderTable();
+    }
   };
 
   const getProblemIdFromUrl = (url) => {
@@ -65,32 +136,28 @@
     return '';
   };
 
+  const clearPracticeTable = () => {
+    if (tbody) tbody.innerHTML = '';
+    if (pagination) pagination.innerHTML = '';
+  };
+
   const renderTable = () => {
     if (!tbody) return;
-    const totalSolved = allProblems.filter((p) => p.status === 'solved').length;
-    const displayProblems =
-      solvedFilter === 'all'
-        ? allProblems
-        : allProblems.filter((p) => p.status === solvedFilter);
-    const displayCount = displayProblems.length;
 
-    if (!displayProblems.length) {
+    if (!allProblems.length) {
       let msg;
-      if (allProblems.length === 0) {
-        msg =
-          totalItems === 0
-            ? 'Sign in to view practice problems.'
-            : 'No problems match your filters.';
-      } else if (solvedFilter === 'solved') {
-        msg = 'No solved problems match your filters.';
+      if (!token) {
+        msg = 'Sign in to view practice problems.';
       } else {
-        msg = 'No unsolved problems match your filters.';
+        const label = platformFilterLabel(selectedPlatform);
+        msg = label
+          ? `No ${label} problems match your filters.`
+          : 'No problems match your filters.';
       }
       tbody.innerHTML = `<tr><td colspan="4" style="padding:2rem;text-align:center;color:var(--text-secondary);font-size:0.9rem;">${shared.safeHtml(msg)}</td></tr>`;
     } else {
-      tbody.innerHTML = displayProblems
+      tbody.innerHTML = allProblems
         .map((p) => {
-          const pid = getProblemIdFromUrl(p.url) || p.id;
           const safeTitle = shared.safeHtml(p.title);
           const safeUrl = shared.safeHtml(p.url || '#');
           const safeRating =
@@ -102,14 +169,14 @@
                     <td><div><a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="problem-link">${safeTitle}</a></div></td>
                     <td><span class="problem-rating">${safeRating}</span></td>
                     <td>${tagHtml}</td>
-                    <td>${getStatusIcon(p.status)}</td>
+                    <td>${getStatusCheckbox(p)}</td>
                 </tr>`;
         })
         .join('');
     }
 
     if (statsLine) {
-      statsLine.textContent = `${displayCount} matching · ${totalSolved} solved overall`;
+      statsLine.textContent = `${totalItems} matching · ${solvedOverall} solved on this page`;
     }
   };
 
@@ -172,19 +239,26 @@
 
   const loadPracticeData = async () => {
     if (!competitionsService) {
-      if (tbody)
+      clearPracticeTable();
+      if (tbody) {
         tbody.innerHTML = `<tr><td colspan="4" style="padding:2rem;text-align:center;color:var(--text-secondary);">Competitions service is unavailable.</td></tr>`;
+      }
       return;
     }
 
     if (!token) {
-      if (tbody)
+      clearPracticeTable();
+      if (tbody) {
         tbody.innerHTML = `<tr><td colspan="4" style="padding:2rem;text-align:center;color:var(--text-secondary);">Sign in to view practice problems.</td></tr>`;
+      }
+      if (statsLine) statsLine.textContent = '0 matching · 0 solved on this page';
       return;
     }
 
-    if (tbody)
+    clearPracticeTable();
+    if (tbody) {
       tbody.innerHTML = `<tr><td colspan="4" style="padding:2rem;text-align:center;color:var(--text-secondary);">Loading problems...</td></tr>`;
+    }
 
     try {
       const params = {
@@ -196,24 +270,28 @@
         maxRating: maxRating || undefined,
       };
       if (selectedPlatform !== 'all') params.platform = selectedPlatform;
+      if (solvedFilter !== 'all') params.solved = solvedFilter;
+
       const response = await competitionsService.listProblems(params);
-      const rawProblems = Array.isArray(response)
-        ? response
-        : Array.isArray(response?.problems)
-          ? response.problems
-          : [];
+      const rawProblems = Array.isArray(response?.problems)
+        ? response.problems
+        : [];
       allProblems = rawProblems.map(normalizeProblem);
-      const filteredProblems =
-        solvedFilter === 'all'
-          ? allProblems
-          : allProblems.filter((p) => p.status === solvedFilter);
-      totalItems = filteredProblems.length;
-      totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+      totalItems = Number(response?.total ?? allProblems.length);
+      totalPages = Math.max(1, Number(response?.pages ?? 1));
+      solvedOverall =
+        response?.solvedCount != null
+          ? Number(response.solvedCount)
+          : allProblems.filter((p) => p.status === 'solved').length;
+      upstreamWarning = response?.warning || '';
+      showFeedback(upstreamWarning);
       refreshView();
     } catch (error) {
       const msg = error?.message || 'Could not load practice data.';
-      if (tbody)
+      showFeedback('');
+      if (tbody) {
         tbody.innerHTML = `<tr><td colspan="4" style="padding:2rem;text-align:center;color:var(--text-secondary);">${shared.safeHtml(msg)}</td></tr>`;
+      }
     }
   };
 
@@ -299,6 +377,13 @@
       void loadPracticeData();
     });
 
+  tbody?.addEventListener('change', (event) => {
+    const target = event.target;
+    if (!target?.classList?.contains('status-checkbox')) return;
+    void handleStatusToggle(target);
+  });
+
+  if (statsLine) statsLine.textContent = '0 matching · 0 solved on this page';
   updateTitle();
   void loadPracticeData();
 });

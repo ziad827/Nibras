@@ -232,9 +232,55 @@ async function syncContestsOnStartup(): Promise<void> {
   }
 }
 
+async function syncProblemsOnStartup(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+
+  const { getSharedPrisma } = await import('./lib/prisma');
+  const {
+    runProblemSync,
+    shouldRunProblemStartupSync,
+  } = await import('./features/competitions/problem-sync');
+  const { enqueueCompetitionsJob } = await import('./lib/competitions-queue');
+
+  try {
+    const prisma = getSharedPrisma();
+    const shouldSync = await shouldRunProblemStartupSync(prisma);
+    await enqueueCompetitionsJob({ type: 'problem-sync' });
+    if (!shouldSync) return;
+
+    void runProblemSync(prisma)
+      .then(() => {
+        console.log(
+          JSON.stringify({
+            level: 'info',
+            msg: 'Problem catalog synced on startup',
+          }),
+        );
+      })
+      .catch((err) => {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            msg: 'Problem sync failed on startup',
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        );
+      });
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        msg: 'Problem sync failed on startup',
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
+}
+
 function runStartupSyncInBackground(): void {
   void syncBadgeCatalogOnStartup();
   void syncContestsOnStartup();
+  void syncProblemsOnStartup();
   void (async () => {
     await syncCpRoadmapOnStartup();
     await syncCurriculumOnStartup();

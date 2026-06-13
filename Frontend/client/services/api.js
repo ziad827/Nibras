@@ -2660,42 +2660,53 @@
     },
 
     async listProblems(filters = {}) {
-      const queryFilters = {};
-      if (filters.difficulty) queryFilters.difficulty = filters.difficulty;
-      if (Array.isArray(filters.tags))
-        queryFilters.tags = filters.tags.join(',');
-      else if (filters.tags) queryFilters.tags = filters.tags;
-      if (filters.page) queryFilters.page = filters.page;
-      if (filters.limit) queryFilters.limit = filters.limit;
-      if (filters.search) queryFilters.search = filters.search;
-      if (filters.platform) queryFilters.platform = filters.platform;
-      if (filters.minRating) queryFilters.minRating = filters.minRating;
-      if (filters.maxRating) queryFilters.maxRating = filters.maxRating;
-      if (filters.solved) queryFilters.solved = filters.solved;
+      const practiceHelpers = window.PracticeProblems || null;
+      const platform = String(filters.platform || 'all').toLowerCase();
+      const queryFilters = practiceHelpers
+        ? practiceHelpers.buildPracticeProblemsQuery(filters, platform)
+        : {};
+      const path = practiceHelpers
+        ? practiceHelpers.buildPracticeProblemsPath(platform)
+        : '/problems';
       const payload = await requestCompetitionsWithCompatibility(
-        `/problems${buildQueryString(queryFilters)}`,
+        `${path}${buildQueryString(queryFilters)}`,
         {
           method: 'GET',
           auth: true,
         },
       );
+      if (practiceHelpers?.parseListProblemsResponse) {
+        return practiceHelpers.parseListProblemsResponse(
+          payload,
+          filters,
+          platform,
+        );
+      }
       const data = unwrapApiData(payload);
-      const problems = Array.isArray(data) ? data : [];
-      const meta = payload?.meta || payload?.pagination || null;
+      const problems = Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data)
+          ? data
+          : [];
       return {
         problems,
-        total: meta?.total ?? problems.length,
-        page: meta?.page ?? (filters.page || 1),
-        limit: meta?.limit ?? (filters.limit || problems.length),
-        pages:
-          meta?.pages ??
-          (meta?.total
-            ? Math.ceil(
-                meta.total /
-                  (meta?.limit || filters.limit || problems.length || 1),
-              )
-            : 1),
+        total: data?.total ?? problems.length,
+        page: filters.page || 1,
+        limit: filters.limit || problems.length,
+        pages: 1,
       };
+    },
+
+    async setProblemSolved(problemId, solved = true) {
+      const payload = await requestCompetitionsWithCompatibility(
+        `/problems/${encodeURIComponent(String(problemId || ''))}/solved`,
+        {
+          method: 'POST',
+          auth: true,
+          body: { solved },
+        },
+      );
+      return unwrapApiData(payload) || payload || {};
     },
 
     async getRoadmap() {

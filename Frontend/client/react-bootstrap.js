@@ -23,6 +23,10 @@
     `react-page-utils.js?v=${timestamp}`,
     BOOTSTRAP_BASE,
   ).toString();
+  const PRACTICE_PROBLEMS_SRC = new URL(
+    `Competitions/Practice/practice-problems.js?v=${timestamp}`,
+    BOOTSTRAP_BASE,
+  ).toString();
   const SERVICES_SRC = new URL(
     `services/api.js?v=${timestamp}`,
     BOOTSTRAP_BASE,
@@ -96,6 +100,13 @@
     return loadScript(CONFIG_SRC).catch(() => Promise.resolve());
   };
 
+  const ensurePracticeProblemsLoaded = () => {
+    if (window.PracticeProblems) {
+      return Promise.resolve();
+    }
+    return loadScript(PRACTICE_PROBLEMS_SRC).catch(() => Promise.resolve());
+  };
+
   const ensureServicesLoaded = () => {
     if (window.NibrasServices) {
       return Promise.resolve();
@@ -107,6 +118,7 @@
     if (!bootstrapDepsPromise) {
       bootstrapDepsPromise = ensureConfigLoaded()
         .then(() => ensureSharedUtilsLoaded())
+        .then(() => ensurePracticeProblemsLoaded())
         .then(() => ensureServicesLoaded());
     }
     return bootstrapDepsPromise;

@@ -401,6 +401,45 @@ export function registerCompetitionsRoutes(
   );
 
   app.post(
+    '/v1/problems/:problemId/solved',
+    { schema: { tags: ['competitions'], summary: 'Mark practice problem solved' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const { problemId } = request.params as { problemId: string };
+      const { solved } = (request.body as { solved?: boolean }) ?? {};
+      const markSolved = solved !== false;
+
+      const problem = await prisma.problem.findUnique({
+        where: { id: problemId },
+        select: { id: true },
+      });
+      if (!problem) {
+        return reply.code(404).send({ error: 'Problem not found' });
+      }
+
+      if (!markSolved) {
+        await prisma.userProblemProgress.deleteMany({
+          where: { userId: auth.user.id, problemId },
+        });
+        return { solved: false };
+      }
+
+      await prisma.userProblemProgress.upsert({
+        where: { userId_problemId: { userId: auth.user.id, problemId } },
+        create: {
+          userId: auth.user.id,
+          problemId,
+          solved: true,
+          solvedAt: new Date(),
+        },
+        update: { solved: true, solvedAt: new Date() },
+      });
+      return { solved: true };
+    },
+  );
+
+  app.post(
     '/v1/problems/:problemId/bookmark',
     { schema: { tags: ['competitions'], summary: 'Bookmark problem' } },
     async (request, reply) => {

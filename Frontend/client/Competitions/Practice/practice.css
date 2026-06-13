@@ -813,8 +813,30 @@ a { text-decoration: none; }
 .status-cell {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     font-size: 0.8rem;
+}
+
+.status-checkbox-label {
+    cursor: pointer;
+    user-select: none;
+}
+
+.status-checkbox {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--status-solved);
+}
+
+.status-checkbox:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.status-label {
+    font-weight: 500;
 }
 
 .status-cell i {

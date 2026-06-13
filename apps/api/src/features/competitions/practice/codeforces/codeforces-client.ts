@@ -69,6 +69,7 @@ function matchesContestFilter(
 
 function toRow(
   p: {
+    id: string;
     platformProblemId: string;
     title: string;
     url: string;
@@ -77,15 +78,20 @@ function toRow(
   },
   statusMap: Map<string, { solved: boolean; attempted: boolean }>,
   solvedCountByKey?: Map<string, number>,
+  manualSolvedIds?: Set<string>,
 ): PracticeCfProblemRow {
   const parsed = parseCfPlatformProblemId(p.platformProblemId);
   const st = statusMap.get(p.platformProblemId);
+  const solved = Boolean(
+    st?.solved || manualSolvedIds?.has(p.id),
+  );
   return {
+    id: p.id,
     problemId: p.platformProblemId,
     index: parsed.index,
     name: p.title,
     url: p.url,
-    solved: st?.solved ?? false,
+    solved,
     attempted: st?.attempted ?? false,
     rating: p.difficulty,
     tags: p.tags,
@@ -98,6 +104,7 @@ export async function fetchPracticeCfProblems(
   prisma: PrismaClient,
   handle: string | undefined,
   query: PracticeCfProblemsQuery,
+  userId?: string,
 ): Promise<{
   items: PracticeCfProblemRow[];
   total: number;
@@ -111,25 +118,55 @@ export async function fetchPracticeCfProblems(
     query.contestIdMin !== undefined || query.contestIdMax !== undefined;
 
   const { statusMap } = await getUserCfData(handle);
-  const solvedKeys = [...statusMap.entries()]
+  let solvedKeys = [...statusMap.entries()]
     .filter(([, st]) => st.solved)
     .map(([k]) => k);
+
+  if (userId) {
+    const manualRows = await prisma.userProblemProgress.findMany({
+      where: {
+        userId,
+        solved: true,
+        problem: { platform: 'codeforces' },
+      },
+      select: { problem: { select: { platformProblemId: true } } },
+    });
+    const manualKeys = manualRows.map((row) => row.problem.platformProblemId);
+    solvedKeys = [...new Set([...solvedKeys, ...manualKeys])];
+  }
+
   const solvedCount = solvedKeys.length;
 
   const where = buildWhere(query, solvedKeys);
   const orderBy = buildOrderBy(query.sort);
 
+  const problemSelect = {
+    id: true,
+    platformProblemId: true,
+    title: true,
+    url: true,
+    difficulty: true,
+    tags: true,
+  } as const;
+
+  const loadManualSolvedIds = async (problemIds: string[]) => {
+    if (!userId || problemIds.length === 0) return new Set<string>();
+    const rows = await prisma.userProblemProgress.findMany({
+      where: {
+        userId,
+        solved: true,
+        problemId: { in: problemIds },
+      },
+      select: { problemId: true },
+    });
+    return new Set(rows.map((row) => row.problemId));
+  };
+
   if (hasContestFilter) {
     const all = await prisma.problem.findMany({
       where,
       orderBy,
-      select: {
-        platformProblemId: true,
-        title: true,
-        url: true,
-        difficulty: true,
-        tags: true,
-      },
+      select: problemSelect,
     });
     const filtered = all.filter((p) =>
       matchesContestFilter(
@@ -140,9 +177,12 @@ export async function fetchPracticeCfProblems(
     );
     const total = filtered.length;
     const slice = filtered.slice((page - 1) * limit, page * limit);
+    const manualSolvedIds = await loadManualSolvedIds(slice.map((p) => p.id));
     const { solvedCountByKey } = await getCachedProblemset();
     return {
-      items: slice.map((p) => toRow(p, statusMap, solvedCountByKey)),
+      items: slice.map((p) =>
+        toRow(p, statusMap, solvedCountByKey, manualSolvedIds),
+      ),
       total,
       solvedCount,
       page,
@@ -156,19 +196,16 @@ export async function fetchPracticeCfProblems(
     orderBy,
     skip: (page - 1) * limit,
     take: limit,
-    select: {
-      platformProblemId: true,
-      title: true,
-      url: true,
-      difficulty: true,
-      tags: true,
-    },
+    select: problemSelect,
   });
 
+  const manualSolvedIds = await loadManualSolvedIds(problems.map((p) => p.id));
   const { solvedCountByKey } = await getCachedProblemset();
 
   return {
-    items: problems.map((p) => toRow(p, statusMap, solvedCountByKey)),
+    items: problems.map((p) =>
+      toRow(p, statusMap, solvedCountByKey, manualSolvedIds),
+    ),
     total,
     solvedCount,
     page,
@@ -209,6 +246,7 @@ export async function fetchRandomUnsolvedCfProblem(
     where,
     skip,
     select: {
+      id: true,
       platformProblemId: true,
       title: true,
       url: true,
@@ -246,6 +284,7 @@ export async function fetchRecommendedCfProblems(
     orderBy: [{ difficulty: 'asc' }, { platformProblemId: 'desc' }],
     take: limit,
     select: {
+      id: true,
       platformProblemId: true,
       title: true,
       url: true,

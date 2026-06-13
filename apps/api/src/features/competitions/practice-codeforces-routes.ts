@@ -77,22 +77,27 @@ export function registerPracticeCodeforcesRoutes(
             ? q.sort
             : undefined;
 
-        const result = await fetchPracticeCfProblems(prisma, handle, {
-          page: Number.isFinite(page) ? page : 1,
-          limit: Number.isFinite(limit) ? limit : 100,
-          q: q.q,
-          tag: q.tag,
-          ratingMin: Number.isFinite(ratingMin) ? ratingMin : undefined,
-          ratingMax: Number.isFinite(ratingMax) ? ratingMax : undefined,
-          contestIdMin: Number.isFinite(contestIdMin)
-            ? contestIdMin
-            : undefined,
-          contestIdMax: Number.isFinite(contestIdMax)
-            ? contestIdMax
-            : undefined,
-          solved,
-          sort,
-        });
+        const result = await fetchPracticeCfProblems(
+          prisma,
+          handle,
+          {
+            page: Number.isFinite(page) ? page : 1,
+            limit: Number.isFinite(limit) ? limit : 100,
+            q: q.q,
+            tag: q.tag,
+            ratingMin: Number.isFinite(ratingMin) ? ratingMin : undefined,
+            ratingMax: Number.isFinite(ratingMax) ? ratingMax : undefined,
+            contestIdMin: Number.isFinite(contestIdMin)
+              ? contestIdMin
+              : undefined,
+            contestIdMax: Number.isFinite(contestIdMax)
+              ? contestIdMax
+              : undefined,
+            solved,
+            sort,
+          },
+          user?.id,
+        );
 
         const body: PracticeCfProblemsResponse = {
           items: result.items,

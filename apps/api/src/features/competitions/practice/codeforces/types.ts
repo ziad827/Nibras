@@ -1,4 +1,5 @@
 export type PracticeCfProblemRow = {
+  id: string;
   problemId: string;
   index: string;
   name: string;

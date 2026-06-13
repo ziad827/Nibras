@@ -169,3 +169,159 @@ test('competitions reminders list route requires auth', async (t) => {
     await app.close();
   }
 });
+
+test('competitions problems list route requires auth', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const app = buildApp(new PrismaStore(prisma));
+  try {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/problems?page=1&limit=5',
+    });
+    assert.equal(response.statusCode, 401);
+  } finally {
+    await app.close();
+  }
+});
+
+test('competitions problems list route returns items for authenticated user', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const app = buildApp(new PrismaStore(prisma));
+  try {
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'demo@nibras.dev', password: 'local123' },
+    });
+    if (login.statusCode !== 200) {
+      t.skip('demo login unavailable');
+      return;
+    }
+    const token = login.json().accessToken;
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/problems?page=1&limit=5',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.ok(Array.isArray(body.items));
+    assert.ok(typeof body.total === 'number');
+  } finally {
+    await app.close();
+  }
+});
+
+test('competitions problems leetcode host filter responds', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const app = buildApp(new PrismaStore(prisma));
+  try {
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'demo@nibras.dev', password: 'local123' },
+    });
+    if (login.statusCode !== 200) {
+      t.skip('demo login unavailable');
+      return;
+    }
+    const token = login.json().accessToken;
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/problems?host=leetcode&page=1&limit=5',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.ok(Array.isArray(response.json().items));
+  } finally {
+    await app.close();
+  }
+});
+
+test('competitions problems solved route requires auth', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const app = buildApp(new PrismaStore(prisma));
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/problems/example-id/solved',
+      payload: { solved: true },
+    });
+    assert.equal(response.statusCode, 401);
+  } finally {
+    await app.close();
+  }
+});
+
+test('competitions problems solved route updates progress', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const app = buildApp(new PrismaStore(prisma));
+  try {
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'demo@nibras.dev', password: 'local123' },
+    });
+    if (login.statusCode !== 200) {
+      t.skip('demo login unavailable');
+      return;
+    }
+    const token = login.json().accessToken;
+    const list = await app.inject({
+      method: 'GET',
+      url: '/v1/problems?host=leetcode&page=1&limit=1',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    if (list.statusCode !== 200 || !list.json().items?.length) {
+      t.skip('no seeded leetcode problems');
+      return;
+    }
+    const problemId = list.json().items[0].id;
+
+    const mark = await app.inject({
+      method: 'POST',
+      url: `/v1/problems/${problemId}/solved`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: { solved: true },
+    });
+    assert.equal(mark.statusCode, 200);
+    assert.equal(mark.json().solved, true);
+
+    const verify = await app.inject({
+      method: 'GET',
+      url: `/v1/problems?host=leetcode&page=1&limit=50`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const item = verify
+      .json()
+      .items.find((entry) => entry.id === problemId);
+    assert.equal(item?.solved, true);
+  } finally {
+    await app.close();
+  }
+});
