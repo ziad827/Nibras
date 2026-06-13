@@ -43,6 +43,8 @@ import { JudgeService } from './services/judge.service';
 import { RatingsService } from './services/ratings.service';
 import { PostContestService } from './services/post-contest.service';
 import { TeamsService } from './services/teams.service';
+import { ReputationService } from './services/reputation.service';
+import { AccountStatsSyncJob } from './jobs/account-stats-sync.job';
 import { ContestsGateway } from './gateways/contests.gateway';
 import { OptionalSessionGuard } from '@common/guards/optional-session.guard';
 
@@ -82,6 +84,8 @@ import { OptionalSessionGuard } from '@common/guards/optional-session.guard';
     RatingsService,
     PostContestService,
     TeamsService,
+    ReputationService,
+    AccountStatsSyncJob,
     ContestsGateway,
     OptionalSessionGuard,
   ],
