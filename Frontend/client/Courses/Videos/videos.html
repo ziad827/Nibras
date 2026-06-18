@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,48 +16,6 @@
     })();
 </script>
 
-    <!-- Preserve courseId in navigation links -->
-    <script>
-    (function () {
-        const params = new URLSearchParams(window.location.search);
-        const courseId = params.get('courseId') || localStorage.getItem('selectedCourseId');
-        if (courseId) {
-            localStorage.setItem('selectedCourseId', courseId);
-        }
-
-        function updateLinks() {
-            const storedCourseId = localStorage.getItem('selectedCourseId');
-            if (!storedCourseId) return;
-
-            function withCourseId(path) {
-                if (path.includes('courseId=')) return path;
-                const separator = path.includes('?') ? '&' : '?';
-                return `${path}${separator}courseId=${encodeURIComponent(storedCourseId)}`;
-            }
-
-            const navLinks = [
-                { key: "courseContent", path: "../Course Description/courseContent.html" },
-                { key: "videos", path: "./videos.html" },
-                { key: "assignments", path: "../Assignments/Assignments.html" },
-                { key: "grades", path: "../Grades/grades.html" },
-            ];
-
-            navLinks.forEach(({ key, path }) => {
-                const el = document.querySelector(`[data-nav-link="${key}"]`);
-                if (el) el.setAttribute("href", withCourseId(path));
-            });
-
-            const backBtn = document.querySelector(".back-btn");
-            if (backBtn) backBtn.setAttribute("href", withCourseId("../courses.html"));
-        }
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', updateLinks);
-        } else {
-            updateLinks();
-        }
-    })();
-    </script>
 
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -74,9 +32,9 @@
         <div class="sidebar-header">
             <h2>Course Content</h2>
             <div class="sidebar-progress">
-                <span class="progress-text" id="progress-text">Loading...</span>
+                <span class="progress-text" id="sidebar-progress-text">Loading...</span>
                 <div class="progress-bar-container">
-                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                    <div class="progress-fill" id="sidebar-progress-fill" style="width: 0%"></div>
                 </div>
             </div>
         </div>
@@ -85,8 +43,7 @@
             <li class="nav-item"><a href="../Course%20Description/courseContent.html" class="nav-link" data-nav-link="courseContent"><i class="fa-solid fa-book-open"></i> Course Overview</a></li>
             <li class="nav-item"><a href="./videos.html" class="nav-link active" data-nav-link="videos"><i class="fa-solid fa-video"></i> Videos</a></li>
             <li class="nav-item"><a href="../Assignments/Assignments.html" class="nav-link" data-nav-link="assignments"><i class="fa-regular fa-file-lines"></i> Assignments</a></li>
-            <li class="nav-item">
-</li>
+            <li class="nav-item" id="nav-grading"><a href="../../Admin/Grading/grading.html" class="nav-link" data-nav-link="grading"><i class="fa-solid fa-check-double"></i> Grading</a></li>
             <li class="nav-item"><a href="../Grades/grades.html" class="nav-link" data-nav-link="grades"><i class="fa-solid fa-award"></i> Grades</a></li>
         </ul>
 
@@ -193,34 +150,9 @@
     </main>
 
         <script src="../../react-bootstrap.js"></script>
-    <script src="../courseData.js?v=20260619"></script>
-    <script>
-    (function () {
-      var id = new URLSearchParams(window.location.search).get('courseId');
-      if (id && window.NibrasCourses?.isValidCourseId?.(id)) {
-        window.NibrasCourses.setSelectedCourseId(id);
-      } else {
-        window.NibrasCourses?.resolveCourseId?.();
-      }
-    })();
-    </script>
-    <script src="./videos.js?v=20260619"></script>
-    <script>
-    (function() {
-        try {
-            var _u = JSON.parse(localStorage.getItem('user') || '{}');
-            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
-            if (_r === 'instructor') {
-                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor'];
-                document.querySelectorAll('.nav-link').forEach(function(link) {
-                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
-                        var item = link.closest('.nav-item');
-                        if (item) item.style.display = 'none';
-                    }
-                });
-            }
-        } catch (_) {}
-    })();
-    </script>
+    <script src="../courseData.js?v=20260620"></script>
+    <script src="../course-mappers.js?v=20260620"></script>
+    <script src="../course-sidebar.js?v=20260620"></script>
+    <script src="./videos.js?v=20260620"></script>
 </body>
 </html>

@@ -15,62 +15,6 @@
     })();
 </script>
 
-    <!-- Preserve courseId in navigation links -->
-    <script>
-    (function () {
-        const params = new URLSearchParams(window.location.search);
-        const courseId = params.get('courseId') || localStorage.getItem('selectedCourseId');
-        if (courseId) {
-            localStorage.setItem('selectedCourseId', courseId);
-        }
-
-            function updateLinks() {
-                var isInstructor = false;
-                try { var _u = JSON.parse(localStorage.getItem('user') || '{}'); var _r = String(_u?.role?.name || _u?.role || '').toLowerCase(); isInstructor = _r === 'instructor'; } catch (_) {}
-
-                const storedCourseId = localStorage.getItem('selectedCourseId');
-                if (!storedCourseId) return;
-
-                function withCourseId(path) {
-                    if (path.includes('courseId=')) return path;
-                    const separator = path.includes('?') ? '&' : '?';
-                    return `${path}${separator}courseId=${encodeURIComponent(storedCourseId)}`;
-                }
-
-                var navLinks = [
-                    { key: "courseContent", path: "./courseContent.html" },
-                    { key: "videos", path: isInstructor ? '' : "../Videos/videos.html" },
-                    { key: "assignments", path: isInstructor ? "../../Admin/AssignmentBuilder/assignment-builder.html" : "../Assignments/Assignments.html" },
-                    { key: "grading", path: isInstructor ? "../../Admin/Grading/grading.html" : "" },
-                    { key: "grades", path: isInstructor ? "../../Admin/InstructorGrades/instructor-grades.html" : "../Grades/grades.html" },
-                ];
-
-            navLinks.forEach(({ key, path }) => {
-                const el = document.querySelector(`[data-nav-link="${key}"]`);
-                if (el) {
-                    if (path) {
-                        el.closest('.nav-item').style.display = '';
-                        el.setAttribute("href", withCourseId(path));
-                    } else {
-                        el.closest('.nav-item').style.display = 'none';
-                    }
-                }
-            });
-
-            const backBtn = document.querySelector(".back-btn");
-            if (backBtn) backBtn.setAttribute("href", withCourseId("../courses.html"));
-
-            const forumLink = document.querySelector("#discussion-forum-link");
-            if (forumLink) forumLink.setAttribute("href", withCourseId("../../Community/CourseDiscussions/discussions.html"));
-        }
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', updateLinks);
-        } else {
-            updateLinks();
-        }
-    })();
-    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="./courseContent.css">
@@ -296,33 +240,8 @@
 
         <script src="../../react-bootstrap.js"></script>
     <script src="../courseData.js?v=20260620"></script>
-    <script>
-    (function () {
-      var id = new URLSearchParams(window.location.search).get('courseId');
-      if (id && window.NibrasCourses?.isValidCourseId?.(id)) {
-        window.NibrasCourses.setSelectedCourseId(id);
-      } else {
-        window.NibrasCourses?.resolveCourseId?.();
-      }
-    })();
-    </script>
+    <script src="../course-mappers.js?v=20260620"></script>
+    <script src="../course-sidebar.js?v=20260620"></script>
     <script src="./courseContent.js?v=20260620"></script>
-    <script>
-    (function() {
-        try {
-            var _u = JSON.parse(localStorage.getItem('user') || '{}');
-            var _r = String(_u?.role?.name || _u?.role || '').toLowerCase();
-            if (_r === 'instructor') {
-                var hideTexts = ['CLI', 'Competitions', 'Achievements', 'AI Tutor'];
-                document.querySelectorAll('.nav-link').forEach(function(link) {
-                    if (hideTexts.some(function(t) { return link.textContent.trim().includes(t); })) {
-                        var item = link.closest('.nav-item');
-                        if (item) item.style.display = 'none';
-                    }
-                });
-            }
-        } catch (_) {}
-    })();
-    </script>
 </body>
 </html>

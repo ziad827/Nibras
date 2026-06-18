@@ -3196,26 +3196,17 @@
     },
 
     /**
-     * Get course details
+     * Get course details (alias for getDetail — legacy callers)
      * @param {string} courseId
      * @returns {Promise<object>}
      */
     async getById(courseId) {
-      return apiFetch(
-        `/v1/tracking/courses/${encodeURIComponent(String(courseId))}`,
-        {
-          service: 'tracking',
-          method: 'GET',
-          auth: true,
-        },
-      );
+      return this.getDetail(courseId);
     },
 
     /**
      * Get course detail with video progress summary
      * Backend: GET /v1/tracking/courses/:courseId/detail
-     * @param {string} courseId
-     * @returns {Promise<object>}
      */
     async getDetail(courseId) {
       return apiFetch(
@@ -3230,8 +3221,6 @@
 
     /**
      * Get grade export CSV
-     * @param {string} courseId
-     * @returns {Promise<string>}
      */
     async getGradesCsv(courseId) {
       const response = await fetch(
@@ -3253,9 +3242,6 @@
 
     /**
      * List course sections with nested lecture videos and watch progress
-     * Backend: GET /v1/tracking/courses/:courseId/sections
-     * @param {string} courseId
-     * @returns {Promise<{sections: Array}>}
      */
     async listSections(courseId) {
       return apiFetch(
@@ -3268,10 +3254,6 @@
       );
     },
 
-    /**
-     * Create a course section (instructor)
-     * Backend: POST /v1/tracking/courses/:courseId/sections
-     */
     async createSection(courseId, body) {
       return apiFetch(
         `/v1/tracking/courses/${encodeURIComponent(String(courseId))}/sections`,
@@ -3284,10 +3266,6 @@
       );
     },
 
-    /**
-     * Add a lecture video to a section (instructor)
-     * Backend: POST /v1/tracking/courses/:courseId/sections/:sectionId/videos
-     */
     async addVideo(courseId, sectionId, body) {
       return apiFetch(
         `/v1/tracking/courses/${encodeURIComponent(String(courseId))}/sections/${encodeURIComponent(String(sectionId))}/videos`,
@@ -3300,10 +3278,6 @@
       );
     },
 
-    /**
-     * Save lecture watch progress for the current user
-     * Backend: POST /v1/tracking/videos/:videoId/progress
-     */
     async saveVideoProgress(videoId, body) {
       return apiFetch(
         `/v1/tracking/videos/${encodeURIComponent(String(videoId))}/progress`,
@@ -3312,6 +3286,82 @@
           method: 'POST',
           auth: true,
           body,
+        },
+      );
+    },
+
+    /**
+     * List course assignments with submission status
+     * Backend: GET /v1/tracking/courses/:courseId/assignments
+     */
+    async listAssignments(courseId) {
+      return apiFetch(
+        `/v1/tracking/courses/${encodeURIComponent(String(courseId))}/assignments`,
+        {
+          service: 'tracking',
+          method: 'GET',
+          auth: true,
+        },
+      );
+    },
+
+    /**
+     * Get assignment detail
+     * Backend: GET /v1/tracking/assignments/:assignmentId
+     */
+    async getAssignment(assignmentId) {
+      return apiFetch(
+        `/v1/tracking/assignments/${encodeURIComponent(String(assignmentId))}`,
+        {
+          service: 'tracking',
+          method: 'GET',
+          auth: true,
+        },
+      );
+    },
+
+    /**
+     * Submit assignment (text or MCQ)
+     * Backend: POST /v1/tracking/assignments/:assignmentId/submit
+     */
+    async submitAssignment(assignmentId, body) {
+      return apiFetch(
+        `/v1/tracking/assignments/${encodeURIComponent(String(assignmentId))}/submit`,
+        {
+          service: 'tracking',
+          method: 'POST',
+          auth: true,
+          body,
+        },
+      );
+    },
+
+    /**
+     * Student grade rollup for a course
+     * Backend: GET /v1/tracking/courses/:courseId/grades/me
+     */
+    async getMyGrades(courseId) {
+      return apiFetch(
+        `/v1/tracking/courses/${encodeURIComponent(String(courseId))}/grades/me`,
+        {
+          service: 'tracking',
+          method: 'GET',
+          auth: true,
+        },
+      );
+    },
+
+    /**
+     * Instructor gradebook for a course
+     * Backend: GET /v1/tracking/courses/:courseId/grades
+     */
+    async getInstructorGrades(courseId) {
+      return apiFetch(
+        `/v1/tracking/courses/${encodeURIComponent(String(courseId))}/grades`,
+        {
+          service: 'tracking',
+          method: 'GET',
+          auth: true,
         },
       );
     },

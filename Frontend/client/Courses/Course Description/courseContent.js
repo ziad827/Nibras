@@ -41,9 +41,10 @@ function populateDashboard(data, selected) {
   );
   setText('header-duration', `${data.stats.duration}`);
   setText('header-commitment', data.stats.commitment);
+  var lectureCount = data.stats.enrolled || data.progress?.totalLectures || 0;
   setText(
     'header-students',
-    `${data.stats.enrolled} ${data.stats.enrolled === 1 ? 'lecture' : 'lectures'} in catalog`,
+    `${lectureCount} ${lectureCount === 1 ? 'lecture' : 'lectures'}`,
   );
   setText('current-week-num', data.currentWeek);
   setText('total-weeks', data.totalWeeks);
@@ -57,10 +58,14 @@ function populateDashboard(data, selected) {
   setText('instructor-initials', data.instructor.initials);
   setText('instructor-name', data.instructor.name);
   setText('instructor-role', data.instructor.role);
+  var ratingEl = document.getElementById('instructor-rating');
+  var ratingWrap = ratingEl?.closest('.rating');
   if (data.instructor.rating != null) {
     setText('instructor-rating', data.instructor.rating);
+    if (ratingWrap) ratingWrap.style.display = '';
   } else {
-    setText('instructor-rating', data.code || selected.code || '');
+    setText('instructor-rating', '—');
+    if (ratingWrap) ratingWrap.style.display = 'none';
   }
   setText('instructor-bio', data.instructor.bio);
 
@@ -71,15 +76,10 @@ function populateDashboard(data, selected) {
 
   const totalLectures = Number(data.progress.totalLectures) || 0;
   const completedLectures = Number(data.progress.completedLectures) || 0;
-  const sidebarFill = document.getElementById('sidebar-progress-fill');
-  if (sidebarFill && totalLectures > 0) {
-    sidebarFill.style.width = `${(completedLectures / totalLectures) * 100}%`;
-  }
-
-  const progressFillMain = document.getElementById('progress-fill-main');
-  if (progressFillMain) {
-    progressFillMain.style.width = `${data.progress.percent}%`;
-  }
+  window.NibrasCourseSidebar?.updateSidebarProgress?.({
+    text: `${completedLectures} of ${totalLectures} lectures completed`,
+    percent: data.progress.percent,
+  });
 
   const announceContainer = document.getElementById('announcements-container');
   if (announceContainer) {
@@ -153,70 +153,131 @@ function populateDashboard(data, selected) {
   }
 }
 
-function setCourseLinks(courseId) {
-  var _role = '';
+async function resolveBackendCourseSlug() {
   try {
-    var _u = JSON.parse(localStorage.getItem('user') || '{}');
-    _role = String(_u?.role?.name || _u?.role || '').toLowerCase();
+    var rawId = localStorage.getItem('selectedCourseId');
+    if (!rawId) return;
+    var fallback = window.NibrasCourses?.getCourseById?.(rawId);
+    if (fallback && fallback.id !== rawId) {
+      var slug =
+        await window.NibrasCourses?.resolveLocalCourseIdByBackendId?.(rawId);
+      if (slug) {
+        window.NibrasCourses.setSelectedCourseId(slug);
+        var refreshed = window.NibrasCourses?.getSelectedCourse?.();
+        if (refreshed?.overview) {
+          populateDashboard(refreshed.overview, refreshed);
+          window.NibrasCourseSidebar?.applyCourseNav?.({
+            activeKey: 'courseContent',
+            pageRoot: 'courseContent',
+            courseId: refreshed.id,
+            extraLinks: { forum: true, videosQuick: true },
+          });
+        }
+      }
+    }
   } catch (_) {}
-  var isInstructor = _role === 'instructor';
+}
 
-  var navLinks = [
-    { key: 'courseContent', path: './courseContent.html' },
-    { key: 'videos', path: isInstructor ? '' : '../Videos/videos.html' },
-    {
-      key: 'assignments',
-      path: isInstructor
-        ? '../../Admin/AssignmentBuilder/assignment-builder.html'
-        : '../Assignments/Assignments.html',
-    },
-    {
-      key: 'grades',
-      path: isInstructor
-        ? '../../Admin/InstructorGrades/instructor-grades.html'
-        : '../Grades/grades.html',
-    },
-  ];
+async function hydrateOverviewFromTracking(selectedCourse) {
+  var trackingSvc = window.NibrasServices?.trackingCourseService;
+  var trackingId = window.NibrasCourseSidebar?.resolveTrackingId?.(selectedCourse);
+  if (!trackingSvc || !trackingId) return;
 
-  navLinks.forEach(({ key, path }) => {
-    const el = document.querySelector(`[data-nav-link="${key}"]`);
-    if (!el || !path) return;
-    el.setAttribute('href', window.NibrasCourses.withCourseId(path, courseId));
-  });
+  try {
+    var payload = await trackingSvc.getDetail(trackingId);
+    var detail = payload?.data || payload;
+    if (!detail || typeof detail !== 'object') return;
 
-  const backBtn = document.querySelector('.back-btn');
-  if (backBtn) {
-    backBtn.setAttribute(
-      'href',
-      window.NibrasCourses.withCourseId('../courses.html', courseId),
+    if (detail.description) setText('header-desc', detail.description);
+    if (detail.termLabel) {
+      setText(
+        'sidebar-term',
+        detail.termLabel +
+          ' • Lecture ' +
+          (selectedCourse.overview?.currentWeek || 1) +
+          ' of ' +
+          (selectedCourse.overview?.totalWeeks || detail.videoCount || 0),
+      );
+    }
+    if (detail.videoCount != null) {
+      var vc = Number(detail.videoCount);
+      setText(
+        'header-students',
+        `${vc} ${vc === 1 ? 'video' : 'videos'}`,
+      );
+    }
+    if (detail.syllabusJson?.objectives?.length) {
+      var objContainer = document.getElementById('objectives-container');
+      if (objContainer) {
+        objContainer.innerHTML = '';
+        detail.syllabusJson.objectives.forEach(function (obj) {
+          objContainer.innerHTML +=
+            '<li><i class="fa-regular fa-circle-check"></i> ' +
+            _safeHtml(obj) +
+            '</li>';
+        });
+      }
+    }
+  } catch (error) {
+    console.warn(
+      '[COURSE-CONTENT] Failed to hydrate overview from tracking:',
+      error?.message || error,
     );
   }
+}
 
-  const forumLink = document.querySelector('#discussion-forum-link');
-  if (forumLink) {
-    forumLink.setAttribute(
-      'href',
-      window.NibrasCourses.withCourseId(
-        '../../Community/CourseDiscussions/discussions.html',
-        courseId,
-      ),
-    );
+async function hydrateOverviewFromAdmin(selectedCourse) {
+  const backendCourseId =
+    selectedCourse?.adminCourseId || selectedCourse?.backendCourseId || null;
+  const coursesService = window.NibrasServices?.coursesService;
+
+  if (
+    !backendCourseId ||
+    !coursesService ||
+    typeof coursesService.getById !== 'function'
+  ) {
+    return;
   }
 
-  const videosLink = document.querySelector('#videos-link');
-  if (videosLink) {
-    videosLink.setAttribute(
-      'href',
-      window.NibrasCourses.withCourseId('../Videos/videos.html', courseId),
+  try {
+    const payload = await coursesService.getById(backendCourseId);
+    const course = payload?.data || payload;
+    if (!course || typeof course !== 'object') return;
+
+    if (course.description) setText('header-desc', course.description);
+
+    if (Number.isFinite(Number(course.overallPercentage))) {
+      const pct = Math.max(
+        0,
+        Math.min(100, Math.round(Number(course.overallPercentage))),
+      );
+      window.NibrasCourseSidebar?.updateSidebarProgress?.({
+        text: pct + '% complete',
+        percent: pct,
+      });
+    }
+  } catch (error) {
+    console.warn(
+      '[COURSE-CONTENT] Failed to hydrate overview from admin backend:',
+      error?.message || error,
     );
   }
+}
 
-  const playgroundLink = document.querySelector('#playground-link');
-  if (playgroundLink) {
-    playgroundLink.setAttribute(
-      'href',
-      '../../Competitions/Practice/practice.html',
-    );
+function hydrateProgressInBackground(selectedCourse) {
+  var run = async function () {
+    await resolveBackendCourseSlug();
+    await hydrateOverviewFromTracking(selectedCourse);
+    await hydrateOverviewFromAdmin(selectedCourse);
+    await window.NibrasCourseSidebar?.hydrateSidebarProgress?.(selectedCourse);
+  };
+
+  if (window.NibrasReact?.run) {
+    window.NibrasReact.run(run);
+  } else if (window.bootstrapReactPage) {
+    window.bootstrapReactPage(run);
+  } else {
+    run();
   }
 }
 
@@ -274,195 +335,6 @@ function initThemeToggle() {
   }
 }
 
-async function resolveBackendCourseSlug() {
-  try {
-    var rawId = localStorage.getItem('selectedCourseId');
-    if (!rawId) return;
-    var fallback = window.NibrasCourses?.getCourseById?.(rawId);
-    if (fallback && fallback.id !== rawId) {
-      var slug =
-        await window.NibrasCourses?.resolveLocalCourseIdByBackendId?.(rawId);
-      if (slug) {
-        window.NibrasCourses.setSelectedCourseId(slug);
-        var refreshed = window.NibrasCourses?.getSelectedCourse?.();
-        if (refreshed?.overview) {
-          populateDashboard(refreshed.overview, refreshed);
-          setCourseLinks(refreshed.id);
-        }
-      }
-    }
-  } catch (_) {}
-}
-
-async function hydrateOverviewFromAdmin(courseId, selectedCourse) {
-  if (selectedCourse?.overview?.description) return;
-
-  const backendCourseId =
-    selectedCourse?.adminCourseId || selectedCourse?.backendCourseId || null;
-  const coursesService = window.NibrasServices?.coursesService;
-
-  if (
-    !backendCourseId ||
-    !coursesService ||
-    typeof coursesService.getById !== 'function'
-  ) {
-    return;
-  }
-
-  try {
-    const payload = await coursesService.getById(backendCourseId);
-    const course = payload?.data || payload;
-    if (!course || typeof course !== 'object') return;
-
-    if (Number.isFinite(Number(course.overallPercentage))) {
-      const pct = Math.max(
-        0,
-        Math.min(100, Math.round(Number(course.overallPercentage))),
-      );
-      setText('progress-percent-text', `${pct}%`);
-      const progressFillMain = document.getElementById('progress-fill-main');
-      if (progressFillMain) progressFillMain.style.width = `${pct}%`;
-    }
-  } catch (error) {
-    console.warn(
-      '[COURSE-CONTENT] Failed to hydrate overview from admin backend:',
-      error?.message || error,
-    );
-  }
-}
-
-async function hydrateProgressFromTracking(selectedCourse) {
-  const trackingCourseService = window.NibrasServices?.trackingCourseService;
-  const identifiers =
-    window.NibrasCourses?.resolveCourseIdentifiers?.(selectedCourse?.id) ||
-    null;
-  const trackingId =
-    selectedCourse?.trackingCourseId ||
-    selectedCourse?.trackingCourseIdForApi ||
-    identifiers?.trackingCourseIdForApi ||
-    identifiers?.trackingCourseId;
-
-  if (
-    !trackingCourseService ||
-    typeof trackingCourseService.getDetail !== 'function' ||
-    !trackingId
-  ) {
-    return false;
-  }
-
-  try {
-    const payload = await trackingCourseService.getDetail(trackingId);
-    const detail = payload?.data || payload;
-    const percentage = Number(detail?.videoProgressPercent);
-    if (!Number.isFinite(percentage)) return false;
-
-    const clamped = Math.max(0, Math.min(100, percentage));
-    setText('progress-percent-text', `${clamped}%`);
-    const progressFillMain = document.getElementById('progress-fill-main');
-    if (progressFillMain) {
-      progressFillMain.style.width = `${clamped}%`;
-    }
-
-    const videoCount = Number(detail?.videoCount || 0);
-    if (videoCount > 0 && clamped > 0) {
-      const completedEstimate = Math.round((clamped / 100) * videoCount);
-      setText(
-        'sidebar-progress-text',
-        `${completedEstimate} of ${videoCount} videos watched`,
-      );
-      const sidebarFill = document.getElementById('sidebar-progress-fill');
-      if (sidebarFill) {
-        sidebarFill.style.width = `${clamped}%`;
-      }
-    }
-    return true;
-  } catch (error) {
-    console.warn(
-      '[COURSE-CONTENT] Failed to hydrate progress from tracking API:',
-      error?.message || error,
-    );
-    return false;
-  }
-}
-
-async function hydrateProgressFromCoursesBackend(selectedCourse) {
-  if (await hydrateProgressFromTracking(selectedCourse)) {
-    return;
-  }
-
-  const coursesService = window.NibrasServices?.coursesService;
-  const backendCourseId =
-    selectedCourse?.adminCourseId || selectedCourse?.backendCourseId || null;
-
-  if (
-    !coursesService ||
-    typeof coursesService.getProgress !== 'function' ||
-    !backendCourseId
-  ) {
-    return;
-  }
-
-  try {
-    const payload = await coursesService.getProgress(backendCourseId);
-    const progress = payload?.data || payload;
-    if (!progress || typeof progress !== 'object') return;
-
-    const percentage = Number(progress.percentage);
-    if (Number.isFinite(percentage)) {
-      const clamped = Math.max(0, Math.min(100, percentage));
-      setText('progress-percent-text', `${clamped}%`);
-      const progressFillMain = document.getElementById('progress-fill-main');
-      if (progressFillMain) {
-        progressFillMain.style.width = `${clamped}%`;
-      }
-    }
-
-    const sectionItems = Array.isArray(progress.items)
-      ? progress.items.filter((item) => item?.itemType === 'section')
-      : [];
-    const completedSections = Array.isArray(progress.completedSections)
-      ? progress.completedSections.length
-      : 0;
-    if (sectionItems.length > 0) {
-      setText(
-        'sidebar-progress-text',
-        `${completedSections} of ${sectionItems.length} lectures completed`,
-      );
-      const sidebarFill = document.getElementById('sidebar-progress-fill');
-      if (sidebarFill) {
-        sidebarFill.style.width = `${(completedSections / sectionItems.length) * 100}%`;
-      }
-    }
-  } catch (error) {
-    if (Number(error?.status) === 404) {
-      console.warn(
-        '[COURSE-CONTENT] Progress routes are not mounted on this deployment yet.',
-      );
-      return;
-    }
-    console.warn(
-      '[COURSE-CONTENT] Failed to hydrate progress from courses backend:',
-      error?.message || error,
-    );
-  }
-}
-
-function hydrateProgressInBackground(selectedCourse) {
-  var run = function () {
-    resolveBackendCourseSlug();
-    hydrateOverviewFromAdmin(selectedCourse.id, selectedCourse);
-    hydrateProgressFromCoursesBackend(selectedCourse);
-  };
-
-  if (window.NibrasReact?.run) {
-    window.NibrasReact.run(run);
-  } else if (window.bootstrapReactPage) {
-    window.bootstrapReactPage(run);
-  } else {
-    run();
-  }
-}
-
 function initCourseContent() {
   if (!window.NibrasCourses) {
     showCourseLoadError(
@@ -471,16 +343,12 @@ function initCourseContent() {
     return;
   }
 
-  window.NibrasCourses.resolveCourseId?.();
-
-  try {
-    var _u = JSON.parse(localStorage.getItem('user') || '{}');
-    var _role = String(_u?.role?.name || _u?.role || '').toLowerCase();
-    if (_role === 'instructor') {
-      var videosLink = document.querySelector('[data-nav-link="videos"]');
-      if (videosLink) videosLink.style.display = 'none';
-    }
-  } catch (_) {}
+  window.NibrasCourseSidebar?.initCoursePageChrome?.({
+    activeKey: 'courseContent',
+    pageRoot: 'courseContent',
+    extraLinks: { forum: true, videosQuick: true },
+    deferProgress: true,
+  });
 
   const selectedCourse = window.NibrasCourses.getSelectedCourse?.();
   if (!selectedCourse || !selectedCourse.overview) {
@@ -492,7 +360,6 @@ function initCourseContent() {
 
   initThemeToggle();
   populateDashboard(selectedCourse.overview, selectedCourse);
-  setCourseLinks(selectedCourse.id);
   hydrateProgressInBackground(selectedCourse);
 
   console.log(
