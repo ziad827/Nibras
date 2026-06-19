@@ -838,7 +838,7 @@ window.NibrasReact.run(() => {
           '<div id="tracking-assignment-content"></div>' +
           '<textarea id="tracking-text-answer" rows="10" style="width:100%; margin-top:1rem;" placeholder="Enter your response..."></textarea>' +
           '<div id="tracking-mcq-container" style="margin-top:1rem;"></div>' +
-          '<button id="btn-submit-tracking" class="back-btn" style="width:auto; margin-top:1rem;">Submit Assignment</button>' +
+          '<button id="btn-submit-tracking" class="submit-btn" style="width:auto; margin-top:1rem;">Submit Assignment</button>' +
           '<p id="tracking-submit-status" style="margin-top:0.75rem; color:var(--text-secondary);"></p>' +
           '</div>';
       }

@@ -488,6 +488,9 @@ body {
 }
 .code-actions { display: flex; align-items: center; gap: 12px; margin-top: 0.75rem; }
 
+.code-actions .submit-btn,
+.file-submit-row .submit-btn,
+.github-legacy .submit-btn,
 .code-actions .back-btn,
 .file-submit-row .back-btn,
 .github-legacy .back-btn {
@@ -507,12 +510,18 @@ body {
     transition: all 0.2s ease;
     text-decoration: none;
 }
+.code-actions .submit-btn:hover,
+.file-submit-row .submit-btn:hover,
+.github-legacy .submit-btn:hover,
 .code-actions .back-btn:hover,
 .file-submit-row .back-btn:hover,
 .github-legacy .back-btn:hover {
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
     transform: translateY(-1px);
 }
+.code-actions .submit-btn:disabled,
+.file-submit-row .submit-btn:disabled,
+.github-legacy .submit-btn:disabled,
 .code-actions .back-btn:disabled,
 .file-submit-row .back-btn:disabled,
 .github-legacy .back-btn:disabled {

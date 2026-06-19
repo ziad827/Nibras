@@ -92,6 +92,29 @@
     return path + sep + 'courseId=' + encodeURIComponent(courseId);
   }
 
+  function getCoursesListUrl() {
+    return isInstructor()
+      ? '/Courses/instructor-courses.html'
+      : '/Courses/courses.html';
+  }
+
+  function wireReturnToCoursesLink() {
+    var coursesUrl = getCoursesListUrl();
+    var backLink =
+      document.getElementById('return-to-courses-link') ||
+      document.querySelector('.sidebar-footer a.back-btn');
+    if (!backLink) return;
+
+    backLink.setAttribute('href', coursesUrl);
+    if (!backLink.dataset.returnBound) {
+      backLink.dataset.returnBound = 'true';
+      backLink.addEventListener('click', function (event) {
+        event.preventDefault();
+        window.location.href = coursesUrl;
+      });
+    }
+  }
+
   function persistCourseIdFromUrl() {
     var params = new URLSearchParams(window.location.search);
     var courseId =
@@ -197,7 +220,9 @@
       options?.courseId ||
       localStorage.getItem('selectedCourseId') ||
       window.NibrasCourses?.getSelectedCourse?.()?.id;
-  if (!courseId) return;
+
+    wireReturnToCoursesLink();
+    if (!courseId) return;
 
     var navItems = getNavItems(pageRoot);
     navItems.forEach(function (item) {
@@ -219,10 +244,6 @@
     });
 
     var roots = PAGE_ROOTS[pageRoot] || PAGE_ROOTS.courseContent;
-    var backBtn = document.querySelector('.back-btn');
-    if (backBtn) {
-      backBtn.setAttribute('href', withCourseId(roots.coursesList, courseId));
-    }
 
     var extra = options?.extraLinks || {};
     if (extra.forum && roots.forum) {
@@ -399,6 +420,7 @@
       extraLinks: options?.extraLinks,
     });
     hideAppNavForInstructor();
+    wireReturnToCoursesLink();
 
     var selectedCourse = window.NibrasCourses?.getSelectedCourse?.();
     if (selectedCourse) {
@@ -427,6 +449,8 @@
     applyCourseNav: applyCourseNav,
     updateSidebarProgress: updateSidebarProgress,
     updateCourseMeta: updateCourseMeta,
+    wireReturnToCoursesLink: wireReturnToCoursesLink,
+    getCoursesListUrl: getCoursesListUrl,
     hydrateSidebarProgress: hydrateSidebarProgress,
     resolveTrackingId: resolveTrackingId,
     initCoursePageChrome: initCoursePageChrome,

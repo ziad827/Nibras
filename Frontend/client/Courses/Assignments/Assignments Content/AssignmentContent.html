@@ -47,7 +47,7 @@
         </ul>
 
         <div class="sidebar-footer">
-        <a href="../../courses.html" class="back-btn">
+        <a href="/Courses/courses.html" id="return-to-courses-link" class="back-btn">
                 <i class="fa-solid fa-arrow-left-long" style="margin-right:8px"></i>
                     Return to Courses
         </a>
@@ -170,7 +170,7 @@
                     </div>
                     <textarea id="code-editor" class="code-editor" placeholder="// Write your code here..." spellcheck="false"></textarea>
                     <div class="code-actions">
-                        <button id="btn-submit-code" class="back-btn" style="width: auto; margin-bottom: 0;">Submit Code</button>
+                        <button id="btn-submit-code" class="submit-btn" style="width: auto; margin-bottom: 0;">Submit Code</button>
                         <span id="code-status" class="sub-status"></span>
                     </div>
                 </div>
@@ -183,7 +183,7 @@
                     </div>
                     <div id="file-list-names" class="file-list-names"></div>
                     <div class="code-actions">
-                        <button id="btn-submit-file" class="back-btn" style="width: auto; margin-bottom: 0;">Upload & Submit</button>
+                        <button id="btn-submit-file" class="submit-btn" style="width: auto; margin-bottom: 0;">Upload & Submit</button>
                         <span id="file-status" class="sub-status"></span>
                     </div>
                 </div>
@@ -195,7 +195,7 @@
                         <div style="margin-top: 0.75rem;">
                             <div style="display: flex; gap: 10px;">
                                 <input type="text" id="github-url" placeholder="https://github.com/username/repo" style="flex: 1; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-primary);">
-                                <button id="btn-submit-github" class="back-btn" style="width: auto; margin-bottom: 0;">Submit</button>
+                                <button id="btn-submit-github" class="submit-btn" style="width: auto; margin-bottom: 0;">Submit</button>
                             </div>
                             <div style="display: flex; gap: 10px; margin-top: 0.75rem;">
                                 <input type="text" id="submission-branch" placeholder="Branch (optional, default: main)" style="flex: 1; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-primary);" value="main">

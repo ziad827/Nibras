@@ -1204,12 +1204,14 @@ function setupNavigationLinks(courseId) {
       );
   });
 
-  const backButton = document.querySelector('.back-btn');
-  if (backButton)
-    backButton.setAttribute(
-      'href',
-      window.NibrasCourses.withCourseId('../courses.html', courseId),
-    );
+  const backButton =
+    document.getElementById('return-to-courses-link') ||
+    document.querySelector('.sidebar-footer a.back-btn');
+  if (backButton) {
+    var coursesUrl = window.NibrasCourseSidebar?.getCoursesListUrl?.() ||
+      '/Courses/courses.html';
+    backButton.setAttribute('href', coursesUrl);
+  }
 }
 
 function setupThemeToggle() {

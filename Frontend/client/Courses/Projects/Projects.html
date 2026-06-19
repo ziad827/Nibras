@@ -50,8 +50,8 @@
                 if (el) el.setAttribute("href", withCourseId(path));
             });
 
-            const backBtn = document.querySelector(".back-btn");
-            if (backBtn) backBtn.setAttribute("href", withCourseId("../courses.html"));
+            const backBtn = document.getElementById("return-to-courses-link") || document.querySelector(".sidebar-footer a.back-btn");
+            if (backBtn) backBtn.setAttribute("href", "/Courses/courses.html");
         }
 
         if (document.readyState === 'loading') {
@@ -121,7 +121,7 @@
             <button class="btn btn-secondary" onclick="openCliHelpModal()" style="width: 100%; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
                 <i class="fa-solid fa-terminal"></i> CLI Help
             </button>
-            <a href="../courses.html" class="back-btn">
+            <a href="/Courses/courses.html" id="return-to-courses-link" class="back-btn">
                 <i class="fa-solid fa-arrow-left-long" style="margin-right:8px"></i>
                 Return to Courses
             </a>
