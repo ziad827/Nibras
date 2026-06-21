@@ -10,6 +10,7 @@ const {
   CourseGradesRollupSchema,
   CourseAssignmentSchema,
   TrackingCourseDetailSchema,
+  CourseAnnouncementSchema,
 } = require('@nibras/contracts');
 
 test('GET /v1/tracking/courses/:courseId/grades/me requires authentication', async (t) => {
@@ -182,5 +183,169 @@ test('course detail progress and grades rollup with Prisma', async (t) => {
     if (courseId) {
       await prisma.course.delete({ where: { id: courseId } }).catch(() => {});
     }
+  }
+});
+
+test('course overview announcements CRUD and extended detail fields', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const store = new PrismaStore(prisma);
+  const app = buildApp(store);
+
+  const slug = `overview-upgrade-${Date.now()}`;
+  const instructorId = `overview_instructor_${Date.now()}`;
+  const studentId = `overview_student_${Date.now()}`;
+  let courseId;
+  let instructorToken;
+  let studentToken;
+
+  async function ensureUser(id, username, email, extra = {}) {
+    return prisma.user.upsert({
+      where: { id },
+      create: {
+        id,
+        username,
+        email,
+        emailVerified: true,
+        displayName: extra.displayName ?? username,
+        bio: extra.bio ?? null,
+      },
+      update: {
+        displayName: extra.displayName ?? username,
+        bio: extra.bio ?? null,
+      },
+    });
+  }
+
+  try {
+    await ensureUser(
+      instructorId,
+      'instructor_overview',
+      `instructor-overview-${Date.now()}@test.dev`,
+      {
+        displayName: 'Overview Instructor',
+        bio: 'Course instructor bio',
+      },
+    );
+    await ensureUser(
+      studentId,
+      'demo_overview',
+      `demo-overview-${Date.now()}@test.dev`,
+    );
+
+    const course = await prisma.course.create({
+      data: {
+        slug,
+        title: 'Overview Upgrade Course',
+        termLabel: 'Test',
+        courseCode: 'OVW101',
+        syllabusJson: {
+          prerequisites: ['Basic programming experience'],
+        },
+        memberships: {
+          create: [
+            { userId: instructorId, role: 'instructor' },
+            { userId: studentId, role: 'student' },
+          ],
+        },
+      },
+    });
+    courseId = course.id;
+
+    const instructorSession = await store.createSessionForUser(instructorId);
+    const studentSession = await store.createSessionForUser(studentId);
+    instructorToken = instructorSession.accessToken;
+    studentToken = studentSession.accessToken;
+
+    const forbidden = await app.inject({
+      method: 'POST',
+      url: `/v1/tracking/courses/${courseId}/announcements`,
+      headers: {
+        authorization: `Bearer ${studentToken}`,
+        'content-type': 'application/json',
+      },
+      payload: { title: 'Blocked', body: 'Students cannot post.' },
+    });
+    assert.equal(forbidden.statusCode, 403);
+
+    const created = await app.inject({
+      method: 'POST',
+      url: `/v1/tracking/courses/${courseId}/announcements`,
+      headers: {
+        authorization: `Bearer ${instructorToken}`,
+        'content-type': 'application/json',
+      },
+      payload: {
+        title: 'Welcome',
+        body: 'First live announcement for the course overview.',
+      },
+    });
+    assert.equal(created.statusCode, 201);
+    const announcement = CourseAnnouncementSchema.parse(created.json());
+    assert.equal(announcement.title, 'Welcome');
+
+    const listRes = await app.inject({
+      method: 'GET',
+      url: `/v1/tracking/courses/${courseId}/announcements`,
+      headers: { authorization: `Bearer ${studentToken}` },
+    });
+    assert.equal(listRes.statusCode, 200);
+    const listed = listRes.json();
+    assert.ok(Array.isArray(listed));
+    assert.equal(listed.length, 1);
+    assert.equal(listed[0].id, announcement.id);
+
+    const detailRes = await app.inject({
+      method: 'GET',
+      url: `/v1/tracking/courses/${courseId}/detail`,
+      headers: { authorization: `Bearer ${studentToken}` },
+    });
+    assert.equal(detailRes.statusCode, 200);
+    const detail = TrackingCourseDetailSchema.parse(detailRes.json());
+    assert.ok(Array.isArray(detail.instructors));
+    assert.equal(detail.instructors[0].displayName, 'Overview Instructor');
+    assert.ok(detail.prerequisites);
+    assert.deepEqual(detail.prerequisites.notes, [
+      'Basic programming experience',
+    ]);
+
+    const notificationCount = await prisma.notification.count({
+      where: {
+        userId: studentId,
+        type: 'course_announcement',
+      },
+    });
+    assert.ok(notificationCount >= 1, 'student receives course announcement notification');
+
+    const updated = await app.inject({
+      method: 'PATCH',
+      url: `/v1/tracking/courses/${courseId}/announcements/${announcement.id}`,
+      headers: {
+        authorization: `Bearer ${instructorToken}`,
+        'content-type': 'application/json',
+      },
+      payload: { title: 'Welcome Updated' },
+    });
+    assert.equal(updated.statusCode, 200);
+    assert.equal(updated.json().title, 'Welcome Updated');
+
+    const deleted = await app.inject({
+      method: 'DELETE',
+      url: `/v1/tracking/courses/${courseId}/announcements/${announcement.id}`,
+      headers: { authorization: `Bearer ${instructorToken}` },
+    });
+    assert.equal(deleted.statusCode, 200);
+    assert.equal(deleted.json().ok, true);
+  } finally {
+    await app.close();
+    if (courseId) {
+      await prisma.course.delete({ where: { id: courseId } }).catch(() => {});
+    }
+    await prisma.user.delete({ where: { id: instructorId } }).catch(() => {});
+    await prisma.user.delete({ where: { id: studentId } }).catch(() => {});
   }
 });

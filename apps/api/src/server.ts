@@ -277,7 +277,33 @@ async function syncProblemsOnStartup(): Promise<void> {
   }
 }
 
+async function syncRbacOnStartup(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+
+  const { seedRbac } = await import('./features/rbac/seed');
+  const { getSharedPrisma } = await import('./lib/prisma');
+  try {
+    const result = await seedRbac(getSharedPrisma());
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        msg: 'RBAC synced on startup',
+        ...result,
+      }),
+    );
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        msg: 'RBAC sync failed on startup',
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
+}
+
 function runStartupSyncInBackground(): void {
+  void syncRbacOnStartup();
   void syncBadgeCatalogOnStartup();
   void syncContestsOnStartup();
   void syncProblemsOnStartup();

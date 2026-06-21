@@ -1,5 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import {
+  CourseInstructorSummarySchema,
+  CoursePrerequisitesSchema,
   TrackingCourseDetailSchema,
   UpdateCourseProfileRequestSchema,
 } from '@nibras/contracts';
@@ -11,6 +13,20 @@ import { validateId } from '../../lib/validate';
 import { AppStore } from '../../store';
 import { canManageCourse, canViewCourseForRequest } from './policies/access';
 import { parseReputationWeights } from '../reputation/reputation-weights';
+
+function githubAvatarUrl(
+  login: string | null | undefined,
+  size = 128,
+): string | undefined {
+  const trimmed = login?.trim();
+  if (!trimmed) return undefined;
+  const url = `https://avatars.githubusercontent.com/${encodeURIComponent(trimmed)}?s=${size}`;
+  try {
+    return new URL(url).toString();
+  } catch {
+    return undefined;
+  }
+}
 
 function reputationWeightsForDetail(raw: Prisma.JsonValue | null | undefined) {
   const weights = parseReputationWeights(raw);
@@ -40,6 +56,8 @@ async function buildCourseDetail(
     publishedAssignmentCount,
     projectCount,
     progressAgg,
+    instructorMemberships,
+    linkedCatalog,
   ] = await Promise.all([
     prisma.courseVideo.count({
       where: { section: { courseId } },
@@ -55,12 +73,80 @@ async function buildCourseDetail(
       _avg: { watchedProgress: true },
       _count: { id: true },
     }),
+    prisma.courseMembership.findMany({
+      where: {
+        courseId,
+        role: { in: ['instructor', 'ta'] },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            bio: true,
+            githubAccount: { select: { login: true } },
+          },
+        },
+      },
+      orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+    }),
+    prisma.catalogCourse.findFirst({
+      where: { trackingCourseId: courseId },
+      include: {
+        prerequisites: {
+          include: {
+            prerequisiteCourse: {
+              select: {
+                id: true,
+                subjectCode: true,
+                catalogNumber: true,
+                title: true,
+                trackingCourseId: true,
+              },
+            },
+          },
+        },
+      },
+    }),
   ]);
 
   const videoProgressPercent =
     videoCount > 0 && progressAgg._count.id > 0
       ? Math.round((progressAgg._avg.watchedProgress ?? 0) * 100)
       : 0;
+
+  const syllabus =
+    (course.syllabusJson as Record<string, unknown> | null) ?? null;
+  const prerequisiteNotes = Array.isArray(syllabus?.prerequisites)
+    ? syllabus.prerequisites.filter(
+        (entry): entry is string =>
+          typeof entry === 'string' && entry.trim().length > 0,
+      )
+    : [];
+
+  const instructors = instructorMemberships.map((membership) =>
+    CourseInstructorSummarySchema.parse({
+      userId: membership.user.id,
+      displayName: membership.user.displayName,
+      username: membership.user.username,
+      githubLogin: membership.user.githubAccount?.login ?? null,
+      avatarUrl: githubAvatarUrl(membership.user.githubAccount?.login),
+      bio: membership.user.bio,
+      role: membership.role,
+    }),
+  );
+
+  const prerequisites = CoursePrerequisitesSchema.parse({
+    courses: (linkedCatalog?.prerequisites ?? []).map((entry) => ({
+      catalogCourseId: entry.prerequisiteCourse.id,
+      subjectCode: entry.prerequisiteCourse.subjectCode,
+      catalogNumber: entry.prerequisiteCourse.catalogNumber,
+      title: entry.prerequisiteCourse.title,
+      trackingCourseId: entry.prerequisiteCourse.trackingCourseId,
+    })),
+    notes: prerequisiteNotes,
+  });
 
   return TrackingCourseDetailSchema.parse({
     id: course.id,
@@ -80,6 +166,8 @@ async function buildCourseDetail(
     assignmentCount,
     publishedAssignmentCount,
     projectCount,
+    instructors,
+    prerequisites,
   });
 }
 

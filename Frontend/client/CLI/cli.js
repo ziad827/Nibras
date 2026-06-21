@@ -67,6 +67,7 @@ window.NibrasReact.run(function () {
   if (window.NibrasCli?.hydrateGuidePage) {
     window.NibrasCli.hydrateGuidePage();
   }
+  initOsTabs();
 });
 
 function toggleStep(num) {
@@ -127,30 +128,59 @@ function switchStep2Shell(shell, btn) {
   });
 }
 
-function switchWinShell(shell, btn) {
-  document.querySelectorAll('.win-tabs .os-tab').forEach(function (t) {
-    t.classList.remove('active');
+function applyOsInStep(container, os) {
+  if (!container) return;
+  var tabsRow = container.querySelector('.os-tabs');
+  if (tabsRow) {
+    tabsRow.querySelectorAll(':scope > .os-tab[data-os]').forEach(function (t) {
+      t.classList.toggle('active', t.getAttribute('data-os') === os);
+    });
+  }
+  container.querySelectorAll('.os-content').forEach(function (c) {
+    c.style.display = c.classList.contains(os) ? '' : 'none';
   });
-  btn.classList.add('active');
-  document.querySelectorAll('.win-shell').forEach(function (c) {
+}
+
+function initOsTabs() {
+  var os =
+    (window.NibrasCli && window.NibrasCli.detectPreferredOs
+      ? window.NibrasCli.detectPreferredOs()
+      : null) || 'linux';
+  document.querySelectorAll('.step-body').forEach(function (step) {
+    if (step.querySelector('.os-tabs .os-tab[data-os]')) {
+      applyOsInStep(step, os);
+    }
+  });
+  document.querySelectorAll('.win-only-note').forEach(function (el) {
+    el.style.display = os === 'windows' ? '' : 'none';
+  });
+}
+
+function switchWinShell(shell, btn) {
+  var container = btn.closest('.os-content.windows') || btn.closest('.step-body');
+  if (!container) return;
+  var tabs = btn.closest('.win-tabs');
+  if (tabs) {
+    tabs.querySelectorAll('.os-tab').forEach(function (t) {
+      t.classList.remove('active');
+    });
+    btn.classList.add('active');
+  }
+  container.querySelectorAll('.win-shell').forEach(function (c) {
     c.style.display = 'none';
   });
-  document.querySelectorAll('.win-shell.' + shell).forEach(function (c) {
+  container.querySelectorAll('.win-shell.' + shell).forEach(function (c) {
     c.style.display = '';
   });
 }
 
 function switchOs(os, btn) {
-  document.querySelectorAll('.os-tab').forEach(function (t) {
-    t.classList.remove('active');
-  });
-  btn.classList.add('active');
-  document.querySelectorAll('.os-content').forEach(function (c) {
-    c.style.display = 'none';
-  });
-  document.querySelectorAll('.os-content.' + os).forEach(function (c) {
-    c.style.display = '';
-  });
+  var container = btn.closest('.step-body');
+  if (!container) return;
+  applyOsInStep(container, os);
+  try {
+    localStorage.setItem('nibras_cli_os', os);
+  } catch (_) {}
 }
 
 function copyCmd(btn) {

@@ -19,6 +19,7 @@ import {
 } from './present';
 import {
   findPendingReport,
+  getTargetAuthorId,
   setTargetModerationStatus,
   targetExists,
   visibleContentFilter,
@@ -215,10 +216,12 @@ export function registerCommunityV2Routes(
       const { reportId } = request.params as { reportId: string };
       const body = request.body as { action?: string };
       const action = body.action?.trim();
-      if (!action || !['dismiss', 'hide', 'remove'].includes(action)) {
+      if (!action || !['dismiss', 'hide', 'remove', 'ban'].includes(action)) {
         reply
           .code(400)
-          .send(Errors.validation('action must be dismiss, hide, or remove.'));
+          .send(
+            Errors.validation('action must be dismiss, hide, remove, or ban.'),
+          );
         return;
       }
       const report = await prisma.communityReport.findUnique({
@@ -243,6 +246,48 @@ export function registerCommunityV2Routes(
             resolution: 'dismiss',
             reviewedById: auth.user.id,
             reviewedAt: now,
+          },
+        });
+      } else if (action === 'ban') {
+        const authorId = await getTargetAuthorId(
+          prisma,
+          report.targetType,
+          report.targetId,
+        );
+        if (!authorId) {
+          reply.code(404).send(Errors.notFound('Content author'));
+          return;
+        }
+        await prisma.user.update({
+          where: { id: authorId },
+          data: {
+            bannedAt: now,
+            banReason: 'Banned via moderation queue',
+            banExpiresAt: null,
+          },
+        });
+        await setTargetModerationStatus(
+          prisma,
+          report.targetType,
+          report.targetId,
+          CommunityModerationStatus.removed,
+        );
+        await prisma.communityReport.update({
+          where: { id: reportId },
+          data: {
+            status: CommunityReportStatus.actioned,
+            resolution: 'ban',
+            reviewedById: auth.user.id,
+            reviewedAt: now,
+          },
+        });
+        await prisma.auditLog.create({
+          data: {
+            userId: auth.user.id,
+            action: 'user.banned',
+            targetType: 'user',
+            targetId: authorId,
+            payload: { reportId, reason: 'moderation ban' },
           },
         });
       } else {

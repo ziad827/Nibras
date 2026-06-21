@@ -11,7 +11,7 @@ const {
   toAdminUserPayload,
 } = require('../apps/api/dist/features/admin-auth/helpers');
 
-test('resolveSelectedLevel maps yearLevel to study level labels', () => {
+test('resolveSelectedLevel maps yearLevel to study level labels', async () => {
   assert.equal(
     resolveSelectedLevel({
       id: 'demo',
@@ -57,14 +57,16 @@ test('resolveSelectedLevel maps yearLevel to study level labels', () => {
     'Expert',
   );
   assert.equal(
-    toAdminUserPayload({
-      id: 'demo',
-      email: 'demo@nibras.dev',
-      username: 'demo',
-      displayName: 'Alex Chen',
-      systemRole: 'user',
-      yearLevel: 2,
-    }).selectedLevel,
+    (
+      await toAdminUserPayload({
+        id: 'demo',
+        email: 'demo@nibras.dev',
+        username: 'demo',
+        displayName: 'Alex Chen',
+        systemRole: 'user',
+        yearLevel: 2,
+      })
+    ).selectedLevel,
     'Intermediate',
   );
 });

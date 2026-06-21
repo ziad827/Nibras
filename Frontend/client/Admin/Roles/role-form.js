@@ -31,14 +31,7 @@ window.NibrasReact.run(function () {
     },
     {
       name: 'System',
-      perms: [
-        'backup:trigger',
-        'backup:restore',
-        'backup:list',
-        'audit-log:read',
-        'config:read',
-        'config:update',
-      ],
+      perms: ['audit-log:read', 'config:read', 'config:update'],
     },
     {
       name: 'Content',

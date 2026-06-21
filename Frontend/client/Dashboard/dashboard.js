@@ -14,7 +14,6 @@ console.log('[DASHBOARD.JS] Script started (direct execution)');
   } catch (_) {}
 })();
 
-// Gate sidebar nav items based on user role
 (function () {
   try {
     var _user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -32,10 +31,9 @@ console.log('[DASHBOARD.JS] Script started (direct execution)');
   } catch (_) {}
 })();
 
-// --- 2. BACKEND DATA ---
-let savedGPA = localStorage.getItem('calculatedGPA');
 let selectedCourseId = localStorage.getItem('selectedCourseId') || '';
 let dashboardData = {};
+let courseSwitcherBound = false;
 
 const DROPDOWN_TIMEOUT_MS = 15000;
 
@@ -50,7 +48,14 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
-// Helper to resolve tracking service base URL
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function getTrackingBaseUrl() {
   const shared = window.NibrasShared || {};
   return (
@@ -67,7 +72,6 @@ function getTrackingBaseUrl() {
   );
 }
 
-// Helper to create a requestJson function for tracking service
 function createTrackingRequestJson() {
   const shared = window.NibrasShared || {};
   return shared.apiFetch
@@ -101,78 +105,146 @@ function createTrackingRequestJson() {
       };
 }
 
-// Resolve user name: competitions user.name first, then tracking session, then hardcoded default
+function resolveDashboardHref(href) {
+  if (!href) return '#';
+  if (/^https?:/i.test(href)) return href;
+  if (href.startsWith('../') || href.startsWith('./')) return href;
+
+  if (href.startsWith('/projects') || href.startsWith('/Projects')) {
+    var query = href.includes('?') ? href.slice(href.indexOf('?')) : '';
+    return '../Projects/projects.html' + query;
+  }
+  if (href.startsWith('/submissions/')) {
+    return '../Projects/projects.html';
+  }
+  if (href.startsWith('/Settings/') || href.startsWith('/settings')) {
+    return '../Settings/settings.html';
+  }
+  if (href.startsWith('/Integrations')) {
+    return '../Integrations/integrations.html';
+  }
+  if (href.startsWith('/')) {
+    return '..' + href;
+  }
+  return href;
+}
+
+function getInitials(name) {
+  if (!name) return 'U';
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(function (n) {
+      return n[0];
+    })
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function getRoleLabel(role) {
+  if (!role) return 'Student';
+  if (typeof role === 'object') return role.name || 'Student';
+  if (typeof role === 'string') {
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  }
+  return 'Student';
+}
+
+function updateUserUI(user) {
+  var initials = getInitials(user.name);
+  var name = user.name || 'Student';
+  var role = getRoleLabel(user.role);
+  var firstName = name.split(/\s+/)[0];
+
+  var sidebarAvatar = document.querySelector('.sidebar .avatar-circle');
+  var sidebarName = document.querySelector('.sidebar .user-info h4');
+  var sidebarRole = document.querySelector('.sidebar .user-info span');
+  if (sidebarAvatar) sidebarAvatar.textContent = initials;
+  if (sidebarName) sidebarName.textContent = name;
+  if (sidebarRole) sidebarRole.textContent = role;
+
+  document.querySelectorAll('.profile-circle-small').forEach(function (el) {
+    el.textContent = initials;
+  });
+
+  var welcomeEl = document.getElementById('welcome-msg');
+  if (welcomeEl) {
+    welcomeEl.textContent = 'Welcome back, ' + firstName + '!';
+  }
+}
+
+async function refreshUserProfile() {
+  var user = {};
+  try {
+    user = JSON.parse(localStorage.getItem('user') || '{}');
+  } catch (_) {}
+
+  if (user.name) updateUserUI(user);
+
+  try {
+    var S = window.NibrasServices;
+    if (S?.authService?.getMe) {
+      var meData = await S.authService.getMe();
+      var freshUser =
+        meData &&
+        (meData.user ||
+          (meData.data && meData.data.user) ||
+          meData.data ||
+          meData);
+      if (freshUser && (freshUser.name || freshUser.email)) {
+        localStorage.setItem('user', JSON.stringify(freshUser));
+        updateUserUI(freshUser);
+        user = freshUser;
+      }
+    }
+  } catch (_) {}
+
+  return user;
+}
+
 async function resolveUserName() {
-  // Check competitions user object first (has .name field from competitions login)
+  var user = {};
   try {
-    const competitionsUser = JSON.parse(localStorage.getItem('user') || 'null');
-    if (competitionsUser && competitionsUser.name) {
-      return competitionsUser.name.split(' ')[0];
-    }
+    user = JSON.parse(localStorage.getItem('user') || '{}');
+  } catch (_) {}
+  if (user.name) return user.name.split(/\s+/)[0];
+
+  try {
+    var cachedUser = JSON.parse(localStorage.getItem('nibras_user') || 'null');
+    if (cachedUser && cachedUser.login) return cachedUser.login;
   } catch (_) {}
 
-  // Check nibras/tracking cached user
   try {
-    const cachedUser = JSON.parse(
-      localStorage.getItem('nibras_user') || 'null',
-    );
-    if (cachedUser && cachedUser.login) {
-      return cachedUser.login;
-    }
-  } catch (_) {}
-
-  // Try fetching from tracking session service
-  try {
-    const requestJson = createTrackingRequestJson();
-    const sessionData = await requestJson('/v1/web/session', { method: 'GET' });
+    var requestJson = createTrackingRequestJson();
+    var sessionData = await requestJson('/v1/web/session', { method: 'GET' });
     if (sessionData && sessionData.login) {
       localStorage.setItem('nibras_user', JSON.stringify(sessionData));
       return sessionData.login;
     }
   } catch (err) {
-    console.warn(
-      '[DASHBOARD.JS] Could not fetch tracking session:',
-      err.message,
-    );
+    console.warn('[DASHBOARD.JS] Could not fetch tracking session:', err.message);
   }
 
   return 'Student';
 }
 
-// Load courses for switcher (only when #course-switcher exists in the page)
-async function loadCourseSwitcher() {
-  const selector = document.getElementById('course-switcher');
-  if (!selector) return;
+function buildHomeDashboardPath() {
+  return '/v1/tracking/dashboard/home?mode=student';
+}
 
-  try {
-    const requestJson = createTrackingRequestJson();
-    const courses = await withTimeout(
-      requestJson('/v1/tracking/courses', { method: 'GET' }),
-      DROPDOWN_TIMEOUT_MS,
-      'Course list request timed out',
-    );
-    const courseList = Array.isArray(courses) ? courses : [];
-    selector.innerHTML = '<option value="">All Courses</option>';
-    courseList.forEach((course) => {
-      const option = document.createElement('option');
-      option.value = course.id || course._id || '';
-      option.textContent = course.title || course.name || 'Untitled Course';
-      selector.appendChild(option);
-    });
-    if (selectedCourseId) {
-      selector.value = selectedCourseId;
-    }
-  } catch (error) {
-    console.warn('[DASHBOARD.JS] Failed to load courses for switcher:', error);
-  }
+async function fetchStudentHomeDashboard(requestJson) {
+  return withTimeout(
+    requestJson(buildHomeDashboardPath(), { method: 'GET' }),
+    DROPDOWN_TIMEOUT_MS,
+    'Home dashboard request timed out',
+  );
 }
 
 function buildTrackingDashboardPath(courseId) {
-  const params = new URLSearchParams({ includeDeadlines: '1' });
-  if (courseId) {
-    params.set('courseId', courseId);
-  }
-  return `/v1/tracking/dashboard/student?${params.toString()}`;
+  var params = new URLSearchParams({ includeDeadlines: '1' });
+  if (courseId) params.set('courseId', courseId);
+  return '/v1/tracking/dashboard/student?' + params.toString();
 }
 
 async function fetchTrackingDashboard(requestJson, courseId) {
@@ -207,265 +279,517 @@ function formatDueLabel(dueAt) {
   }
 }
 
-function mapDeadlines(rawPayload) {
-  const deadlines = Array.isArray(rawPayload?.courseDeadlines)
-    ? rawPayload.courseDeadlines
-    : [];
-  return deadlines.slice(0, 5).map(function (item) {
+function filterStudentByCourse(student, courseId) {
+  if (!student || !courseId) return student;
+  var snapshots = (student.courseSnapshots || []).filter(function (s) {
+    return s.courseId === courseId;
+  });
+  var attentionItems = (student.attentionItems || []).filter(function (item) {
+    return item.courseId === courseId;
+  });
+  var upcomingDeadlines = (student.upcomingDeadlines || []).filter(function (d) {
+    return d.courseId === courseId;
+  });
+  var courses = (student.courses || []).filter(function (c) {
+    return (c.id || c.courseId) === courseId;
+  });
+
+  var approved = 0;
+  var underReview = 0;
+  var open = 0;
+  var totalMilestones = 0;
+  var activeProjects = 0;
+  snapshots.forEach(function (snap) {
+    approved += snap.approved || 0;
+    underReview += snap.underReview || 0;
+    open += snap.open || 0;
+    totalMilestones += (snap.approved || 0) + (snap.underReview || 0) + (snap.open || 0);
+    activeProjects += (snap.projects || []).length;
+  });
+  var completion =
+    snapshots.length === 1
+      ? snapshots[0].completion || 0
+      : snapshots.length > 0
+        ? Math.round(
+            snapshots.reduce(function (sum, s) {
+              return sum + (s.completion || 0);
+            }, 0) / snapshots.length,
+          )
+        : 0;
+
+  return Object.assign({}, student, {
+    courses: courses,
+    selectedCourseId: courseId,
+    courseSnapshots: snapshots,
+    attentionItems: attentionItems,
+    upcomingDeadlines: upcomingDeadlines,
+    overallStats: {
+      coursesEnrolled: courses.length || 1,
+      overallCompletionPercent: completion,
+      milestonesApproved: approved,
+      milestonesTotal: totalMilestones,
+      activeProjectCount: activeProjects,
+    },
+  });
+}
+
+function mapMilestoneStatus(status) {
+  var statusLabel = status || 'pending';
+  var statusColor = '#6b7280';
+  var completedPercent = 0;
+
+  switch (statusLabel) {
+    case 'approved':
+    case 'complete':
+    case 'graded':
+      statusLabel = 'Complete';
+      statusColor = '#10b981';
+      completedPercent = 100;
+      break;
+    case 'in_review':
+    case 'needs_review':
+    case 'submitted':
+      statusLabel = 'In Review';
+      statusColor = '#2563eb';
+      completedPercent = 50;
+      break;
+    case 'needs_changes':
+    case 'changes_requested':
+      statusLabel = 'Needs Changes';
+      statusColor = '#f97316';
+      completedPercent = 25;
+      break;
+    default:
+      statusLabel = statusLabel.replace(/_/g, ' ');
+      statusLabel =
+        statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1);
+      break;
+  }
+
+  return {
+    statusLabel: statusLabel,
+    statusColor: statusColor,
+    completedPercent: completedPercent,
+  };
+}
+
+function mapHomeDashboardToViewModel(homePayload, courseId, userName) {
+  var student = homePayload?.student;
+  if (!student) {
+    throw new Error('Student dashboard data unavailable.');
+  }
+
+  if (courseId) {
+    student = filterStudentByCourse(student, courseId);
+  }
+
+  var stats = student.overallStats || {};
+  var statsArray = [
+    {
+      label: 'Courses Enrolled',
+      value: stats.coursesEnrolled ?? (student.courses || []).length,
+      icon: 'fa-solid fa-book-bookmark',
+      color: 'pink',
+    },
+    {
+      label: 'Milestones Completed',
+      value: stats.milestonesApproved ?? 0,
+      icon: 'fa-solid fa-bullseye',
+      color: 'orange',
+    },
+    {
+      label: 'Total Milestones',
+      value: stats.milestonesTotal ?? 0,
+      icon: 'fa-solid fa-heart',
+      color: 'green',
+    },
+    {
+      label: 'Overall Progress',
+      value: (stats.overallCompletionPercent ?? 0) + '%',
+      icon: 'fa-solid fa-chart-line',
+      color: 'blue',
+    },
+    {
+      label: 'Active Projects',
+      value: stats.activeProjectCount ?? 0,
+      icon: 'fa-solid fa-diagram-project',
+      color: 'purple',
+    },
+  ];
+
+  var progress = (student.courseSnapshots || [])
+    .slice()
+    .sort(function (a, b) {
+      return (b.completion || 0) - (a.completion || 0);
+    })
+    .slice(0, 4)
+    .map(function (snap) {
+      return {
+        subject: snap.courseTitle || 'Course',
+        percent: Math.max(0, Math.min(100, snap.completion || 0)),
+      };
+    });
+
+  var allMilestones = [];
+  (student.courseSnapshots || []).forEach(function (snap) {
+    (snap.nextMilestones || []).forEach(function (ms) {
+      allMilestones.push(ms);
+    });
+  });
+  var milestones = allMilestones.slice(0, 3).map(function (ms) {
+    var mapped = mapMilestoneStatus(ms.status);
+    return {
+      title: ms.title || 'Milestone',
+      completed: mapped.completedPercent,
+      status: ms.statusLabel || mapped.statusLabel,
+      color: mapped.statusColor,
+      due: formatDueLabel(ms.dueAt),
+    };
+  });
+
+  var deadlines = (student.upcomingDeadlines || []).slice(0, 5).map(function (item) {
     return {
       title: item.title || 'Milestone',
       code: item.courseTitle || '',
       date: formatDueLabel(item.dueAt),
+      statusLabel: item.statusLabel || '',
+      href: resolveDashboardHref(item.href),
     };
   });
+
+  return {
+    user: userName,
+    stats: statsArray,
+    milestones: milestones,
+    progress: progress,
+    deadlines: deadlines,
+    achievements: [],
+    attentionItems: student.attentionItems || [],
+    blockers: student.blockers || [],
+    submissionHealth: student.submissionHealth || null,
+    courses: student.courses || [],
+    pageError: '',
+  };
 }
 
-function buildMilestonesForRender(trackingProjects) {
-  const allMilestones = [];
-  (trackingProjects || []).forEach(function (project) {
+function mapTrackingFallbackToViewModel(normalized, rawPayload, userName) {
+  var trackingProjects = normalized?.projects || [];
+  var totalMilestones = 0;
+  var approvedMilestones = 0;
+  trackingProjects.forEach(function (project) {
+    var pstats = project.stats || {};
+    totalMilestones += pstats.total || 0;
+    approvedMilestones += pstats.approved || 0;
+  });
+
+  var allMilestones = [];
+  trackingProjects.forEach(function (project) {
     (project.milestones || []).forEach(function (milestone) {
       allMilestones.push(milestone);
     });
   });
-
-  return allMilestones.slice(0, 3).map(function (milestone) {
-    let statusLabel = milestone.status || 'pending';
-    let statusColor = '#6b7280';
-    let completedPercent = 0;
-
-    switch (statusLabel) {
-      case 'approved':
-      case 'complete':
-        statusLabel = 'Complete';
-        statusColor = '#10b981';
-        completedPercent = 100;
-        break;
-      case 'in_review':
-        statusLabel = 'In Review';
-        statusColor = '#10b981';
-        completedPercent = 0;
-        break;
-      case 'needs_changes':
-        statusLabel = 'Needs Changes';
-        statusColor = '#f97316';
-        completedPercent = 0;
-        break;
-      case 'pending':
-      default:
-        statusLabel = 'Pending';
-        statusColor = '#6b7280';
-        completedPercent = 0;
-        break;
-    }
-
+  var milestones = allMilestones.slice(0, 3).map(function (milestone) {
+    var mapped = mapMilestoneStatus(milestone.status);
     return {
       title: milestone.title || 'Milestone',
-      completed: completedPercent,
-      status: statusLabel,
-      color: statusColor,
+      completed: mapped.completedPercent,
+      status: mapped.statusLabel,
+      color: mapped.statusColor,
       due: milestone.dueLabel || 'TBD',
     };
   });
-}
 
-// Fetch from new courses backend (GitHub backend: Dummy-Nibras)
-async function fetchDashboardFromCoursesBackend() {
-  const coursesService = window.NibrasServices?.coursesService;
-  if (!coursesService) {
-    throw new Error('Courses service unavailable');
-  }
-
-  var currentUserLevel = 'Beginner';
-  try {
-    var u = JSON.parse(localStorage.getItem('user'));
-    if (u && u.selectedLevel) currentUserLevel = u.selectedLevel;
-  } catch (_) {}
-  var currentLevelLower = currentUserLevel.toLowerCase();
-
-  if (typeof coursesService.getDashboard === 'function') {
-    try {
-      const response = await coursesService.getDashboard();
-      if (response?.success && response?.data) {
-        var dashData = response.data;
-        var dashCourses = dashData.courses || [];
-        var filteredDash = dashCourses.filter(function (c) {
-          return (c.level || '').toLowerCase() === currentLevelLower;
-        });
-        if (dashData.stats)
-          dashData.stats.coursesEnrolled = filteredDash.length;
-        if (dashData.courses) dashData.courses = filteredDash;
-        return dashData;
-      }
-    } catch (error) {
-      console.warn(
-        '[DASHBOARD.JS] /courses/my-dashboard unavailable, falling back to list/global progress:',
-        error?.message || error,
-      );
-    }
-  }
-
-  if (typeof coursesService.list !== 'function') {
-    throw new Error('Courses list endpoint unavailable');
-  }
-
-  const coursesResponse = await coursesService.list({ page: 1, limit: 100 });
-  if (coursesResponse?.success === false) {
-    throw new Error(coursesResponse.error || 'Courses backend unauthorized');
-  }
-  const courses = Array.isArray(coursesResponse?.data)
-    ? coursesResponse.data
-    : Array.isArray(coursesResponse?.data?.courses)
-      ? coursesResponse.data.courses
-      : Array.isArray(coursesResponse?.courses)
-        ? coursesResponse.courses
-        : [];
-
-  let overallProgress = 0;
-  if (typeof coursesService.getGlobalProgress === 'function') {
-    try {
-      const globalProgressResponse = await coursesService.getGlobalProgress();
-      const progressPayload =
-        globalProgressResponse?.data || globalProgressResponse || {};
-      const value = Number(progressPayload.overallPercentage);
-      if (Number.isFinite(value)) {
-        overallProgress = Math.max(0, Math.min(100, Math.round(value)));
-      }
-    } catch (error) {
-      console.warn(
-        '[DASHBOARD.JS] /courses/progress/global unavailable:',
-        error?.message || error,
-      );
-    }
-  }
-
-  var levelCourses = courses.filter(function (c) {
-    return (c.level || '').toLowerCase() === currentLevelLower;
+  var deadlines = [];
+  var rawDeadlines = Array.isArray(rawPayload?.courseDeadlines)
+    ? rawPayload.courseDeadlines
+    : [];
+  deadlines = rawDeadlines.slice(0, 5).map(function (item) {
+    return {
+      title: item.title || 'Milestone',
+      code: item.courseTitle || '',
+      date: formatDueLabel(item.dueAt),
+      statusLabel: '',
+      href: '',
+    };
   });
 
-  if (overallProgress === 0 && levelCourses.length > 0) {
-    var totalPct = 0;
-    var countWithProgress = 0;
-    levelCourses.forEach(function (c) {
-      try {
-        var uid2 = '';
-        try {
-          var u2 = JSON.parse(localStorage.getItem('user'));
-          uid2 = u2?._id || u2?.id || '';
-        } catch (_) {}
-        var localKey = 'nibras_course_progress_' + uid2 + '_' + (c.id || c._id);
-        var stored = JSON.parse(localStorage.getItem(localKey) || '{}');
-        if (stored.percentage > 0) {
-          totalPct += stored.percentage;
-          countWithProgress++;
-        }
-      } catch (_) {}
-    });
-    if (countWithProgress > 0) {
-      overallProgress = Math.round(totalPct / countWithProgress);
+  return {
+    user: userName,
+    stats: [
+      {
+        label: 'Courses Enrolled',
+        value: trackingProjects.length,
+        icon: 'fa-solid fa-book-bookmark',
+        color: 'pink',
+      },
+      {
+        label: 'Milestones Completed',
+        value: approvedMilestones,
+        icon: 'fa-solid fa-bullseye',
+        color: 'orange',
+      },
+      {
+        label: 'Total Milestones',
+        value: totalMilestones,
+        icon: 'fa-solid fa-heart',
+        color: 'green',
+      },
+      {
+        label: 'Overall Progress',
+        value: '0%',
+        icon: 'fa-solid fa-chart-line',
+        color: 'blue',
+      },
+      {
+        label: 'Active Projects',
+        value: trackingProjects.length,
+        icon: 'fa-solid fa-diagram-project',
+        color: 'purple',
+      },
+    ],
+    milestones: milestones,
+    progress: [],
+    deadlines: deadlines,
+    achievements: [],
+    attentionItems: [],
+    blockers: [],
+    submissionHealth: null,
+    courses: [],
+    pageError: normalized?.pageError || '',
+  };
+}
+
+function populateCourseSwitcher(courses, activeCourseId) {
+  var selector = document.getElementById('course-switcher');
+  if (!selector) return;
+
+  selector.innerHTML = '<option value="">All Courses</option>';
+  (courses || []).forEach(function (course) {
+    var option = document.createElement('option');
+    option.value = course.id || course.courseId || '';
+    option.textContent =
+      course.title || course.name || course.courseTitle || 'Untitled Course';
+    selector.appendChild(option);
+  });
+
+  if (activeCourseId) {
+    selector.value = activeCourseId;
+  } else if (selectedCourseId) {
+    selector.value = selectedCourseId;
+  }
+}
+
+function bindCourseSwitcher(onChange) {
+  if (courseSwitcherBound) return;
+  var selector = document.getElementById('course-switcher');
+  if (!selector) return;
+  courseSwitcherBound = true;
+  selector.addEventListener('change', function () {
+    selectedCourseId = selector.value || '';
+    if (selectedCourseId) {
+      localStorage.setItem('selectedCourseId', selectedCourseId);
+    } else {
+      localStorage.removeItem('selectedCourseId');
     }
+    onChange();
+  });
+}
+
+function renderDashboardError(message, showRetry) {
+  var el = document.getElementById('dashboard-error');
+  if (!el) return;
+  if (!message) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
+  }
+  el.hidden = false;
+  el.innerHTML =
+    '<div class="dashboard-error-inner">' +
+    '<i class="fa-solid fa-circle-exclamation"></i>' +
+    '<span>' +
+    escapeHtml(message) +
+    '</span>' +
+    (showRetry
+      ? '<button type="button" class="dashboard-error-retry" id="dashboard-retry-btn">Retry</button>'
+      : '') +
+    '</div>';
+}
+
+function renderBlockers(blockers) {
+  var container = document.getElementById('blockers-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  (blockers || []).forEach(function (blocker) {
+    var href = resolveDashboardHref(blocker.cta?.href);
+    container.innerHTML +=
+      '<div class="blocker-card" data-kind="' +
+      escapeHtml(blocker.kind) +
+      '">' +
+      '<div class="blocker-content">' +
+      '<strong>' +
+      escapeHtml(blocker.title) +
+      '</strong>' +
+      '<p>' +
+      escapeHtml(blocker.body) +
+      '</p>' +
+      '</div>' +
+      '<a class="btn-solid-small blocker-cta" href="' +
+      escapeHtml(href) +
+      '">' +
+      escapeHtml(blocker.cta?.label || 'Open') +
+      '</a>' +
+      '</div>';
+  });
+}
+
+function attentionKindMeta(kind) {
+  switch (kind) {
+    case 'failed_submission':
+      return { icon: 'fa-solid fa-circle-xmark', className: 'attention-failed' };
+    case 'changes_requested':
+      return { icon: 'fa-solid fa-pen-to-square', className: 'attention-changes' };
+    case 'needs_review':
+      return { icon: 'fa-solid fa-clock', className: 'attention-review' };
+    case 'due_soon':
+      return { icon: 'fa-solid fa-calendar-day', className: 'attention-due' };
+    case 'recent_feedback':
+      return { icon: 'fa-solid fa-comment-dots', className: 'attention-feedback' };
+    default:
+      return { icon: 'fa-solid fa-bell', className: 'attention-default' };
+  }
+}
+
+function renderAttentionItems(items) {
+  var section = document.getElementById('attention-section');
+  var container = document.getElementById('attention-container');
+  if (!container) return;
+
+  var list = items || [];
+  if (section) section.hidden = list.length === 0;
+  container.innerHTML = '';
+
+  list.forEach(function (item) {
+    var meta = attentionKindMeta(item.kind);
+    var href = resolveDashboardHref(item.cta?.href);
+    var subtitle = item.reason || item.statusText || '';
+    container.innerHTML +=
+      '<div class="attention-item ' +
+      meta.className +
+      '">' +
+      '<div class="attention-icon"><i class="' +
+      meta.icon +
+      '"></i></div>' +
+      '<div class="attention-body">' +
+      '<div class="attention-title">' +
+      escapeHtml(item.projectTitle) +
+      '</div>' +
+      '<div class="attention-sub">' +
+      escapeHtml(item.courseTitle) +
+      (item.milestoneTitle ? ' &middot; ' + escapeHtml(item.milestoneTitle) : '') +
+      '</div>' +
+      '<div class="attention-reason">' +
+      escapeHtml(subtitle) +
+      '</div>' +
+      '</div>' +
+      '<a class="btn-solid-small attention-cta" href="' +
+      escapeHtml(href) +
+      '">' +
+      escapeHtml(item.cta?.label || 'View') +
+      '</a>' +
+      '</div>';
+  });
+}
+
+function renderSubmissionHealth(health) {
+  var section = document.getElementById('submission-health-section');
+  var container = document.getElementById('submission-health-container');
+  if (!container) return;
+
+  if (!health) {
+    if (section) section.hidden = true;
+    container.innerHTML = '';
+    return;
   }
 
-  return {
-    stats: {
-      coursesEnrolled: levelCourses.length,
-      overallProgress,
+  if (section) section.hidden = false;
+  var pills = [
+    {
+      label: 'Failed Checks',
+      value: health.failedChecks ?? 0,
+      color: 'pink',
     },
-    courses: levelCourses.map((course) => ({
-      _id: course?._id || course?.id || '',
-      title: course?.title || course?.name || 'Untitled Course',
-      assignmentsCount: Array.isArray(course?.assignments)
-        ? course.assignments.length
-        : Number.isFinite(Number(course?.assignmentsCount))
-          ? Number(course.assignmentsCount)
-          : 0,
-    })),
-  };
+    {
+      label: 'Needs Review',
+      value: health.needsReview ?? 0,
+      color: 'orange',
+    },
+    {
+      label: 'Awaiting Review',
+      value: health.awaitingReview ?? 0,
+      color: 'blue',
+    },
+    {
+      label: 'Recently Passed',
+      value: health.recentlyPassed ?? 0,
+      color: 'green',
+    },
+  ];
+
+  container.innerHTML = pills
+    .map(function (pill) {
+      return (
+        '<div class="health-pill health-' +
+        pill.color +
+        '">' +
+        '<span class="health-value">' +
+        pill.value +
+        '</span>' +
+        '<span class="health-label">' +
+        escapeHtml(pill.label) +
+        '</span>' +
+        '</div>'
+      );
+    })
+    .join('');
 }
 
-// Transform courses backend response to match dashboard format
-function transformCoursesDashboardToDashboard(response) {
-  const { stats = {}, courses = [] } = response;
-  return {
-    projects: courses.map((course) => ({
-      id: course._id || course.id,
-      title: course.title,
-      stats: {
-        total: course.assignmentsCount || 0,
-        approved: 0,
-      },
-      milestones: [],
-    })),
-    stats: {
-      coursesEnrolled: stats.coursesEnrolled || courses.length,
-      overallProgress: stats.overallProgress || 0,
-    },
-  };
-}
-
-// Initialize user session display on page load
 function initUserSession() {
-  const session = window.NibrasShared?.session;
+  var session = window.NibrasShared?.session;
   if (session && typeof session.updateUserInfoDisplay === 'function') {
     session.updateUserInfoDisplay();
   }
 }
 
 function initDashboard() {
-  console.log('[DASHBOARD.JS] Initializing dashboard page');
-
-  // Initialize user session display (avatar, name, role)
   initUserSession();
 
-  // --- 1. SIDEBAR LOGIC ---
-  const navLinks = document.querySelectorAll('.nav-link');
-  navLinks.forEach((link) => {
-    link.addEventListener('click', (e) => {
-      navLinks.forEach((n) => n.classList.remove('active'));
+  var navLinks = document.querySelectorAll('.nav-link');
+  navLinks.forEach(function (link) {
+    link.addEventListener('click', function () {
+      navLinks.forEach(function (n) {
+        n.classList.remove('active');
+      });
       link.classList.add('active');
     });
   });
 
-  // --- 2. FETCH USER NAME FROM API ---
-  resolveUserName()
-    .then((name) => {
-      dashboardData.user = name;
-      const welcomeMsg = document.getElementById('welcome-msg');
-      if (welcomeMsg) {
-        welcomeMsg.textContent = `Welcome back, ${name}!`;
-      }
-    })
-    .catch(() => {
-      // Silent fail — default name already set
-    });
-
-  // NOTE: renderDashboard is called by the async data fetcher, not here
-  // This initDashboard function only handles UI setup (sidebar, theme, etc.)
-
-  // --- 5. THEME TOGGLE ---
-  console.log('[DASHBOARD.JS] Theme toggle section starting...');
-
-  // Ensure theme is set on page load
-  const savedTheme = localStorage.getItem('theme');
+  var savedTheme = localStorage.getItem('theme');
   if (savedTheme) {
     document.documentElement.setAttribute('data-theme', savedTheme);
   }
-  console.log(
-    '[DASHBOARD.JS] Theme after load:',
-    document.documentElement.getAttribute('data-theme'),
-  );
 
-  const themeBtn = document.getElementById('themeBtn');
-  console.log('[DASHBOARD.JS] themeBtn found:', !!themeBtn);
-
-  const themeIcon = themeBtn?.querySelector('i');
-  const appLogo = document.getElementById('app-logo');
+  var themeBtn = document.getElementById('themeBtn');
+  var themeIcon = themeBtn?.querySelector('i');
+  var appLogo = document.getElementById('app-logo');
 
   if (themeBtn) {
     themeBtn.classList.remove('rotating');
     void themeBtn.offsetWidth;
   }
 
-  const currentTheme =
+  var currentTheme =
     document.documentElement.getAttribute('data-theme') || 'light';
   if (currentTheme === 'dark') {
     if (themeIcon) themeIcon.className = 'fa-solid fa-sun';
@@ -476,19 +800,15 @@ function initDashboard() {
   }
 
   if (themeBtn) {
-    console.log('[DASHBOARD.JS] Attaching click listener to themeBtn');
-    themeBtn.addEventListener('click', () => {
-      console.log('[DASHBOARD.JS] Theme button clicked!');
-      // Rotation animation
+    themeBtn.addEventListener('click', function () {
       themeBtn.classList.add('rotating');
-      setTimeout(() => {
+      setTimeout(function () {
         themeBtn.classList.remove('rotating');
       }, 500);
 
-      const html = document.documentElement;
-      const current = html.getAttribute('data-theme');
-      const newTheme = current === 'light' ? 'dark' : 'light';
-
+      var html = document.documentElement;
+      var current = html.getAttribute('data-theme');
+      var newTheme = current === 'light' ? 'dark' : 'light';
       html.setAttribute('data-theme', newTheme);
       localStorage.setItem('theme', newTheme);
 
@@ -501,35 +821,31 @@ function initDashboard() {
       }
     });
   }
-
-  console.log('[DASHBOARD.JS] Initialization complete');
 }
 
 function animateCounter(el, duration) {
   if (!el) return;
   var text = el.textContent.trim();
-  var num = Number(text);
-  if (isNaN(num) || text.indexOf('/') !== -1 || text.indexOf('days') !== -1)
-    return;
+  var num = Number(text.replace(/[^\d.-]/g, ''));
+  if (isNaN(num) || text.indexOf('%') !== -1) return;
   if (num === 0) return;
 
   var isInt = Number.isInteger(num);
   var startTime = performance.now();
+  var original = text;
 
   function update(now) {
     var elapsed = now - startTime;
     var progress = Math.min(elapsed / duration, 1);
     var eased = 1 - Math.pow(1 - progress, 3);
     var current = num * eased;
-
     el.textContent = isInt
       ? Math.round(current).toString()
       : current.toFixed(1);
-
     if (progress < 1) {
       requestAnimationFrame(update);
     } else {
-      el.textContent = text;
+      el.textContent = original;
     }
   }
 
@@ -539,31 +855,27 @@ function animateCounter(el, duration) {
 
 function renderDashboard(data) {
   if (!data || !data.stats) {
-    console.warn(
-      '[DASHBOARD.JS] renderDashboard called with invalid data:',
-      data,
-    );
+    console.warn('[DASHBOARD.JS] renderDashboard called with invalid data:', data);
     return;
   }
 
-  const welcomeMsg = document.getElementById('welcome-msg');
-  if (!welcomeMsg) {
-    console.error('[DASHBOARD.JS] ERROR: welcome-msg not found!');
-    return;
+  renderDashboardError(data.pageError || '', false);
+  renderBlockers(data.blockers);
+  renderAttentionItems(data.attentionItems);
+  renderSubmissionHealth(data.submissionHealth);
+
+  var welcomeMsg = document.getElementById('welcome-msg');
+  if (welcomeMsg && data.user) {
+    welcomeMsg.textContent = 'Welcome back, ' + data.user + '!';
   }
 
-  welcomeMsg.textContent = `Welcome back, ${data.user}!`;
-
-  // Render Stats
-  const statsContainer = document.getElementById('stats-container');
+  var statsContainer = document.getElementById('stats-container');
+  if (!statsContainer) return;
   statsContainer.innerHTML = '';
 
-  data.stats.forEach((stat) => {
-    let bgVar, textVar;
-    if (stat.color === 'pink') {
-      bgVar = 'var(--stat-icon-bg-pink)';
-      textVar = 'var(--stat-icon-text-pink)';
-    }
+  data.stats.forEach(function (stat) {
+    var bgVar = 'var(--stat-icon-bg-pink)';
+    var textVar = 'var(--stat-icon-text-pink)';
     if (stat.color === 'orange') {
       bgVar = 'var(--stat-icon-bg-orange)';
       textVar = 'var(--stat-icon-text-orange)';
@@ -581,611 +893,358 @@ function renderDashboard(data) {
       textVar = 'var(--stat-icon-text-purple)';
     }
 
-    const pointerClass = stat.isClickable ? 'cursor-pointer' : '';
-    const idAttr = stat.id ? `id="${stat.id}"` : '';
-    const valueId = stat.id ? `id="${stat.id}-value"` : '';
-
-    statsContainer.innerHTML += `
-            <div class="stat-card ${pointerClass}" ${idAttr} data-color="${stat.color}">
-                <div class="stat-info">
-                    <span>${stat.label}</span>
-                    <h2 ${valueId}>${stat.value}</h2>
-                </div>
-                <div class="stat-icon" style="background-color: ${bgVar}; color: ${textVar}">
-                    <i class="${stat.icon}"></i>
-                </div>
-            </div>
-        `;
+    statsContainer.innerHTML +=
+      '<div class="stat-card" data-color="' +
+      stat.color +
+      '">' +
+      '<div class="stat-info">' +
+      '<span>' +
+      escapeHtml(stat.label) +
+      '</span>' +
+      '<h2>' +
+      escapeHtml(String(stat.value)) +
+      '</h2>' +
+      '</div>' +
+      '<div class="stat-icon" style="background-color:' +
+      bgVar +
+      ';color:' +
+      textVar +
+      '">' +
+      '<i class="' +
+      stat.icon +
+      '"></i>' +
+      '</div>' +
+      '</div>';
   });
 
-  // Animate stat counters with stagger
-  var statValues = statsContainer.querySelectorAll('.stat-info h2');
-  statValues.forEach(function (el, i) {
+  statsContainer.querySelectorAll('.stat-info h2').forEach(function (el, i) {
     setTimeout(function () {
       animateCounter(el, 700);
     }, i * 100);
   });
 
-  console.log('[DASHBOARD.JS] Rendered stats and dashboard');
-  initGPAModal();
   renderLists(data);
   renderMilestones(data.milestones);
 }
 
 function renderLists(data) {
-  // Progress
-  const progContainer = document.getElementById('progress-container');
-  progContainer.innerHTML = '';
-  data.progress.forEach((prog) => {
-    progContainer.innerHTML += `<div class="prog-item"><div class="prog-header"><span>${prog.subject}</span><span class="prog-percent">${prog.percent}%</span></div><div class="prog-track"><div class="prog-fill" style="width: ${prog.percent}%"></div></div></div>`;
-  });
+  var progContainer = document.getElementById('progress-container');
+  if (progContainer) {
+    progContainer.innerHTML = '';
+    if (!data.progress || data.progress.length === 0) {
+      progContainer.innerHTML =
+        '<p class="empty-state">No courses enrolled yet</p>';
+    } else {
+      data.progress.forEach(function (prog) {
+        progContainer.innerHTML +=
+          '<div class="prog-item"><div class="prog-header"><span>' +
+          escapeHtml(prog.subject) +
+          '</span><span class="prog-percent">' +
+          prog.percent +
+          '%</span></div><div class="prog-track"><div class="prog-fill" style="width:' +
+          prog.percent +
+          '%"></div></div></div>';
+      });
+    }
+  }
 
-  // Deadlines
-  const deadContainer = document.getElementById('deadlines-container');
-  deadContainer.innerHTML = '';
-  data.deadlines.forEach((item) => {
-    deadContainer.innerHTML += `<div class="deadline-item"><i class="fa-solid fa-circle bullet"></i><div class="deadline-details"><h4>${item.title}</h4><span class="course-code">${item.code}</span><span class="due-date">${item.date}</span></div></div>`;
-  });
+  var deadContainer = document.getElementById('deadlines-container');
+  if (deadContainer) {
+    deadContainer.innerHTML = '';
+    if (!data.deadlines || data.deadlines.length === 0) {
+      deadContainer.innerHTML =
+        '<p class="empty-state">No upcoming deadlines</p>';
+    } else {
+      data.deadlines.forEach(function (item) {
+        var inner =
+          '<div class="deadline-details"><h4>' +
+          escapeHtml(item.title) +
+          '</h4><span class="course-code">' +
+          escapeHtml(item.code) +
+          '</span>';
+        if (item.statusLabel) {
+          inner +=
+            '<span class="deadline-status">' +
+            escapeHtml(item.statusLabel) +
+            '</span>';
+        }
+        inner += '<span class="due-date">' + escapeHtml(item.date) + '</span></div>';
+        if (item.href) {
+          deadContainer.innerHTML +=
+            '<a class="deadline-item deadline-link" href="' +
+            escapeHtml(item.href) +
+            '"><i class="fa-solid fa-circle bullet"></i>' +
+            inner +
+            '</a>';
+        } else {
+          deadContainer.innerHTML +=
+            '<div class="deadline-item"><i class="fa-solid fa-circle bullet"></i>' +
+            inner +
+            '</div>';
+        }
+      });
+    }
+  }
 
-  // Achievements
-  const achieveContainer = document.getElementById('achievements-container');
-  achieveContainer.innerHTML = '';
-  data.achievements.forEach((item) => {
-    achieveContainer.innerHTML += `<div class="achieve-item"><i class="${item.icon} achieve-icon"></i><span class="achieve-text">${item.title}</span></div>`;
-  });
+  var achieveContainer = document.getElementById('achievements-container');
+  if (achieveContainer && data.achievements && data.achievements.length > 0) {
+    achieveContainer.innerHTML = '';
+    data.achievements.forEach(function (item) {
+      achieveContainer.innerHTML +=
+        '<div class="achieve-item"><i class="' +
+        item.icon +
+        ' achieve-icon"></i><span class="achieve-text">' +
+        escapeHtml(item.title) +
+        '</span></div>';
+    });
+  }
 }
 
-// Render Milestones
 function renderMilestones(milestones) {
-  const container = document.getElementById('milestone-container');
+  var container = document.getElementById('milestone-container');
+  if (!container) return;
   container.innerHTML = '';
 
-  milestones.forEach((ms) => {
-    let statusClass = 'status-track';
-    if (ms.status === 'Reviewing' || ms.completed > 90)
+  if (!milestones || milestones.length === 0) {
+    container.innerHTML = '<p class="empty-state">No active milestones</p>';
+    return;
+  }
+
+  milestones.forEach(function (ms) {
+    var statusClass = 'status-track';
+    if (ms.status === 'Complete' || ms.completed >= 100) {
       statusClass = 'status-completed';
-    if (ms.status === 'At Risk') statusClass = 'status-atrisk';
-
-    container.innerHTML += `
-            <div class="milestone-item">
-                <div class="ms-header">
-                    <span class="ms-title">${ms.title}</span>
-                    <span class="ms-percentage">${ms.completed}%</span>
-                </div>
-                <div class="ms-bar-track">
-                    <div class="ms-bar-fill" style="width: ${ms.completed}%; background-color: ${ms.color}"></div>
-                </div>
-                <div class="ms-meta">
-                    <span class="ms-status ${statusClass}">${ms.status}</span>
-                    <span>Due: ${ms.due}</span>
-                </div>
-            </div>
-        `;
-  });
-}
-
-// --- 4. GPA CALCULATOR LOGIC ---
-function initGPAModal() {
-  const gpaBox = document.getElementById('gpa-box');
-  const gpaModal = document.getElementById('gpaModal');
-  const closeBtn = document.getElementById('closeGpaModal');
-  const addCourseBtn = document.getElementById('addCourseBtn');
-  const calculateBtn = document.getElementById('calculateGpaBtn');
-  const courseInputs = document.getElementById('courseInputs');
-  const gpaResult = document.getElementById('gpaResult');
-  const gpaResultValue = document.getElementById('gpaResultValue');
-  const gpaResultDetails = document.getElementById('gpaResultDetails');
-
-  if (!gpaBox) return;
-
-  gpaBox.addEventListener('click', () => {
-    gpaModal.style.display = 'flex';
-  });
-  closeBtn.addEventListener('click', () => {
-    gpaModal.style.display = 'none';
-  });
-  window.addEventListener('click', (e) => {
-    if (e.target === gpaModal) gpaModal.style.display = 'none';
-  });
-
-  addCourseBtn.addEventListener('click', () => {
-    const row = document.createElement('div');
-    row.className = 'course-input-row';
-    row.innerHTML = `
-            <input type="text" placeholder="Course Name" class="course-name">
-            <select class="course-grade">
-                <option value="" disabled selected>Grade</option>
-                <option value="4.0">A</option>
-                <option value="3.7">A-</option>
-                <option value="3.3">B+</option>
-                <option value="3.0">B</option>
-                <option value="2.7">B-</option>
-                <option value="2.3">C+</option>
-                <option value="2.0">C</option>
-                <option value="1.7">C-</option>
-                <option value="1.0">D</option>
-                <option value="0.0">F</option>
-            </select>
-            <input type="number" placeholder="Credits" class="course-credits" min="1" max="6">
-        `;
-    courseInputs.appendChild(row);
-  });
-
-  calculateBtn.addEventListener('click', () => {
-    const rows = document.querySelectorAll('.course-input-row');
-    let totalPoints = 0,
-      totalCredits = 0,
-      count = 0;
-
-    rows.forEach((row) => {
-      const grade = parseFloat(row.querySelector('.course-grade').value);
-      const credits = parseInt(row.querySelector('.course-credits').value);
-      if (!isNaN(grade) && !isNaN(credits) && credits > 0) {
-        totalPoints += grade * credits;
-        totalCredits += credits;
-        count++;
-      }
-    });
-
-    if (count === 0 || totalCredits === 0) {
-      alert('Please enter valid data.');
-      return;
+    } else if (ms.status === 'Needs Changes') {
+      statusClass = 'status-atrisk';
     }
 
-    const finalGPA = (totalPoints / totalCredits).toFixed(2);
-    gpaResultValue.textContent = finalGPA;
-    gpaResultDetails.innerHTML = `<span>${count} Courses</span> <span>${totalCredits} Credits</span>`;
-    gpaResult.style.display = 'block';
-    document.getElementById('gpa-box-value').textContent = `${finalGPA}/4.0`;
-    localStorage.setItem('calculatedGPA', finalGPA);
-    savedGPA = finalGPA;
+    container.innerHTML +=
+      '<div class="milestone-item">' +
+      '<div class="ms-header">' +
+      '<span class="ms-title">' +
+      escapeHtml(ms.title) +
+      '</span>' +
+      '<span class="ms-percentage">' +
+      ms.completed +
+      '%</span>' +
+      '</div>' +
+      '<div class="ms-bar-track">' +
+      '<div class="ms-bar-fill" style="width:' +
+      ms.completed +
+      '%;background-color:' +
+      ms.color +
+      '"></div>' +
+      '</div>' +
+      '<div class="ms-meta">' +
+      '<span class="ms-status ' +
+      statusClass +
+      '">' +
+      escapeHtml(ms.status) +
+      '</span>' +
+      '<span>Due: ' +
+      escapeHtml(ms.due) +
+      '</span>' +
+      '</div>' +
+      '</div>';
   });
 }
 
-async function fetchGPAFromBackend() {
+function renderEmptyDashboard(userName, errorMessage) {
+  renderDashboard({
+    user: userName,
+    stats: [
+      {
+        label: 'Courses Enrolled',
+        value: 0,
+        icon: 'fa-solid fa-book-bookmark',
+        color: 'pink',
+      },
+      {
+        label: 'Milestones Completed',
+        value: 0,
+        icon: 'fa-solid fa-bullseye',
+        color: 'orange',
+      },
+      {
+        label: 'Total Milestones',
+        value: 0,
+        icon: 'fa-solid fa-heart',
+        color: 'green',
+      },
+      {
+        label: 'Overall Progress',
+        value: '0%',
+        icon: 'fa-solid fa-chart-line',
+        color: 'blue',
+      },
+      {
+        label: 'Active Projects',
+        value: 0,
+        icon: 'fa-solid fa-diagram-project',
+        color: 'purple',
+      },
+    ],
+    milestones: [],
+    progress: [],
+    deadlines: [],
+    achievements: [],
+    attentionItems: [],
+    blockers: [],
+    submissionHealth: null,
+    pageError: errorMessage || '',
+  });
+  renderDashboardError(errorMessage, true);
+}
+
+async function loadDashboardData() {
+  var requestJson = createTrackingRequestJson();
+  var userName = (await resolveUserName()).split(/\s+/)[0];
+  var courseId = selectedCourseId || '';
+
   try {
-    var user = JSON.parse(localStorage.getItem('user'));
-    var userId = user?._id || user?.id || user?.userId;
-    if (!userId) return;
-    var svc = window.NibrasServices?.backendAnalyticsService;
-    if (!svc || typeof svc.getStudentPerformance !== 'function') return;
-    var res = await svc.getStudentPerformance(userId);
-    var data = res?.data || res || {};
-    var gradeSummary = data.coursesGradeSummary || [];
-    var grades = gradeSummary
-      .map(function (c) {
-        return c.weightedGrade;
-      })
-      .filter(function (g) {
-        return g > 0;
+    var homePayload = await fetchStudentHomeDashboard(requestJson);
+    var viewModel = mapHomeDashboardToViewModel(
+      homePayload,
+      courseId,
+      userName,
+    );
+    populateCourseSwitcher(viewModel.courses, courseId);
+    dashboardData = viewModel;
+    renderDashboard(dashboardData);
+    renderDashboardError('', false);
+  } catch (homeError) {
+    console.warn(
+      '[DASHBOARD.JS] Home dashboard unavailable, falling back to student tracking:',
+      homeError.message,
+    );
+
+    try {
+      var rawTracking = await fetchTrackingDashboard(requestJson, courseId);
+      var normalized = normalizeTrackingPayload(rawTracking);
+      var fallbackModel = mapTrackingFallbackToViewModel(
+        normalized,
+        rawTracking,
+        userName,
+      );
+      dashboardData = fallbackModel;
+      renderDashboard(dashboardData);
+      if (fallbackModel.pageError) {
+        renderDashboardError(fallbackModel.pageError, false);
+      } else {
+        renderDashboardError(
+          'Showing limited project data. Some dashboard features may be unavailable.',
+          false,
+        );
+      }
+    } catch (trackingError) {
+      console.warn('[DASHBOARD.JS] Dashboard load failed:', trackingError.message);
+      renderEmptyDashboard(
+        userName,
+        trackingError.message || 'Could not load dashboard data.',
+      );
+    }
+  }
+}
+
+async function loadGamificationAchievements() {
+  try {
+    if (!window.NibrasServices?.gamificationService) return;
+
+    var badgesRes = await window.NibrasServices.gamificationService
+      .getAllBadges()
+      .catch(function () {
+        return null;
       });
-    if (grades.length > 0) {
-      var avg =
-        grades.reduce(function (a, b) {
-          return a + b;
-        }, 0) / grades.length;
-      var gpa = (avg / 25).toFixed(2);
-      savedGPA = gpa;
-      localStorage.setItem('calculatedGPA', gpa);
-      var gpaBox = document.getElementById('gpa-box-value');
-      if (gpaBox) gpaBox.textContent = gpa + '/4.0';
+    var awardRes = await window.NibrasServices.gamificationService
+      .checkAwardBadges()
+      .catch(function () {
+        return null;
+      });
+    var repRes = window.NibrasServices.reputationService
+      ? await window.NibrasServices.reputationService
+          .getMyReputation()
+          .catch(function () {
+            return null;
+          })
+      : null;
+
+    var allBadges = (badgesRes && (badgesRes.data || badgesRes)) || [];
+    if (!Array.isArray(allBadges)) allBadges = [];
+    var awardedIds = new Set();
+    if (awardRes) {
+      var awarded = awardRes.data || awardRes;
+      if (Array.isArray(awarded)) {
+        awarded.forEach(function (b) {
+          if (b && b._id) awardedIds.add(b._id.toString());
+        });
+      }
+    }
+    var repTotal = 0;
+    if (repRes && repRes.data) repTotal = repRes.data.total || 0;
+    else if (repRes && repRes.total) repTotal = repRes.total;
+
+    var repBadge = document.querySelector('.rep-badge');
+    if (repBadge && repTotal > 0) repBadge.textContent = repTotal;
+
+    var achieveContainer = document.getElementById('achievements-container');
+    if (!achieveContainer) return;
+    achieveContainer.innerHTML = '';
+
+    if (awardedIds.size > 0) {
+      allBadges
+        .filter(function (b) {
+          return awardedIds.has(b._id.toString());
+        })
+        .slice(0, 5)
+        .forEach(function (b) {
+          achieveContainer.innerHTML +=
+            '<div class="achieve-item"><i class="' +
+            (b.badgeIcon || 'fa-solid fa-medal') +
+            ' achieve-icon"></i><span class="achieve-text">' +
+            escapeHtml(b.name || 'Badge') +
+            '</span></div>';
+        });
+    } else {
+      achieveContainer.innerHTML =
+        '<div class="achieve-item empty-achievements"><span class="achieve-text">' +
+        allBadges.length +
+        ' achievements available &bull; ' +
+        repTotal +
+        ' reputation</span></div>';
     }
   } catch (_) {}
 }
 
-// Run when DOM is ready - wrapped in bootstrapReactPage to ensure services are loaded
-const runDashboardInit = () => {
-  // Run the async IIFE that fetches dashboard data
-  (async () => {
-    try {
-      const userName = await resolveUserName();
-      const shared = window.NibrasShared || {};
-      const trackingApiBase =
-        (typeof shared.resolveServiceUrl === 'function'
-          ? shared.resolveServiceUrl('tracking')
-          : null) ||
-        window.NibrasApi?.resolveServiceUrl?.('tracking') ||
-        window.NibrasApiConfig?.getServiceUrl?.('tracking') ||
-        window.NIBRAS_TRACKING_API_URL ||
-        window.NIBRAS_API_URL ||
-        (/^https?:/i.test(window.location?.origin || '')
-          ? window.location.origin.replace(/\/+$/, '')
-          : '');
-
-      const requestJson = shared.apiFetch
-        ? shared.apiFetch.bind(shared)
-        : async (path, options = {}) => {
-            const headers = Object.assign(
-              { 'Content-Type': 'application/json' },
-              options.headers || {},
-            );
-            const token =
-              shared?.auth?.getToken?.() ||
-              window.NibrasApi?.getToken?.() ||
-              null;
-            if (token) {
-              headers.Authorization = `Bearer ${token}`;
-            }
-            const response = await fetch(`${trackingApiBase}${path}`, {
-              method: options.method || 'GET',
-              headers,
-              body: options.body,
-            });
-            const payload = await response.json();
-            if (!response.ok) {
-              const error = new Error(
-                payload?.message || `Request failed (${response.status})`,
-              );
-              error.status = response.status;
-              error.payload = payload;
-              throw error;
-            }
-            return payload;
-          };
-
-      // Load course switcher in background (non-blocking; element may not exist)
-      if (document.getElementById('course-switcher')) {
-        loadCourseSwitcher().catch(function () {});
-      }
-
-      const isLocalHost = ['localhost', '127.0.0.1'].includes(
-        window.location.hostname,
-      );
-      const courseId = selectedCourseId;
-
-      let rawCoursesResponse = null;
-      let rawTrackingResponse = null;
-      let normalizedTracking = null;
-      let dashboardSource = 'tracking';
-
-      try {
-        rawTrackingResponse = await fetchTrackingDashboard(requestJson, courseId);
-        normalizedTracking = normalizeTrackingPayload(rawTrackingResponse);
-      } catch (trackingError) {
-        console.warn(
-          '[DASHBOARD.JS] Tracking dashboard unavailable:',
-          trackingError.message,
-        );
-      }
-
-      if (isLocalHost || window.NIBRAS_PREFER_LOCAL_TRACKING_FALLBACK) {
-        try {
-          rawCoursesResponse = await withTimeout(
-            fetchDashboardFromCoursesBackend(),
-            DROPDOWN_TIMEOUT_MS,
-            'Courses dashboard request timed out',
-          );
-          if (rawCoursesResponse?.stats || rawCoursesResponse?.courses) {
-            dashboardSource = 'courses';
-          }
-        } catch (coursesError) {
-          console.warn(
-            '[DASHBOARD.JS] Railway courses unavailable on localhost, using tracking only:',
-            coursesError.message,
-          );
-        }
-      } else {
-        try {
-          rawCoursesResponse = await withTimeout(
-            fetchDashboardFromCoursesBackend(),
-            DROPDOWN_TIMEOUT_MS,
-            'Courses dashboard request timed out',
-          );
-          dashboardSource = 'courses';
-        } catch (coursesError) {
-          console.warn(
-            '[DASHBOARD.JS] Courses backend unavailable, falling back to tracking:',
-            coursesError.message,
-          );
-          if (!normalizedTracking) {
-            try {
-              rawTrackingResponse = await fetchTrackingDashboard(
-                requestJson,
-                courseId,
-              );
-              normalizedTracking = normalizeTrackingPayload(rawTrackingResponse);
-            } catch (retryError) {
-              console.warn(
-                '[DASHBOARD.JS] Tracking retry failed:',
-                retryError.message,
-              );
-            }
-          }
-        }
-      }
-
-      const trackingProjects = normalizedTracking?.projects || [];
-
-      let courseCount =
-        dashboardSource === 'courses' && rawCoursesResponse?.courses
-          ? rawCoursesResponse.courses.length
-          : trackingProjects.length;
-
-      let totalMilestones = 0;
-      let approvedMilestones = 0;
-      trackingProjects.forEach(function (project) {
-        const stats = project.stats || {};
-        totalMilestones += stats.total || 0;
-        approvedMilestones += stats.approved || 0;
-      });
-
-      const overallProgress =
-        dashboardSource === 'courses' && rawCoursesResponse?.stats
-          ? rawCoursesResponse.stats.overallProgress || 0
-          : 0;
-
-      const statsArray = [
-        {
-          label: 'Courses Enrolled',
-          value: courseCount,
-          icon: 'fa-solid fa-book-bookmark',
-          color: 'pink',
-        },
-        {
-          label: 'Milestones Completed',
-          value: approvedMilestones,
-          icon: 'fa-solid fa-bullseye',
-          color: 'orange',
-        },
-        {
-          label: 'Total Milestones',
-          value: totalMilestones,
-          icon: 'fa-solid fa-heart',
-          color: 'green',
-        },
-        {
-          label: 'Study Streak',
-          value: '0 days',
-          icon: 'fa-regular fa-clock',
-          color: 'blue',
-        },
-        {
-          label:
-            dashboardSource === 'courses' ? 'Overall Progress' : 'Total GPA',
-          value:
-            dashboardSource === 'courses'
-              ? `${overallProgress}%`
-              : savedGPA
-                ? `${savedGPA}/4.0`
-                : 'Calculate',
-          icon: 'fa-solid fa-graduation-cap',
-          color: 'purple',
-          id: dashboardSource !== 'courses' ? 'gpa-box' : undefined,
-          isClickable: dashboardSource !== 'courses',
-        },
-      ];
-
-      const dashboardMilestones = buildMilestonesForRender(trackingProjects);
-      const deadlinesArray = mapDeadlines(rawTrackingResponse);
-
-      var progressArray = [];
-      if (dashboardSource === 'courses' && rawCoursesResponse) {
-        var courseList = Array.isArray(rawCoursesResponse.courses)
-          ? rawCoursesResponse.courses
-          : [];
-        if (courseList.length > 0) {
-          var svc = window.NibrasServices?.coursesService;
-          var coursesWithProgress = await Promise.all(
-            courseList.map(async function (c) {
-              var pct = Number(c.progressPercentage) || Number(c.progress) || 0;
-              if (!Number.isFinite(pct)) pct = 0;
-              var bid = c._id || c.id || '';
-              if (svc && typeof svc.getProgress === 'function' && bid) {
-                try {
-                  var r = await withTimeout(
-                    svc.getProgress(bid),
-                    DROPDOWN_TIMEOUT_MS,
-                    'Course progress request timed out',
-                  );
-                  var pd = r?.data || r || {};
-                  var apiPct = Number.isFinite(Number(pd.percentage))
-                    ? Number(pd.percentage)
-                    : 0;
-                  if (apiPct > 0) pct = apiPct;
-                } catch (_) {}
-              }
-              return {
-                subject: c.title || c.name || 'Untitled',
-                percent: Math.max(0, Math.min(100, Math.round(pct))),
-                _sortPct: pct,
-              };
-            }),
-          );
-          coursesWithProgress.sort(function (a, b) {
-            return b._sortPct - a._sortPct;
-          });
-          progressArray = coursesWithProgress.slice(0, 4).map(function (c) {
-            return { subject: c.subject, percent: c.percent };
-          });
-        }
-      }
-
-      dashboardData = {
-        user: userName,
-        stats: statsArray,
-        milestones: dashboardMilestones,
-        activities: [],
-        progress: progressArray,
-        deadlines: deadlinesArray,
-        achievements: [],
-      };
-
-      renderDashboard(dashboardData);
-      fetchGPAFromBackend();
-    } catch (error) {
-      console.warn(
-        '[DASHBOARD.JS] Failed to fetch dashboard data, using hardcoded data:',
-        error,
-      );
-      // Fallback to hardcoded data when both backends fail
-      const userName = await resolveUserName();
-      const fallbackData = {
-        user: userName,
-        stats: [
-          {
-            label: 'Courses Enrolled',
-            value: '0',
-            icon: 'fa-solid fa-book-bookmark',
-            color: 'pink',
-          },
-          {
-            label: 'Milestones Completed',
-            value: '0',
-            icon: 'fa-solid fa-bullseye',
-            color: 'orange',
-          },
-          {
-            label: 'Total Milestones',
-            value: '0',
-            icon: 'fa-solid fa-heart',
-            color: 'green',
-          },
-          {
-            label: 'Study Streak',
-            value: '0 days',
-            icon: 'fa-regular fa-clock',
-            color: 'blue',
-          },
-          {
-            label: 'Overall Progress',
-            value: '0%',
-            icon: 'fa-solid fa-graduation-cap',
-            color: 'purple',
-          },
-        ],
-        milestones: [],
-        progress: [],
-        deadlines: [],
-        achievements: [],
-      };
-      renderDashboard(fallbackData);
+function bindDashboardRetry() {
+  document.addEventListener('click', function (event) {
+    if (event.target && event.target.id === 'dashboard-retry-btn') {
+      loadDashboardData();
     }
+  });
+}
 
-    // Fetch analytics data to update study streak & milestones
-    try {
-      var analyticsUser = null;
-      try {
-        var raw2 = localStorage.getItem('user');
-        if (raw2) analyticsUser = JSON.parse(raw2);
-      } catch (_) {}
-      if (
-        analyticsUser &&
-        analyticsUser._id &&
-        window.NibrasServices?.backendAnalyticsService
-      ) {
-        var anaRes =
-          await window.NibrasServices.backendAnalyticsService.getStudentPerformance(
-            analyticsUser._id,
-          );
-        var anaData = anaRes && (anaRes.data || anaRes);
-        if (anaData) {
-          var studyStreak =
-            (anaData.studentStats && anaData.studentStats.studyStreak) || 0;
-          var approvedSubs =
-            (anaData.submissionSummary && anaData.submissionSummary.approved) ||
-            0;
-
-          var statsContainer2 = document.getElementById('stats-container');
-          if (statsContainer2) {
-            var cards = statsContainer2.querySelectorAll('.stat-card');
-            cards.forEach(function (card) {
-              var labelEl = card.querySelector('.stat-info span');
-              if (!labelEl) return;
-              var label = labelEl.textContent.trim();
-              var valueEl = card.querySelector('.stat-info h2');
-              if (!valueEl) return;
-
-              if (label === 'Study Streak') {
-                valueEl.textContent = studyStreak + ' days';
-              } else if (label === 'Milestones Completed') {
-                valueEl.textContent = approvedSubs;
-              }
-            });
-          }
-        }
-      }
-    } catch (_e) {
-      /* non-critical */
-    }
-
-    // Fetch gamification data for achievements section
-    try {
-      if (window.NibrasServices?.gamificationService) {
-        const [badgesRes, awardRes, repRes] = await Promise.all([
-          window.NibrasServices.gamificationService
-            .getAllBadges()
-            .catch(() => null),
-          window.NibrasServices.gamificationService
-            .checkAwardBadges()
-            .catch(() => null),
-          window.NibrasServices.reputationService
-            ?.getMyReputation()
-            .catch(() => null),
-        ]);
-
-        var allBadges = (badgesRes && (badgesRes.data || badgesRes)) || [];
-        if (!Array.isArray(allBadges)) allBadges = [];
-        var awardedIds = new Set();
-        if (awardRes) {
-          var awarded = awardRes.data || awardRes;
-          if (Array.isArray(awarded))
-            awarded.forEach(function (b) {
-              if (b && b._id) awardedIds.add(b._id.toString());
-            });
-        }
-        var repTotal = 0;
-        if (repRes && repRes.data) repTotal = repRes.data.total || 0;
-        else if (repRes && repRes.total) repTotal = repRes.total;
-
-        var achieveContainer = document.getElementById(
-          'achievements-container',
-        );
-        if (achieveContainer) {
-          achieveContainer.innerHTML = '';
-          if (awardedIds.size > 0) {
-            allBadges
-              .filter(function (b) {
-                return awardedIds.has(b._id.toString());
-              })
-              .slice(0, 5)
-              .forEach(function (b) {
-                var icon = b.badgeIcon || 'fa-solid fa-medal';
-                achieveContainer.innerHTML +=
-                  '<div class="achieve-item"><i class="' +
-                  icon +
-                  ' achieve-icon"></i><span class="achieve-text">' +
-                  (b.name || 'Badge') +
-                  '</span></div>';
-              });
-          } else {
-            var earnedCount = allBadges.filter(function (b) {
-              return awardedIds.has(b._id.toString());
-            }).length;
-            achieveContainer.innerHTML =
-              '<div class="achieve-item" style="justify-content:center;width:100%;"><span class="achieve-text" style="color:var(--text-secondary)">' +
-              allBadges.length +
-              ' achievements available &bull; ' +
-              repTotal +
-              ' reputation</span></div>';
-          }
-        }
-      }
-    } catch (_g) {
-      /* non-critical */
-    }
-  })();
-
-  // Also run initDashboard for the UI initialization
+const runDashboardInit = function () {
+  bindDashboardRetry();
+  bindCourseSwitcher(function () {
+    loadDashboardData();
+  });
   initDashboard();
+
+  refreshUserProfile()
+    .then(function () {
+      return loadDashboardData();
+    })
+    .catch(function () {
+      return loadDashboardData();
+    });
+
+  loadGamificationAchievements();
 };
 
 if (typeof window.bootstrapReactPage === 'function') {
   window.bootstrapReactPage(runDashboardInit);
+} else if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', runDashboardInit);
 } else {
-  // Fallback if bootstrapReactPage not available
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', runDashboardInit);
-  } else {
-    runDashboardInit();
-  }
+  runDashboardInit();
 }

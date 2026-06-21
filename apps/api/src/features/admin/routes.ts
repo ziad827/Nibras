@@ -1,10 +1,31 @@
 import { FastifyInstance } from 'fastify';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, SystemRole } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { AppStore, SubmissionWorkflowStatus } from '../../store';
 import { requireUser } from '../../lib/auth';
 import { requestBaseUrl } from '../../lib/request-base-url';
 import { Errors } from '../../lib/errors';
 import { validateId, parseIntParam } from '../../lib/validate';
+import { requirePermission } from '../../lib/rbac';
+import {
+  allocateUsername,
+  hashPassword,
+  isValidEmail,
+} from '../admin-auth/helpers';
+import {
+  DEFAULT_PLATFORM_CONFIG,
+  PLATFORM_CONFIG_FIELDS,
+} from '../rbac/constants';
+import {
+  mergePlatformConfig,
+  paginationMeta,
+  parseBanDuration,
+  serializeAuditLog,
+} from './helpers';
+import { invalidatePlatformConfigCache } from '../../lib/platform-config';
+import { registerAdminRbacRoutes } from './rbac-routes';
+import { registerAdminCourseRoutes } from './course-routes';
+import { registerAdminBadgeRoutes } from './badge-routes';
 
 const OVERRIDE_STATUSES: SubmissionWorkflowStatus[] = [
   'passed',
@@ -249,22 +270,37 @@ export function registerAdminRoutes(
         page?: string;
         limit?: string;
         role?: string;
+        status?: string;
         banned?: string;
         search?: string;
+        institution?: string;
       };
       const page = parseIntParam(query.page, 1, { min: 1 });
       const limit = parseIntParam(query.limit, 20, { min: 1, max: 100 });
       const where: import('@prisma/client').Prisma.UserWhereInput = {};
       if (query.role === 'admin' || query.role === 'user') {
         where.systemRole = query.role;
+      } else if (query.role?.trim()) {
+        where.rbacRole = { name: query.role.trim() };
       }
       if (query.banned === 'true' || query.banned === '1') {
         where.bannedAt = { not: null };
+      }
+      if (query.status === 'banned') {
+        where.bannedAt = { not: null };
+      } else if (query.status === 'active') {
+        where.bannedAt = null;
       }
       if (query.search?.trim()) {
         where.OR = [
           { username: { contains: query.search.trim(), mode: 'insensitive' } },
           { email: { contains: query.search.trim(), mode: 'insensitive' } },
+          {
+            displayName: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
+          },
         ];
       }
       const [users, total] = await Promise.all([
@@ -277,24 +313,52 @@ export function registerAdminRoutes(
             id: true,
             username: true,
             email: true,
+            displayName: true,
             systemRole: true,
             yearLevel: true,
             bannedAt: true,
             banReason: true,
             banExpiresAt: true,
             createdAt: true,
+            rbacRole: { select: { name: true } },
           },
         }),
         prisma.user.count({ where }),
       ]);
+
+      const reputationRows = await prisma.reputationEvent.groupBy({
+        by: ['userId'],
+        where: { userId: { in: users.map((user) => user.id) } },
+        _sum: { delta: true },
+      });
+      const reputationByUser = new Map(
+        reputationRows.map((row) => [row.userId, row._sum.delta ?? 0]),
+      );
+
       return {
         users: users.map((user) => ({
-          ...user,
+          id: user.id,
+          _id: user.id,
+          name: user.displayName || user.username,
+          displayName: user.displayName,
+          username: user.username,
+          email: user.email,
+          role: {
+            name:
+              user.rbacRole?.name ||
+              (user.systemRole === 'admin' ? 'admin' : 'student'),
+          },
+          systemRole: user.systemRole,
+          status: user.bannedAt ? 'banned' : 'active',
+          institution: null,
+          reputation: reputationByUser.get(user.id) ?? 0,
+          points: reputationByUser.get(user.id) ?? 0,
+          yearLevel: user.yearLevel,
           bannedAt: user.bannedAt?.toISOString() ?? null,
           banExpiresAt: user.banExpiresAt?.toISOString() ?? null,
           createdAt: user.createdAt.toISOString(),
         })),
-        pagination: { page, limit, total },
+        pagination: paginationMeta(page, limit, total),
       };
     },
   );
@@ -421,6 +485,9 @@ export function registerAdminRoutes(
     async (request, reply) => {
       const auth = await requireUser(request, reply, store);
       if (!requireAdmin(auth, reply)) return;
+      if (prisma && !(await requirePermission(auth, reply, prisma, 'audit-log:read'))) {
+        return;
+      }
 
       const query = request.query as {
         targetType?: string;
@@ -429,20 +496,78 @@ export function registerAdminRoutes(
         userId?: string;
         fromDate?: string;
         toDate?: string;
+        from?: string;
+        to?: string;
+        search?: string;
+        page?: string;
         limit?: string;
         offset?: string;
       };
 
-      const limit = query.limit ? Math.min(Number(query.limit), 200) : 50;
-      const offset = query.offset ? Number(query.offset) : 0;
+      const page = parseIntParam(query.page, 1, { min: 1 });
+      const limit = parseIntParam(query.limit, 20, { min: 1, max: 100 });
+      const offset =
+        query.offset != null
+          ? parseIntParam(query.offset, 0, { min: 0 })
+          : (page - 1) * limit;
+      const fromDate = query.fromDate || query.from;
+      const toDate = query.toDate || query.to;
+
+      if (prisma) {
+        const where: Prisma.AuditLogWhereInput = {};
+        if (query.targetType) where.targetType = query.targetType;
+        if (query.action) where.action = { contains: query.action, mode: 'insensitive' };
+        if (query.courseId) where.courseId = query.courseId;
+        if (query.userId) where.userId = query.userId;
+        if (fromDate || toDate) {
+          where.createdAt = {
+            ...(fromDate ? { gte: new Date(fromDate) } : {}),
+            ...(toDate ? { lte: new Date(`${toDate}T23:59:59.999Z`) } : {}),
+          };
+        }
+        if (query.search?.trim()) {
+          where.OR = [
+            { action: { contains: query.search.trim(), mode: 'insensitive' } },
+            { targetId: { contains: query.search.trim(), mode: 'insensitive' } },
+            { targetType: { contains: query.search.trim(), mode: 'insensitive' } },
+          ];
+        }
+
+        const [rows, total] = await Promise.all([
+          prisma.auditLog.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            skip: offset,
+            take: limit,
+            include: {
+              user: {
+                select: {
+                  displayName: true,
+                  username: true,
+                  email: true,
+                },
+              },
+            },
+          }),
+          prisma.auditLog.count({ where }),
+        ]);
+
+        return {
+          logs: rows.map(serializeAuditLog),
+          pagination: paginationMeta(page, limit, total),
+          total,
+          limit,
+          offset,
+        };
+      }
 
       const filters = {
         targetType: query.targetType,
         action: query.action,
         courseId: query.courseId,
         userId: query.userId,
-        fromDate: query.fromDate,
-        toDate: query.toDate,
+        fromDate,
+        toDate,
       };
 
       const [logs, total] = await Promise.all([
@@ -453,7 +578,13 @@ export function registerAdminRoutes(
         store.countAuditLogs(requestBaseUrl(request), filters),
       ]);
 
-      return { logs, total, limit, offset };
+      return {
+        logs,
+        pagination: paginationMeta(page, limit, total),
+        total,
+        limit,
+        offset,
+      };
     },
   );
 
@@ -617,15 +748,43 @@ export function registerAdminRoutes(
           displayName?: string;
           yearLevel?: number;
           notificationEmail?: string | null;
+          role?: string;
+          status?: string;
+          institution?: string;
         };
+
+        const updateData: Prisma.UserUpdateInput = {
+          displayName: body.displayName,
+          yearLevel: body.yearLevel,
+          notificationEmail: body.notificationEmail,
+        };
+
+        if (body.status === 'banned') {
+          updateData.bannedAt = new Date();
+          updateData.banReason = 'Updated by administrator';
+        } else if (body.status === 'active') {
+          updateData.bannedAt = null;
+          updateData.banReason = null;
+          updateData.banExpiresAt = null;
+        }
+
+        if (body.role?.trim()) {
+          const role = await prisma.role.findFirst({
+            where: { name: body.role.trim() },
+          });
+          if (role) {
+            updateData.rbacRole = { connect: { id: role.id } };
+            updateData.systemRole =
+              role.name === 'admin' || role.name === 'super-admin'
+                ? SystemRole.admin
+                : SystemRole.user;
+          }
+        }
+
         const updated = await prisma.user
           .update({
             where: { id: params.userId },
-            data: {
-              displayName: body.displayName,
-              yearLevel: body.yearLevel,
-              notificationEmail: body.notificationEmail,
-            },
+            data: updateData,
           })
           .catch(() => null);
         if (!updated) return reply.code(404).send(Errors.notFound('User'));
@@ -650,8 +809,12 @@ export function registerAdminRoutes(
         if (!requireAdmin(auth, reply)) return;
         const params = request.params as { userId: string };
         if (!validateId(params.userId, reply, 'userId')) return;
-        const body = request.body as { reason?: string; expiresAt?: string };
-        const banExpiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
+        const body = request.body as {
+          reason?: string;
+          expiresAt?: string;
+          duration?: string;
+        };
+        const banExpiresAt = parseBanDuration(body.duration, body.expiresAt);
         const updated = await prisma.user
           .update({
             where: { id: params.userId },
@@ -686,13 +849,22 @@ export function registerAdminRoutes(
       async (request, reply) => {
         const auth = await requireUser(request, reply, store);
         if (!requireAdmin(auth, reply)) return;
+        if (!(await requirePermission(auth, reply, prisma, 'config:read'))) {
+          return;
+        }
         const row = await prisma.platformConfig.upsert({
           where: { id: 'default' },
-          create: { id: 'default', configJson: {} },
+          create: { id: 'default', configJson: DEFAULT_PLATFORM_CONFIG },
           update: {},
         });
+        const config =
+          row.configJson && typeof row.configJson === 'object'
+            ? (row.configJson as Record<string, unknown>)
+            : DEFAULT_PLATFORM_CONFIG;
         return {
-          config: row.configJson,
+          config,
+          fieldMeta: PLATFORM_CONFIG_FIELDS,
+          ...config,
           updatedAt: row.updatedAt.toISOString(),
         };
       },
@@ -704,13 +876,27 @@ export function registerAdminRoutes(
       async (request, reply) => {
         const auth = await requireUser(request, reply, store);
         if (!requireAdmin(auth, reply)) return;
-        const body = request.body as { config?: Record<string, unknown> };
-        if (!body.config || typeof body.config !== 'object') {
-          return reply
-            .code(400)
-            .send(Errors.validation('config object is required'));
+        if (!(await requirePermission(auth, reply, prisma, 'config:update'))) {
+          return;
         }
-        const configJson = body.config as Prisma.InputJsonValue;
+        const body = request.body as {
+          config?: Record<string, unknown>;
+          [key: string]: unknown;
+        };
+        const existing = await prisma.platformConfig.findUnique({
+          where: { id: 'default' },
+        });
+        const current =
+          existing?.configJson && typeof existing.configJson === 'object'
+            ? (existing.configJson as Record<string, unknown>)
+            : DEFAULT_PLATFORM_CONFIG;
+        const patch =
+          body.config && typeof body.config === 'object'
+            ? body.config
+            : Object.fromEntries(
+                Object.entries(body).filter(([key]) => key !== 'config'),
+              );
+        const configJson = mergePlatformConfig(current, patch) as Prisma.InputJsonValue;
         const row = await prisma.platformConfig.upsert({
           where: { id: 'default' },
           create: { id: 'default', configJson },
@@ -725,12 +911,161 @@ export function registerAdminRoutes(
             payload: configJson,
           },
         });
+        invalidatePlatformConfigCache();
         return {
           ok: true,
           config: row.configJson,
+          ...(typeof row.configJson === 'object' && row.configJson != null
+            ? (row.configJson as Record<string, unknown>)
+            : {}),
           updatedAt: row.updatedAt.toISOString(),
         };
       },
     );
+
+    app.post(
+      '/v1/admin/users/:userId/adjust-points',
+      { schema: { tags: ['admin'], summary: 'Adjust user reputation points' } },
+      async (request, reply) => {
+        const auth = await requireUser(request, reply, store);
+        if (!requireAdmin(auth, reply)) return;
+        if (!(await requirePermission(auth, reply, prisma, 'user:adjust-points'))) {
+          return;
+        }
+
+        const params = request.params as { userId: string };
+        if (!validateId(params.userId, reply, 'userId')) return;
+        const body = request.body as { amount?: number; reason?: string };
+        const amount = Number(body.amount);
+        if (!Number.isFinite(amount) || amount === 0) {
+          return reply
+            .code(400)
+            .send(Errors.validation('amount must be a non-zero number'));
+        }
+        if (!body.reason?.trim()) {
+          return reply.code(400).send(Errors.validation('reason is required'));
+        }
+
+        const user = await prisma.user.findUnique({ where: { id: params.userId } });
+        if (!user) return reply.code(404).send(Errors.notFound('User'));
+
+        const source = `admin:adjust:${Date.now()}:${randomUUID()}`;
+        await prisma.reputationEvent.create({
+          data: {
+            userId: params.userId,
+            delta: amount,
+            reason: body.reason.trim(),
+            source,
+            category: 'community',
+          },
+        });
+
+        await prisma.auditLog.create({
+          data: {
+            userId: auth!.user.id,
+            action: 'user.pointsAdjusted',
+            targetType: 'user',
+            targetId: params.userId,
+            payload: { amount, reason: body.reason.trim() },
+          },
+        });
+
+        return { ok: true, userId: params.userId, amount };
+      },
+    );
+
+    app.post(
+      '/v1/admin/users/bulk-create',
+      { schema: { tags: ['admin'], summary: 'Bulk create users from CSV import' } },
+      async (request, reply) => {
+        const auth = await requireUser(request, reply, store);
+        if (!requireAdmin(auth, reply)) return;
+        if (!(await requirePermission(auth, reply, prisma, 'user:bulk-create'))) {
+          return;
+        }
+
+        const body = request.body as {
+          users?: Array<{
+            name?: string;
+            email?: string;
+            password?: string;
+            role?: string;
+            institution?: string;
+          }>;
+        };
+        if (!Array.isArray(body.users) || body.users.length === 0) {
+          return reply
+            .code(400)
+            .send(Errors.validation('users array is required'));
+        }
+
+        const studentRole = await prisma.role.findUnique({
+          where: { name: 'student' },
+        });
+        const created: string[] = [];
+        const errors: string[] = [];
+
+        for (const entry of body.users) {
+          const email = entry.email?.trim().toLowerCase();
+          const name = entry.name?.trim();
+          if (!email || !isValidEmail(email)) {
+            errors.push(`Invalid email: ${entry.email || '(missing)'}`);
+            continue;
+          }
+
+          const existing = await prisma.user.findUnique({ where: { email } });
+          if (existing) {
+            errors.push(`Email already exists: ${email}`);
+            continue;
+          }
+
+          const roleName = entry.role?.trim().toLowerCase() || 'student';
+          const role =
+            (await prisma.role.findFirst({ where: { name: roleName } })) ||
+            studentRole;
+
+          const username = await allocateUsername(prisma, email, name);
+          const password = entry.password || randomUUID().slice(0, 12);
+          const hashed = await hashPassword(password);
+
+          const user = await prisma.user.create({
+            data: {
+              email,
+              username,
+              displayName: name || username,
+              emailVerified: true,
+              systemRole:
+                role?.name === 'admin' || role?.name === 'super-admin'
+                  ? SystemRole.admin
+                  : SystemRole.user,
+              roleId: role?.id,
+            },
+          });
+
+          await prisma.authAccount.create({
+            data: {
+              id: randomUUID(),
+              userId: user.id,
+              providerId: 'credential',
+              accountId: user.id,
+              password: hashed,
+            },
+          });
+
+          created.push(user.id);
+        }
+
+        return reply.code(201).send({
+          ok: true,
+          created: created.length,
+          userIds: created,
+          errors,
+        });
+      },
+    );
+
+    registerAdminRbacRoutes(app, store, prisma);
+    registerAdminCourseRoutes(app, store, prisma);
+    registerAdminBadgeRoutes(app, store, prisma);
   }
 }

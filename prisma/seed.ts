@@ -81,6 +81,80 @@ async function main() {
     '✅ Course: CS161 — Introduction to Computer Science (Spring 2026)',
   );
 
+  const instructorUser = await prisma.user.upsert({
+    where: { email: 'instructor@nibras.dev' },
+    update: {
+      displayName: 'Alex Chen',
+      bio: 'Teaching computer science fundamentals and software engineering practice.',
+      emailVerified: true,
+    },
+    create: {
+      username: 'instructor',
+      email: 'instructor@nibras.dev',
+      displayName: 'Alex Chen',
+      bio: 'Teaching computer science fundamentals and software engineering practice.',
+      emailVerified: true,
+    },
+  });
+
+  await prisma.courseMembership.upsert({
+    where: {
+      courseId_userId: {
+        courseId: course.id,
+        userId: instructorUser.id,
+      },
+    },
+    update: { role: 'instructor' },
+    create: {
+      courseId: course.id,
+      userId: instructorUser.id,
+      role: 'instructor',
+    },
+  });
+
+  await prisma.course.update({
+    where: { id: course.id },
+    data: {
+      description:
+        'Introduction to computer science covering programming fundamentals, data structures, and problem solving.',
+      syllabusJson: {
+        objectives: [
+          'Write correct programs in a high-level language',
+          'Analyze algorithmic complexity',
+          'Apply core data structures to solve problems',
+        ],
+        gradingWeights: [
+          { cat: 'Assignments', pct: '40%' },
+          { cat: 'Projects', pct: '35%' },
+          { cat: 'Participation', pct: '25%' },
+        ],
+        prerequisites: [
+          'Comfort with algebra and logical reasoning',
+          'Prior programming experience is helpful but not required',
+        ],
+      },
+    },
+  });
+
+  await prisma.courseAnnouncement.deleteMany({ where: { courseId: course.id } });
+  await prisma.courseAnnouncement.createMany({
+    data: [
+      {
+        courseId: course.id,
+        title: 'Welcome to CS161',
+        body: 'Review the syllabus and complete Lecture 1 in the Videos tab before the first assignment opens.',
+        createdById: instructorUser.id,
+      },
+      {
+        courseId: course.id,
+        title: 'Office hours this week',
+        body: 'Office hours are Wednesday 2–4 PM. Bring questions about Assignment 1 or the first project milestone.',
+        createdById: instructorUser.id,
+      },
+    ],
+  });
+  console.log('✅ CS161 instructor, syllabus, and sample announcements');
+
   // ── 4. Demo Project ───────────────────────────────────────────────────────
   const project = await prisma.project.upsert({
     where: { slug: 'cs161/exam1' },

@@ -10,6 +10,10 @@ import { buildSyncReason, presentReputationHistory } from './history-labels';
 import { syncLinkedAccountAura } from './linked-account-aura';
 import { invalidateLeaderboardCache } from '../../lib/cache';
 import {
+  getPlatformConfig,
+  resolveReputationTier,
+} from '../../lib/platform-config';
+import {
   loadCourseReputationWeights,
   DEFAULT_REPUTATION_WEIGHTS,
 } from './reputation-weights';
@@ -50,6 +54,7 @@ export type MyReputationDto = {
   rank: number | null;
   percentile: number | null;
   levelLabel: string;
+  tier: string;
   breakdown: ReputationBreakdownItem[];
   history: ReputationEventDto[];
 };
@@ -57,6 +62,7 @@ export type MyReputationDto = {
 export type PublicReputationDto = {
   total: number;
   levelLabel: string;
+  tier?: string;
   rank?: number | null;
   percentile?: number | null;
   breakdown?: ReputationBreakdownItem[];
@@ -329,6 +335,11 @@ export class ReputationService {
 
     const history = await presentReputationHistory(this.prisma, historyEvents);
     const breakdown = await this.computeBreakdown(userId, weekStart);
+    const platformConfig = await getPlatformConfig(this.prisma);
+    const tier = resolveReputationTier(
+      fullTotal,
+      platformConfig.reputationThresholds,
+    );
 
     return {
       total: fullTotal,
@@ -337,6 +348,7 @@ export class ReputationService {
       rank,
       percentile,
       levelLabel: getReputationLevelLabel(fullTotal),
+      tier,
       breakdown,
       history,
     };
@@ -355,6 +367,7 @@ export class ReputationService {
       return {
         total: dto.total,
         levelLabel: dto.levelLabel,
+        tier: dto.tier,
         rank: dto.rank,
         percentile: dto.percentile,
         breakdown: dto.breakdown,
@@ -364,6 +377,7 @@ export class ReputationService {
     return {
       total: dto.total,
       levelLabel: dto.levelLabel,
+      tier: dto.tier,
     };
   }
 

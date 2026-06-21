@@ -163,3 +163,45 @@ test('frontend CLI guide documents the v2 package install flow', () => {
   assert.match(cliGuide, /nibras doctor/);
   assert.match(cliGuide, /EpitomeZied\/nibras/);
 });
+
+test('detectPreferredOsFromSignals picks platform from UA and saved preference', () => {
+  const { detectPreferredOsFromSignals } = require('../Frontend/client/cli-shared.js');
+
+  assert.equal(
+    detectPreferredOsFromSignals(
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+      'Linux x86_64',
+      null,
+    ),
+    'linux',
+  );
+  assert.equal(
+    detectPreferredOsFromSignals(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+      'MacIntel',
+      null,
+    ),
+    'macos',
+  );
+  assert.equal(
+    detectPreferredOsFromSignals(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+      'Win32',
+      null,
+    ),
+    'windows',
+  );
+  assert.equal(
+    detectPreferredOsFromSignals('Mozilla/5.0', 'Linux x86_64', 'macos'),
+    'macos',
+  );
+});
+
+test('frontend CLI guide OS tabs expose data-os selectors', () => {
+  const cliGuide = fs.readFileSync(cliGuidePath, 'utf8');
+  assert.match(cliGuide, /data-os="macos"/);
+  assert.match(cliGuide, /data-os="linux"/);
+  assert.match(cliGuide, /data-os="windows"/);
+  assert.match(cliGuide, /win-only-note/);
+  assert.doesNotMatch(cliGuide, /os-content windows" style="display:block/);
+});

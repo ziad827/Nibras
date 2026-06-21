@@ -1608,6 +1608,7 @@
 
   window.NibrasCourses = {
     getCoursesList,
+    getAllCoursesList,
     getAdminCoursesList,
     getIntermediateCoursesList,
     getAdvancedCoursesList,

@@ -90,7 +90,7 @@ window.NibrasReact.run(() => {
     const loadingCards = [
       { label: 'Total Users', icon: 'fa-solid fa-users', color: 'blue' },
       { label: 'Total Courses', icon: 'fa-solid fa-book-open', color: 'green' },
-      { label: 'Backups', icon: 'fa-solid fa-database', color: 'purple' },
+      { label: 'Audit Events', icon: 'fa-solid fa-clipboard-list', color: 'purple' },
       { label: 'Pending Flags', icon: 'fa-solid fa-flag', color: 'orange' },
     ];
     loadingCards.forEach(function (s) {
@@ -121,14 +121,11 @@ window.NibrasReact.run(() => {
         );
       })(),
       (async function () {
-        const res = await apiCall('/admin/backups');
+        const res = await apiCall('/admin/audit-logs?page=1&limit=1');
         const data = res?.data || res || {};
-        const items = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.backups)
-            ? data.backups
-            : [];
-        return items.length;
+        return (
+          data?.pagination?.total || data?.meta?.total || data?.total || '—'
+        );
       })(),
       (async function () {
         var count = '—';
@@ -159,8 +156,8 @@ window.NibrasReact.run(() => {
         value: results[1].status === 'fulfilled' ? results[1].value : 'Error',
       },
       {
-        label: 'Backups',
-        icon: 'fa-solid fa-database',
+        label: 'Audit Events',
+        icon: 'fa-solid fa-clipboard-list',
         color: 'purple',
         value: results[2].status === 'fulfilled' ? results[2].value : 'Error',
       },
@@ -276,13 +273,12 @@ window.NibrasReact.run(() => {
     statusContainer.innerHTML =
       '<div style="text-align:center;padding:1.5rem;color:var(--text-secondary);"><i class="fa-solid fa-spinner fa-spin" style="font-size:1.2rem;display:block;margin-bottom:0.5rem;"></i><span style="font-size:0.85rem;">Loading status...</span></div>';
 
-    var backupSchedule = 'Daily 2:00 AM + Weekly Sunday';
-    var retentionPolicy = '30 daily + 12 weekly';
     var configItems = [];
 
     try {
       const res = await apiCall('/admin/config');
-      const data = res?.data || res || {};
+      const raw = res?.data || res || {};
+      const data = raw.config && typeof raw.config === 'object' ? raw.config : raw;
       if (typeof data === 'object') {
         var featureFlags = data.featureFlags || data.flags || null;
         var gamification = data.gamification || data.gamificationRules || null;
@@ -305,14 +301,6 @@ window.NibrasReact.run(() => {
     } catch (_) {}
 
     var html = '';
-    html +=
-      '<div class="status-item"><span class="status-label"><span class="status-dot green"></span> Backups</span><span class="status-value">' +
-      escapeHtml(backupSchedule) +
-      '</span></div>';
-    html +=
-      '<div class="status-item"><span class="status-label"><span class="status-dot blue"></span> Retention</span><span class="status-value">' +
-      escapeHtml(retentionPolicy) +
-      '</span></div>';
     if (configItems.length > 0) {
       configItems.forEach(function (item) {
         html +=

@@ -132,8 +132,23 @@ function rewriteLegacyApiPath(url = '/'): {
     return { url: `${parsed.pathname}${parsed.search}`, forceFastify: true };
   }
 
+  if (pathname === '/api/admin' || pathname.startsWith('/api/admin/')) {
+    parsed.pathname = pathname.replace(/^\/api\/admin/, '/v1/admin');
+    return { url: `${parsed.pathname}${parsed.search}`, forceFastify: true };
+  }
+
+  if (
+    pathname === '/api/gamification' ||
+    pathname.startsWith('/api/gamification/')
+  ) {
+    parsed.pathname = pathname.replace(/^\/api\/gamification/, '/v1/gamification');
+    return { url: `${parsed.pathname}${parsed.search}`, forceFastify: true };
+  }
+
   return { url, forceFastify: false };
 }
+
+export { rewriteLegacyApiPath };
 
 function isFastifyRequest(url = '/'): boolean {
   const rewritten = rewriteLegacyApiPath(url);

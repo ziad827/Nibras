@@ -11,6 +11,7 @@ import {
 } from '../../lib/cache';
 import { getUserCfData } from '../competitions/practice/codeforces/cf-api';
 import { getLcUserStatus } from '../competitions/practice/leetcode/lc-api';
+import { getPlatformConfig } from '../../lib/platform-config';
 
 const NIBRAS75_SLUGS = new Set(NIBRAS_75_CURRICULUM.map((e) => e.slug));
 
@@ -156,6 +157,32 @@ async function applySolveRewards(
     },
     update: {},
   });
+
+  const platformConfig = await getPlatformConfig(prisma);
+  const dailyStreakBonus = Number(
+    platformConfig.gamification?.dailyStreakBonus ?? 5,
+  );
+  if (newStreak > 1 && dailyStreakBonus > 0) {
+    const streakBonus = dailyStreakBonus;
+    milestoneBonus += streakBonus;
+    await prisma.reputationEvent.upsert({
+      where: {
+        userId_source: {
+          userId,
+          source: `daily-streak-daily:${configId}:${newStreak}`,
+        },
+      },
+      create: {
+        userId,
+        delta: streakBonus,
+        reason: `Daily streak bonus (${newStreak} days)`,
+        source: `daily-streak-daily:${configId}:${newStreak}`,
+        category: 'problem',
+        createdAt: now,
+      },
+      update: {},
+    });
+  }
 
   for (const [threshold, bonus] of STREAK_MILESTONES) {
     if (newStreak === threshold && bonus > 0) {

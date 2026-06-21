@@ -1819,10 +1819,6 @@
         url: 'Competitions/Ranking/ranking.html',
       },
       {
-        keywords: ['teams', 'competition teams', 'my team'],
-        url: 'Competitions/Teams/team.html',
-      },
-      {
         keywords: ['projects', 'my projects', 'student projects'],
         url: 'Projects/projects.html',
       },
@@ -1846,10 +1842,6 @@
       {
         keywords: ['portfolio', 'profile', 'student profile'],
         url: 'Portfolio/portfolio.html',
-      },
-      {
-        keywords: ['integrations', 'connected apps', 'connections'],
-        url: 'Integrations/integrations.html',
       },
       {
         keywords: ['recommendation system', 'recommendations', 'suggestions'],
@@ -1889,7 +1881,6 @@
         keywords: ['roles', 'permissions', 'role management'],
         url: 'Admin/Roles/roles.html',
       },
-      { keywords: ['backups', 'backup'], url: 'Admin/Backups/backups.html' },
       {
         keywords: ['audit', 'audit logs', 'logs'],
         url: 'Admin/AuditLogs/audit-logs.html',

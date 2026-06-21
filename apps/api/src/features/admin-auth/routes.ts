@@ -73,7 +73,7 @@ export function registerAdminAuthRoutes(
     }
 
     const session = await createCliSession(prisma, user.id);
-    return buildAuthResponse(session, user);
+    return buildAuthResponse(session, user, prisma);
   });
 
   app.post('/api/auth/register', async (request, reply) => {
@@ -177,7 +177,7 @@ export function registerAdminAuthRoutes(
     });
 
     const session = await createCliSession(prisma, verified.id);
-    return buildAuthResponse(session, verified);
+    return buildAuthResponse(session, verified, prisma);
   });
 
   app.post('/api/auth/google', async (request, reply) => {
@@ -197,7 +197,7 @@ export function registerAdminAuthRoutes(
       image: profile.picture ?? null,
     });
     const session = await createCliSession(prisma, user.id);
-    return buildAuthResponse(session, user);
+    return buildAuthResponse(session, user, prisma);
   });
 
   app.post('/api/auth/microsoft', async (request, reply) => {
@@ -221,7 +221,7 @@ export function registerAdminAuthRoutes(
       displayName: profile.displayName ?? null,
     });
     const session = await createCliSession(prisma, user.id);
-    return buildAuthResponse(session, user);
+    return buildAuthResponse(session, user, prisma);
   });
 
   app.post('/api/auth/forgot-password', async (request, reply) => {
@@ -392,15 +392,18 @@ export function registerAdminAuthRoutes(
     }
 
     return {
-      user: toAdminUserPayload({
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        displayName: user.displayName ?? null,
-        yearLevel: user.yearLevel,
-        systemRole:
-          user.systemRole === 'admin' ? SystemRole.admin : SystemRole.user,
-      }),
+      user: await toAdminUserPayload(
+        {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          displayName: user.displayName ?? null,
+          yearLevel: user.yearLevel,
+          systemRole:
+            user.systemRole === 'admin' ? SystemRole.admin : SystemRole.user,
+        },
+        prisma,
+      ),
     };
   });
 
@@ -431,7 +434,7 @@ export function registerAdminAuthRoutes(
       data: { revokedAt: new Date() },
     });
 
-    return buildAuthResponse(nextSession, session.user);
+    return buildAuthResponse(nextSession, session.user, prisma);
   });
 
   app.post('/api/auth/logout', async (request, reply) => {

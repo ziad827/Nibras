@@ -92,10 +92,16 @@
                 
                 <!-- Announcements (Dynamic) -->
                 <section class="card">
-                    <div class="card-header">
-                        <i class="fa-regular fa-bell"></i>
-                        <h3>Announcements</h3>
+                    <div class="card-header card-header-actions">
+                        <div class="card-header-title">
+                            <i class="fa-regular fa-bell"></i>
+                            <h3>Announcements</h3>
+                        </div>
+                        <button type="button" class="btn-outline btn-sm" id="new-announcement-btn" hidden>
+                            <i class="fa-solid fa-plus"></i> New Announcement
+                        </button>
                     </div>
+                    <div id="announcements-notice" class="overview-notice" hidden></div>
                     <!-- Container for JS to inject data -->
                     <div id="announcements-container">
                         <div class="skeleton" style="height:80px; margin-bottom:0.75rem;"></div>
@@ -170,7 +176,10 @@
                 <section class="card">
                     <h5 class="widget-title">Course Instructor</h5>
                     <div class="instructor-profile">
-                        <div class="avatar" id="instructor-initials">JS</div>
+                        <div class="avatar" id="instructor-avatar-wrap">
+                            <img id="instructor-avatar" class="instructor-avatar-img" alt="" hidden>
+                            <span id="instructor-initials">JS</span>
+                        </div>
                         <div class="instructor-info">
                             <h4 id="instructor-name">...</h4>
                             <p id="instructor-role">...</p>
@@ -180,7 +189,7 @@
                         </div>
                     </div>
                     <p class="bio" id="instructor-bio">...</p>
-                    <button class="btn-outline">
+                    <button type="button" class="btn-outline" id="instructor-message-btn">
                         <i class="fa-regular fa-envelope"></i> Send Message
                     </button>
                 </section>
@@ -232,10 +241,32 @@
         </div>
     </main>
 
+    <div class="announcement-modal-overlay" id="announcement-modal" hidden>
+        <div class="announcement-modal" role="dialog" aria-labelledby="announcement-modal-title">
+            <div class="announcement-modal-header">
+                <h3 id="announcement-modal-title">New Announcement</h3>
+                <button type="button" class="modal-close-btn" id="announcement-modal-close" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="announcement-form">
+                <input type="hidden" id="announcement-edit-id" value="">
+                <label for="announcement-title-input">Title</label>
+                <input type="text" id="announcement-title-input" maxlength="200" required placeholder="Announcement title">
+                <label for="announcement-body-input">Message</label>
+                <textarea id="announcement-body-input" rows="6" maxlength="10000" required placeholder="Write your announcement..."></textarea>
+                <div class="announcement-modal-actions">
+                    <button type="button" class="btn-outline" id="announcement-cancel-btn">Cancel</button>
+                    <button type="submit" class="btn-primary" id="announcement-save-btn">Publish</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
         <script src="../../react-bootstrap.js"></script>
     <script src="../courseData.js?v=20260620"></script>
     <script src="../course-mappers.js?v=20260620"></script>
     <script src="../course-sidebar.js?v=20260620"></script>
-    <script src="./courseContent.js?v=20260620"></script>
+    <script src="./courseContent.js?v=20260621"></script>
 </body>
 </html>

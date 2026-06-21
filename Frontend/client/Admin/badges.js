@@ -294,7 +294,7 @@ window.NibrasReact.run(function () {
     }
 
     services.gamificationService
-      .checkAwardBadges(payload.studentId || payload.email)
+      .awardBadge(badgeId, payload)
       .then(function () {
         showToast('Badge awarded successfully!', 'success');
         manualStudentInput.value = '';

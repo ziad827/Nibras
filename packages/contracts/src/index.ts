@@ -3,6 +3,7 @@ export * from './tracking';
 export * from './course-content';
 export * from './course-assignments';
 export * from './course-profile';
+export * from './course-announcements';
 export * from './programs';
 export * from './ide';
 export * from './gamification';
@@ -144,6 +145,22 @@ export const UserPrivacyResponseSchema = z.object({
 
 export const UpdateUserPrivacyBodySchema = z.object({
   showOnLeaderboard: z.boolean(),
+});
+
+export const StudyLevelSchema = z.enum([
+  'Beginner',
+  'Intermediate',
+  'Advanced',
+  'Expert',
+]);
+
+export const UpdateStudyLevelBodySchema = z.object({
+  studyLevel: StudyLevelSchema,
+});
+
+export const StudyLevelResponseSchema = z.object({
+  studyLevel: StudyLevelSchema,
+  yearLevel: z.number().int().min(1).max(4),
 });
 
 export const AiProviderIdSchema = z.enum(['openai', 'groq', 'openrouter']);

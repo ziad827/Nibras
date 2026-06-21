@@ -221,6 +221,7 @@ model User {
   /// When false, user is hidden from public leaderboards.
   showOnLeaderboard Boolean            @default(true)
   systemRole        SystemRole         @default(user)
+  roleId            String?
   yearLevel         Int                @default(1)
   bannedAt          DateTime?
   banReason         String?
@@ -281,6 +282,7 @@ model User {
   aiCredential             UserAiCredential?
   authSessions             AuthSession[]
   authAccounts             AuthAccount[]
+  rbacRole                 Role?                 @relation(fields: [roleId], references: [id], onDelete: SetNull)
   dailyProblemConfig       DailyProblemConfig?
   dailyProblemAssignments  DailyProblemAssignment[]
   cpRoadmapProgress        CpRoadmapProblemProgress[]
@@ -288,6 +290,7 @@ model User {
   cpRoadmapSuggestions     CpRoadmapProblemSuggestion[] @relation("CpRoadmapSuggestionAuthor")
   cpRoadmapSuggestionsReviewed CpRoadmapProblemSuggestion[] @relation("CpRoadmapSuggestionReviewer")
   socialLinks              UserSocialLink[]
+  courseAnnouncements      CourseAnnouncement[]
 
   @@index([systemRole])
   @@index([yearLevel])
@@ -369,6 +372,22 @@ model Course {
   assignments      CourseAssignment[]
   enrollmentRequests CourseEnrollmentRequest[]
   linkedCatalogCourse CatalogCourse?
+  announcements    CourseAnnouncement[]
+}
+
+model CourseAnnouncement {
+  id          String   @id @default(cuid())
+  courseId    String
+  title       String
+  body        String   @db.Text
+  publishedAt DateTime @default(now())
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  author      User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([courseId, publishedAt(sort: Desc)])
 }
 
 model CourseInvite {
@@ -1288,6 +1307,34 @@ model PlatformConfig {
   createdAt DateTime @default(now())
 }
 
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String           @default("")
+  isSystem    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  permissions RolePermission[]
+  users       User[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  description String           @default("")
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+}
+
 model AIInteraction {
   id         String   @id @default(cuid())
   userId     String
@@ -2013,6 +2060,9 @@ model BadgeDefinition {
   name        String
   description String        @default("")
   iconUrl     String?
+  icon        String?
+  color       String?
+  criteria    String?
   rarity      BadgeRarity   @default(common)
   category    BadgeCategory @default(onboarding)
   threshold   Int           @default(1)

@@ -1,3 +1,15 @@
+function detectPreferredOsFromSignals(userAgent, platform, saved) {
+  if (saved === 'macos' || saved === 'linux' || saved === 'windows') {
+    return saved;
+  }
+  var ua = String(userAgent || '');
+  var plat = String(platform || '');
+  if (/Win/i.test(plat) || /Windows/i.test(ua)) return 'windows';
+  if (/Mac/i.test(plat) || /Macintosh/i.test(ua)) return 'macos';
+  if (/Linux/i.test(plat) || /Linux/i.test(ua)) return 'linux';
+  return 'linux';
+}
+
 (function initNibrasCli(global) {
   var VERSION = '2.0.0';
   var RELEASE_TAG = 'v' + VERSION;
@@ -78,6 +90,18 @@
     root.querySelectorAll('[data-cli-version]').forEach(function (el) {
       el.textContent = RELEASE_TAG;
     });
+  }
+
+  function detectPreferredOs() {
+    var saved = null;
+    try {
+      saved = global.localStorage.getItem('nibras_cli_os');
+    } catch (_) {}
+    return detectPreferredOsFromSignals(
+      global.navigator && global.navigator.userAgent,
+      global.navigator && global.navigator.platform,
+      saved,
+    );
   }
 
   function hydrateGuidePage() {
@@ -409,7 +433,13 @@
     buildLoginCommand: buildLoginCommand,
     buildSetupCommand: buildSetupCommand,
     hydrateGuidePage: hydrateGuidePage,
+    detectPreferredOs: detectPreferredOs,
+    detectPreferredOsFromSignals: detectPreferredOsFromSignals,
     updateCliCommands: updateCliCommands,
     initHelpModal: initHelpModal,
   });
-})(window);
+})(typeof window !== 'undefined' ? window : global);
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { detectPreferredOsFromSignals: detectPreferredOsFromSignals };
+}

@@ -3,8 +3,10 @@ import {
   LocalTestResultRequestSchema,
   MeResponseSchema,
   OnboardingProgressResponseSchema,
+  StudyLevelResponseSchema,
   UpdateOnboardingProgressBodySchema,
   UpdateProfileBodySchema,
+  UpdateStudyLevelBodySchema,
   UpdateUserPrivacyBodySchema,
   UserPrivacyResponseSchema,
   PingResponseSchema,
@@ -196,6 +198,42 @@ export function registerHostedCliRoutes(
           role: m.role,
           level: m.level,
         })),
+      });
+    },
+  );
+
+  const STUDY_LEVEL_TO_YEAR: Record<
+    'Beginner' | 'Intermediate' | 'Advanced' | 'Expert',
+    number
+  > = {
+    Beginner: 1,
+    Intermediate: 2,
+    Advanced: 3,
+    Expert: 4,
+  };
+
+  app.patch(
+    '/v1/me/study-level',
+    { schema: { tags: ['auth'], summary: 'Update study level preference' } },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      const parsed = UpdateStudyLevelBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send(Errors.validation(parsed.error.message));
+      }
+      const yearLevel =
+        STUDY_LEVEL_TO_YEAR[
+          parsed.data.studyLevel as keyof typeof STUDY_LEVEL_TO_YEAR
+        ];
+      await store.syncStudentYearGlobal(
+        requestBaseUrl(request),
+        auth.user.id,
+        yearLevel,
+      );
+      return StudyLevelResponseSchema.parse({
+        studyLevel: parsed.data.studyLevel,
+        yearLevel,
       });
     },
   );

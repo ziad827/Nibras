@@ -14,9 +14,80 @@ var _safeHtml =
     });
   };
 
+var overviewState = {
+  trackingId: null,
+  isInstructor: false,
+  instructorUserId: null,
+  staticAnnouncements: [],
+  staticPrerequisites: [],
+};
+
 function setText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = text ?? '';
+}
+
+function parseArrayPayload(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+}
+
+function formatAnnouncementDate(value) {
+  if (!value) return '';
+  var date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function instructorInitials(name) {
+  var parts = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function findLocalCourseByTrackingId(trackingCourseId) {
+  if (!trackingCourseId || !window.NibrasCourses?.getAllCoursesList) return null;
+  var courses = window.NibrasCourses.getAllCoursesList();
+  return (
+    courses.find(function (course) {
+      return (
+        course.trackingCourseId === trackingCourseId ||
+        course.trackingCourseIdForApi === trackingCourseId ||
+        course.id === trackingCourseId
+      );
+    }) || null
+  );
+}
+
+function setOverviewNotice(message, type) {
+  var notice = document.getElementById('announcements-notice');
+  if (!notice) return;
+  var sharedUiStates = window.NibrasShared?.uiStates;
+  if (sharedUiStates?.render && message) {
+    sharedUiStates.render(notice, {
+      state: sharedUiStates.normalize ? sharedUiStates.normalize(type || 'info') : type || 'info',
+      message: message,
+      mode: 'notice',
+    });
+    notice.hidden = false;
+    return;
+  }
+  if (!message) {
+    notice.hidden = true;
+    notice.textContent = '';
+    return;
+  }
+  notice.hidden = false;
+  notice.textContent = message;
 }
 
 function renderGradingBreakdown(weights) {
@@ -43,6 +114,197 @@ function renderGradingBreakdown(weights) {
       _safeHtml(w.pct || '—') +
       '</span></div>';
   });
+}
+
+function renderInstructor(instructor) {
+  if (!instructor) return;
+
+  var displayName =
+    instructor.displayName ||
+    instructor.name ||
+    instructor.username ||
+    'Course instructor';
+  var roleLabel =
+    instructor.role === 'ta'
+      ? 'Teaching Assistant'
+      : instructor.role || instructor.title || 'Instructor';
+
+  setText('instructor-name', displayName);
+  setText('instructor-role', roleLabel);
+  setText('instructor-bio', instructor.bio || '');
+
+  var initialsEl = document.getElementById('instructor-initials');
+  var avatarImg = document.getElementById('instructor-avatar');
+  var initials = instructor.initials || instructorInitials(displayName);
+  if (initialsEl) initialsEl.textContent = initials;
+
+  if (avatarImg) {
+    if (instructor.avatarUrl) {
+      avatarImg.src = instructor.avatarUrl;
+      avatarImg.alt = displayName;
+      avatarImg.hidden = false;
+      if (initialsEl) initialsEl.style.display = 'none';
+    } else {
+      avatarImg.hidden = true;
+      avatarImg.removeAttribute('src');
+      if (initialsEl) initialsEl.style.display = '';
+    }
+  }
+
+  var ratingEl = document.getElementById('instructor-rating');
+  var ratingWrap = ratingEl?.closest('.rating');
+  if (instructor.rating != null) {
+    setText('instructor-rating', instructor.rating);
+    if (ratingWrap) ratingWrap.style.display = '';
+  } else {
+    setText('instructor-rating', '—');
+    if (ratingWrap) ratingWrap.style.display = 'none';
+  }
+
+  overviewState.instructorUserId = instructor.userId || null;
+
+  var messageBtn = document.getElementById('instructor-message-btn');
+  if (messageBtn) {
+    messageBtn.onclick = function () {
+      if (overviewState.instructorUserId) {
+        window.location.href =
+          '/Portfolio/portfolio.html?userId=' +
+          encodeURIComponent(overviewState.instructorUserId);
+        return;
+      }
+      if (instructor.email) {
+        window.location.href = 'mailto:' + encodeURIComponent(instructor.email);
+      }
+    };
+  }
+}
+
+function renderPrerequisites(prerequisites, staticFallback) {
+  var preContainer = document.getElementById('prereq-container');
+  if (!preContainer) return;
+
+  var courses = prerequisites?.courses || [];
+  var notes = prerequisites?.notes || [];
+  var html = '';
+
+  courses.forEach(function (course) {
+    var label =
+      _safeHtml(course.subjectCode) +
+      ' ' +
+      _safeHtml(course.catalogNumber) +
+      ' — ' +
+      _safeHtml(course.title);
+    var localCourse = course.trackingCourseId
+      ? findLocalCourseByTrackingId(course.trackingCourseId)
+      : null;
+    if (localCourse) {
+      html +=
+        '<li><span>•</span> <a class="prereq-course-link" href="./courseContent.html" data-prereq-course-id="' +
+        _safeHtml(localCourse.id) +
+        '">' +
+        label +
+        '</a></li>';
+    } else {
+      html += '<li><span>•</span> ' + label + '</li>';
+    }
+  });
+
+  notes.forEach(function (note) {
+    html += '<li><span>•</span> ' + _safeHtml(note) + '</li>';
+  });
+
+  if (!html && Array.isArray(staticFallback) && staticFallback.length) {
+    staticFallback.forEach(function (pre) {
+      html += '<li><span>•</span> ' + _safeHtml(pre) + '</li>';
+    });
+  }
+
+  if (!html) {
+    html =
+      '<li class="overview-empty"><span>•</span> No prerequisites listed.</li>';
+  }
+
+  preContainer.innerHTML = html;
+
+  preContainer.querySelectorAll('[data-prereq-course-id]').forEach(function (link) {
+    link.addEventListener('click', function (event) {
+      event.preventDefault();
+      var courseId = link.getAttribute('data-prereq-course-id');
+      if (courseId && window.NibrasCourses?.setSelectedCourseId) {
+        window.NibrasCourses.setSelectedCourseId(courseId);
+      }
+      window.location.href = './courseContent.html';
+    });
+  });
+}
+
+function renderAnnouncements(items, options) {
+  var announceContainer = document.getElementById('announcements-container');
+  var newBtn = document.getElementById('new-announcement-btn');
+  if (!announceContainer) return;
+
+  options = options || {};
+  var isInstructor = Boolean(options.isInstructor);
+  if (newBtn) newBtn.hidden = !isInstructor;
+
+  announceContainer.innerHTML = '';
+  var list = Array.isArray(items) ? items : [];
+
+  if (!list.length) {
+    announceContainer.innerHTML =
+      '<p class="overview-empty">No announcements yet.</p>';
+    return;
+  }
+
+  list.forEach(function (item) {
+    var title = item.title || 'Announcement';
+    var date = item.date || formatAnnouncementDate(item.publishedAt);
+    var content = item.content || item.body || '';
+    var actionsHtml = '';
+    if (isInstructor && item.id) {
+      actionsHtml =
+        '<div class="announcement-actions">' +
+        '<button type="button" class="icon-btn announcement-edit-btn" data-id="' +
+        _safeHtml(item.id) +
+        '" title="Edit"><i class="fa-regular fa-pen-to-square"></i></button>' +
+        '<button type="button" class="icon-btn announcement-delete-btn" data-id="' +
+        _safeHtml(item.id) +
+        '" title="Delete"><i class="fa-regular fa-trash-can"></i></button>' +
+        '</div>';
+    }
+    announceContainer.innerHTML +=
+      '<div class="announcement-item" data-announcement-id="' +
+      _safeHtml(item.id || '') +
+      '">' +
+      '<div class="announcement-header">' +
+      '<h4>' +
+      _safeHtml(title) +
+      '</h4>' +
+      '<div class="announcement-meta">' +
+      '<span class="announcement-date">' +
+      _safeHtml(date) +
+      '</span>' +
+      actionsHtml +
+      '</div>' +
+      '</div>' +
+      '<p>' +
+      _safeHtml(content) +
+      '</p>' +
+      '</div>';
+  });
+
+  if (isInstructor) {
+    announceContainer.querySelectorAll('.announcement-edit-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        openAnnouncementModal(btn.getAttribute('data-id'));
+      });
+    });
+    announceContainer.querySelectorAll('.announcement-delete-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        void deleteAnnouncement(btn.getAttribute('data-id'));
+      });
+    });
+  }
 }
 
 function showCourseLoadError(message) {
@@ -81,19 +343,14 @@ function populateDashboard(data, selected) {
   setText('progress-percent-text', `${data.progress.percent}%`);
   setText('stat-score', data.progress.avgScore);
   setText('stat-assignments', data.progress.assignmentsDone);
-  setText('instructor-initials', data.instructor.initials);
-  setText('instructor-name', data.instructor.name);
-  setText('instructor-role', data.instructor.role);
-  var ratingEl = document.getElementById('instructor-rating');
-  var ratingWrap = ratingEl?.closest('.rating');
-  if (data.instructor.rating != null) {
-    setText('instructor-rating', data.instructor.rating);
-    if (ratingWrap) ratingWrap.style.display = '';
-  } else {
-    setText('instructor-rating', '—');
-    if (ratingWrap) ratingWrap.style.display = 'none';
-  }
-  setText('instructor-bio', data.instructor.bio);
+
+  overviewState.staticAnnouncements = data.announcements || [];
+  overviewState.staticPrerequisites = data.prerequisites || [];
+
+  renderInstructor(data.instructor);
+  renderAnnouncements(overviewState.staticAnnouncements, {
+    isInstructor: overviewState.isInstructor,
+  });
 
   const breadcrumb = document.querySelector('.breadcrumbs');
   if (breadcrumb) {
@@ -109,21 +366,6 @@ function populateDashboard(data, selected) {
 
   renderGradingBreakdown(selected?.grades?.weights);
 
-  const announceContainer = document.getElementById('announcements-container');
-  if (announceContainer) {
-    announceContainer.innerHTML = '';
-    (data.announcements || []).forEach((item) => {
-      announceContainer.innerHTML += `
-        <div class="announcement-item">
-          <div class="announcement-header">
-            <h4>${_safeHtml(item.title)}</h4>
-            <span class="announcement-date">${_safeHtml(item.date)}</span>
-          </div>
-          <p>${_safeHtml(item.content)}</p>
-        </div>`;
-    });
-  }
-
   const objContainer = document.getElementById('objectives-container');
   if (objContainer) {
     objContainer.innerHTML = '';
@@ -132,13 +374,7 @@ function populateDashboard(data, selected) {
     });
   }
 
-  const preContainer = document.getElementById('prereq-container');
-  if (preContainer) {
-    preContainer.innerHTML = '';
-    (data.prerequisites || []).forEach((pre) => {
-      preContainer.innerHTML += `<li><span>•</span> ${_safeHtml(pre)}</li>`;
-    });
-  }
+  renderPrerequisites(null, overviewState.staticPrerequisites);
 
   const currContainer = document.getElementById('curriculum-container');
   if (currContainer) {
@@ -206,9 +442,25 @@ async function resolveBackendCourseSlug() {
   } catch (_) {}
 }
 
+function mapTrackingInstructor(entry) {
+  if (!entry) return null;
+  return {
+    userId: entry.userId,
+    name: entry.displayName || entry.username,
+    displayName: entry.displayName,
+    username: entry.username,
+    role: entry.role === 'ta' ? 'Teaching Assistant' : 'Instructor',
+    bio: entry.bio || '',
+    avatarUrl: entry.avatarUrl,
+    initials: instructorInitials(entry.displayName || entry.username),
+    rating: null,
+  };
+}
+
 async function hydrateOverviewFromTracking(selectedCourse) {
   var trackingSvc = window.NibrasServices?.trackingCourseService;
   var trackingId = window.NibrasCourseSidebar?.resolveTrackingId?.(selectedCourse);
+  overviewState.trackingId = trackingId || null;
   if (!trackingSvc || !trackingId) return;
 
   try {
@@ -249,6 +501,19 @@ async function hydrateOverviewFromTracking(selectedCourse) {
     if (detail.syllabusJson?.gradingWeights?.length) {
       renderGradingBreakdown(detail.syllabusJson.gradingWeights);
     }
+
+    if (Array.isArray(detail.instructors) && detail.instructors.length) {
+      renderInstructor(mapTrackingInstructor(detail.instructors[0]));
+    }
+
+    if (detail.prerequisites) {
+      renderPrerequisites(detail.prerequisites, overviewState.staticPrerequisites);
+    } else if (detail.syllabusJson?.prerequisites?.length) {
+      renderPrerequisites(
+        { courses: [], notes: detail.syllabusJson.prerequisites },
+        overviewState.staticPrerequisites,
+      );
+    }
   } catch (error) {
     console.warn(
       '[COURSE-CONTENT] Failed to hydrate overview from tracking:',
@@ -287,11 +552,163 @@ async function hydrateOverviewFromAdmin(selectedCourse) {
         percent: pct,
       });
     }
+
+    if (!overviewState.instructorUserId && course.instructor?.name) {
+      renderInstructor({
+        name: course.instructor.name,
+        role: 'Instructor',
+        bio: selectedCourse.overview?.instructor?.bio || course.description || '',
+        initials: instructorInitials(course.instructor.name),
+        rating: selectedCourse.overview?.instructor?.rating ?? null,
+      });
+    }
   } catch (error) {
     console.warn(
       '[COURSE-CONTENT] Failed to hydrate overview from admin backend:',
       error?.message || error,
     );
+  }
+
+  if (!overviewState.instructorUserId && window.NibrasCourses?.getAdminCourseByLocalId) {
+    try {
+      var remote = await window.NibrasCourses.getAdminCourseByLocalId(selectedCourse.id);
+      if (remote?.instructorName) {
+        renderInstructor({
+          name: remote.instructorName,
+          role: 'Instructor',
+          bio: selectedCourse.overview?.instructor?.bio || '',
+          initials: instructorInitials(remote.instructorName),
+          rating: selectedCourse.overview?.instructor?.rating ?? null,
+        });
+      }
+    } catch (_) {}
+  }
+}
+
+async function hydrateAnnouncements(selectedCourse) {
+  var trackingSvc = window.NibrasServices?.trackingCourseService;
+  var trackingId =
+    overviewState.trackingId ||
+    window.NibrasCourseSidebar?.resolveTrackingId?.(selectedCourse);
+  if (!trackingSvc || !trackingId || typeof trackingSvc.listAnnouncements !== 'function') {
+    return;
+  }
+
+  try {
+    var payload = await trackingSvc.listAnnouncements(trackingId);
+    var items = parseArrayPayload(payload);
+    if (items.length) {
+      renderAnnouncements(items, { isInstructor: overviewState.isInstructor });
+    } else {
+      renderAnnouncements([], { isInstructor: overviewState.isInstructor });
+    }
+  } catch (error) {
+    console.warn(
+      '[COURSE-CONTENT] Failed to hydrate announcements:',
+      error?.message || error,
+    );
+    renderAnnouncements(overviewState.staticAnnouncements, {
+      isInstructor: overviewState.isInstructor,
+    });
+  }
+}
+
+function openAnnouncementModal(announcementId) {
+  var modal = document.getElementById('announcement-modal');
+  var titleInput = document.getElementById('announcement-title-input');
+  var bodyInput = document.getElementById('announcement-body-input');
+  var editIdInput = document.getElementById('announcement-edit-id');
+  var modalTitle = document.getElementById('announcement-modal-title');
+  if (!modal || !titleInput || !bodyInput || !editIdInput) return;
+
+  editIdInput.value = announcementId || '';
+  if (announcementId) {
+    var itemEl = document.querySelector(
+      '[data-announcement-id="' + announcementId + '"]',
+    );
+    var title = itemEl?.querySelector('h4')?.textContent || '';
+    var body = itemEl?.querySelector('p')?.textContent || '';
+    titleInput.value = title;
+    bodyInput.value = body;
+    if (modalTitle) modalTitle.textContent = 'Edit Announcement';
+  } else {
+    titleInput.value = '';
+    bodyInput.value = '';
+    if (modalTitle) modalTitle.textContent = 'New Announcement';
+  }
+  modal.hidden = false;
+}
+
+function closeAnnouncementModal() {
+  var modal = document.getElementById('announcement-modal');
+  if (modal) modal.hidden = true;
+}
+
+async function saveAnnouncement(event) {
+  event.preventDefault();
+  var trackingId = overviewState.trackingId;
+  var trackingSvc = window.NibrasServices?.trackingCourseService;
+  if (!trackingId || !trackingSvc) return;
+
+  var title = document.getElementById('announcement-title-input')?.value?.trim();
+  var body = document.getElementById('announcement-body-input')?.value?.trim();
+  var editId = document.getElementById('announcement-edit-id')?.value?.trim();
+  if (!title || !body) return;
+
+  try {
+    if (editId) {
+      await trackingSvc.updateAnnouncement(trackingId, editId, { title, body });
+    } else {
+      await trackingSvc.createAnnouncement(trackingId, { title, body });
+    }
+    closeAnnouncementModal();
+    setOverviewNotice('', 'info');
+    await hydrateAnnouncements(window.NibrasCourses.getSelectedCourse());
+  } catch (error) {
+    setOverviewNotice(
+      error?.message || 'Failed to save announcement.',
+      'error',
+    );
+  }
+}
+
+async function deleteAnnouncement(announcementId) {
+  if (!announcementId) return;
+  if (!window.confirm('Delete this announcement?')) return;
+  var trackingId = overviewState.trackingId;
+  var trackingSvc = window.NibrasServices?.trackingCourseService;
+  if (!trackingId || !trackingSvc) return;
+
+  try {
+    await trackingSvc.deleteAnnouncement(trackingId, announcementId);
+    await hydrateAnnouncements(window.NibrasCourses.getSelectedCourse());
+  } catch (error) {
+    setOverviewNotice(
+      error?.message || 'Failed to delete announcement.',
+      'error',
+    );
+  }
+}
+
+function initAnnouncementControls() {
+  var newBtn = document.getElementById('new-announcement-btn');
+  var form = document.getElementById('announcement-form');
+  var closeBtn = document.getElementById('announcement-modal-close');
+  var cancelBtn = document.getElementById('announcement-cancel-btn');
+  var modal = document.getElementById('announcement-modal');
+
+  if (newBtn) {
+    newBtn.addEventListener('click', function () {
+      openAnnouncementModal('');
+    });
+  }
+  if (form) form.addEventListener('submit', saveAnnouncement);
+  if (closeBtn) closeBtn.addEventListener('click', closeAnnouncementModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeAnnouncementModal);
+  if (modal) {
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal) closeAnnouncementModal();
+    });
   }
 }
 
@@ -299,6 +716,7 @@ function hydrateProgressInBackground(selectedCourse) {
   var run = async function () {
     await resolveBackendCourseSlug();
     await hydrateOverviewFromTracking(selectedCourse);
+    await hydrateAnnouncements(selectedCourse);
     await hydrateOverviewFromAdmin(selectedCourse);
     await window.NibrasCourseSidebar?.hydrateSidebarProgress?.(selectedCourse);
   };
@@ -374,6 +792,9 @@ function initCourseContent() {
     return;
   }
 
+  overviewState.isInstructor =
+    window.NibrasCourseSidebar?.isInstructor?.() || false;
+
   window.NibrasCourseSidebar?.initCoursePageChrome?.({
     activeKey: 'courseContent',
     pageRoot: 'courseContent',
@@ -390,6 +811,7 @@ function initCourseContent() {
   }
 
   initThemeToggle();
+  initAnnouncementControls();
   populateDashboard(selectedCourse.overview, selectedCourse);
   hydrateProgressInBackground(selectedCourse);
 

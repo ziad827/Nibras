@@ -56,6 +56,26 @@ window.NibrasReact.run(() => {
 
   var loadedSnapshot = null;
 
+  function captureToggleSnapshot(containerId) {
+    var state = {};
+    var container = document.getElementById(containerId);
+    if (!container) return state;
+    container.querySelectorAll('input[type="checkbox"]').forEach(function (el) {
+      if (el.id) state[el.id] = el.checked;
+    });
+    return state;
+  }
+
+  function applyToggleSnapshot(containerId, state) {
+    if (!state) return;
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    Object.keys(state).forEach(function (id) {
+      var el = container.querySelector('#' + id);
+      if (el) el.checked = !!state[id];
+    });
+  }
+
   function captureSnapshot() {
     return {
       name: document.getElementById('input-name')?.value || '',
@@ -67,6 +87,8 @@ window.NibrasReact.run(() => {
       currentPassword: document.getElementById('input-current-password')?.value || '',
       newPassword: document.getElementById('input-new-password')?.value || '',
       confirmPassword: document.getElementById('input-confirm-password')?.value || '',
+      notifications: captureToggleSnapshot('notification-container'),
+      channels: captureToggleSnapshot('channel-container'),
     };
   }
 
@@ -88,6 +110,8 @@ window.NibrasReact.run(() => {
     if (currentPassword) currentPassword.value = snapshot.currentPassword || '';
     if (newPassword) newPassword.value = snapshot.newPassword || '';
     if (confirmPassword) confirmPassword.value = snapshot.confirmPassword || '';
+    applyToggleSnapshot('notification-container', snapshot.notifications);
+    applyToggleSnapshot('channel-container', snapshot.channels);
     pendingTheme = snapshot.theme || 'light';
   }
 
@@ -400,29 +424,17 @@ window.NibrasReact.run(() => {
         .join('')
         .substring(0, 2)
         .toUpperCase();
-      const avatarLarge = document.querySelector('.avatar-large');
-      if (avatarLarge && avatarLarge.textContent.trim() === 'ZA') {
+      const avatarLarge = document.getElementById('avatar-display');
+      if (avatarLarge && !avatarLarge.querySelector('img')) {
         avatarLarge.textContent = initials;
       }
-      const sidebarUserNames = document.querySelectorAll('.user-profile h4');
-      sidebarUserNames.forEach((el) => {
-        if (
-          el.textContent.trim() === 'Ziad Alaa' ||
-          el.textContent.trim() === ''
-        ) {
-          el.textContent = displayName;
-        }
-      });
-      const sidebarUserRoles = document.querySelectorAll('.user-profile span');
+      const sidebarName = document.getElementById('sidebar-name');
+      if (sidebarName) sidebarName.textContent = displayName;
+      const sidebarAvatar = document.getElementById('sidebar-avatar');
+      if (sidebarAvatar) sidebarAvatar.textContent = initials;
       const displayRole = user?.role?.name || user?.role || 'student';
-      sidebarUserRoles.forEach((el) => {
-        if (
-          el.textContent.trim() === 'student' ||
-          el.textContent.trim() === ''
-        ) {
-          el.textContent = displayRole;
-        }
-      });
+      const sidebarRole = document.getElementById('sidebar-role');
+      if (sidebarRole) sidebarRole.textContent = displayRole;
     }
 
     const btnConnect = document.getElementById('btn-connect-github');
@@ -531,6 +543,16 @@ window.NibrasReact.run(() => {
       id: 'notif-contest',
       title: 'Contest Reminders',
       desc: 'Get notified when a contest is about to start',
+    },
+    {
+      id: 'notif-badge',
+      title: 'Badge Earned',
+      desc: 'Get notified when you earn a new badge',
+    },
+    {
+      id: 'notif-email',
+      title: 'Email Digest',
+      desc: 'Receive a periodic email summary of activity',
     },
   ];
 
@@ -681,14 +703,6 @@ window.NibrasReact.run(() => {
         '</div>',
       ].join('');
     });
-    container.innerHTML += [
-      '<div class="toggle-row" style="border-bottom:none;padding-bottom:0;">',
-      '<p style="font-size:0.8rem;color:var(--text-tertiary);">',
-      '<i class="fa-solid fa-plug" style="margin-right:4px;"></i>',
-      'Configure Slack and Discord in <a href="../Integrations/integrations.html" style="color:var(--accent-blue);">Integrations</a>',
-      '</p>',
-      '</div>',
-    ].join('');
   }
 
   function attachChannelListeners() {
@@ -773,6 +787,22 @@ window.NibrasReact.run(() => {
           }
           prefMap[n.id] = match ? match.enabled : notifDefaults[n.id];
         });
+        var atriskType = notifTypeMap['notif-atrisk'];
+        var atriskMatch = null;
+        if (Array.isArray(prefs)) {
+          for (var j = 0; j < prefs.length; j++) {
+            if (
+              prefs[j].type === atriskType ||
+              prefs[j].id === atriskType
+            ) {
+              atriskMatch = prefs[j];
+              break;
+            }
+          }
+        }
+        prefMap['notif-atrisk'] = atriskMatch
+          ? atriskMatch.enabled
+          : notifDefaults['notif-atrisk'];
         renderNotificationToggles(prefMap);
         attachNotificationListeners();
       })
@@ -795,6 +825,140 @@ window.NibrasReact.run(() => {
 
   loadNotificationPreferences();
   loadChannelPreferences();
+
+  function setAiStatusMessage(message, tone) {
+    var el = document.getElementById('ai-credential-status');
+    if (!el) return;
+    el.textContent = message || '';
+    if (tone === 'error') {
+      el.style.color = 'var(--danger-color, #dc2626)';
+      return;
+    }
+    if (tone === 'success') {
+      el.style.color = 'var(--accent-blue, #2563eb)';
+      return;
+    }
+    el.style.color = '';
+  }
+
+  function applyAiCredentialUi(cred) {
+    var providerSelect = document.getElementById('ai-provider');
+    var modelInput = document.getElementById('ai-model');
+    var maskedNode = document.getElementById('ai-masked-key');
+    var removeBtn = document.getElementById('btn-remove-ai');
+    var keyInput = document.getElementById('ai-api-key');
+    if (providerSelect && cred?.provider) {
+      providerSelect.value = String(cred.provider);
+    }
+    if (modelInput && cred?.model) {
+      modelInput.value = String(cred.model);
+    }
+    if (cred?.configured && cred?.maskedKey) {
+      if (maskedNode) {
+        maskedNode.style.display = 'block';
+        maskedNode.textContent = 'Saved key: ' + cred.maskedKey;
+      }
+      if (removeBtn) removeBtn.style.display = '';
+      if (keyInput) keyInput.placeholder = 'Enter a new key to replace the saved one';
+    } else {
+      if (maskedNode) maskedNode.style.display = 'none';
+      if (removeBtn) removeBtn.style.display = 'none';
+    }
+    if (cred?.encryptionReady === false) {
+      setAiStatusMessage(
+        'Server encryption is not configured. Contact an administrator before saving keys.',
+        'error',
+      );
+    } else if (cred?.configured) {
+      setAiStatusMessage(
+        cred.tutorAvailable
+          ? 'Personal API key configured. Hassona can use your credentials.'
+          : 'Key saved, but tutor availability depends on provider settings.',
+        'success',
+      );
+    } else {
+      setAiStatusMessage(
+        'No personal API key saved. Add one to use BYOK with Hassona.',
+        'neutral',
+      );
+    }
+  }
+
+  async function loadAiCredentials() {
+    if (!window.NibrasServices?.aiCredentialsService?.get) {
+      setAiStatusMessage('AI credential service is unavailable on this page.', 'error');
+      return;
+    }
+    try {
+      var cred = await window.NibrasServices.aiCredentialsService.get();
+      applyAiCredentialUi(cred);
+    } catch (err) {
+      setAiStatusMessage(
+        err?.message || 'Could not load AI credential status.',
+        'error',
+      );
+    }
+  }
+
+  var btnSaveAi = document.getElementById('btn-save-ai');
+  if (btnSaveAi) {
+    btnSaveAi.addEventListener('click', async function () {
+      if (!window.NibrasServices?.aiCredentialsService?.upsert) {
+        setAiStatusMessage('AI credential service is unavailable.', 'error');
+        return;
+      }
+      var provider = document.getElementById('ai-provider')?.value || 'openai';
+      var model =
+        document.getElementById('ai-model')?.value?.trim() || 'gpt-4o-mini';
+      var apiKey = document.getElementById('ai-api-key')?.value?.trim() || '';
+      if (!apiKey) {
+        setAiStatusMessage('Enter an API key before saving.', 'error');
+        return;
+      }
+      var original = btnSaveAi.textContent;
+      btnSaveAi.disabled = true;
+      btnSaveAi.textContent = 'Saving...';
+      try {
+        var saved = await window.NibrasServices.aiCredentialsService.upsert({
+          provider: provider,
+          model: model,
+          apiKey: apiKey,
+        });
+        document.getElementById('ai-api-key').value = '';
+        applyAiCredentialUi(saved);
+        setAiStatusMessage('AI key saved successfully.', 'success');
+      } catch (err) {
+        setAiStatusMessage(err?.message || 'Could not save AI key.', 'error');
+      } finally {
+        btnSaveAi.disabled = false;
+        btnSaveAi.textContent = original;
+      }
+    });
+  }
+
+  var btnRemoveAi = document.getElementById('btn-remove-ai');
+  if (btnRemoveAi) {
+    btnRemoveAi.addEventListener('click', async function () {
+      if (
+        !confirm('Remove your saved AI API key? Hassona will fall back to platform credentials if available.')
+      ) {
+        return;
+      }
+      if (!window.NibrasServices?.aiCredentialsService?.remove) {
+        setAiStatusMessage('AI credential service is unavailable.', 'error');
+        return;
+      }
+      try {
+        await window.NibrasServices.aiCredentialsService.remove();
+        applyAiCredentialUi({ configured: false, tutorAvailable: false });
+        setAiStatusMessage('AI key removed.', 'success');
+      } catch (err) {
+        setAiStatusMessage(err?.message || 'Could not remove AI key.', 'error');
+      }
+    });
+  }
+
+  void loadAiCredentials();
 
   try {
     var cachedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -953,8 +1117,16 @@ window.NibrasReact.run(() => {
       );
     }
 
-    if (window.NibrasServices?.coursesService?.updateLevel) {
-      tasks.push(window.NibrasServices.coursesService.updateLevel(level));
+    if (window.NibrasServices?.usersService?.updateStudyLevel) {
+      tasks.push(
+        window.NibrasServices.usersService.updateStudyLevel(level).then(function () {
+          try {
+            var cached = JSON.parse(localStorage.getItem('user') || '{}');
+            cached.selectedLevel = level;
+            localStorage.setItem('user', JSON.stringify(cached));
+          } catch (_) {}
+        }),
+      );
     }
 
     if (passwordFieldsFilled && window.NibrasServices?.authService?.changePassword) {

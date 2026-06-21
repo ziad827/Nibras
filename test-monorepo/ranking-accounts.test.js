@@ -33,6 +33,29 @@ test('mapLinkedAccounts maps Fastify account rows to UI state', () => {
   assert.equal(mapped.ratings.codeforces, 3900);
 });
 
+test('mapLinkedAccounts maps verificationProblem when present', () => {
+  const mapped = mapLinkedAccounts([
+    {
+      host: 'codeforces',
+      handle: 'tourist',
+      verificationStatus: 'pending',
+      verificationProblem: {
+        contestId: 1000,
+        index: 'A',
+        name: '1000A',
+        url: 'https://codeforces.com/problemset/problem/1000/A',
+      },
+    },
+  ]);
+
+  assert.deepEqual(mapped.verificationProblems.codeforces, {
+    contestId: 1000,
+    index: 'A',
+    name: '1000A',
+    url: 'https://codeforces.com/problemset/problem/1000/A',
+  });
+});
+
 test('verifiedCount counts verified platforms only', () => {
   const count = verifiedCount({
     codeforces: { status: 'verified' },

@@ -114,10 +114,10 @@ if ! railway status >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "==> Connect GitHub (branch phase-5/competitive-programming)"
+echo "==> Connect GitHub (branch main)"
 for svc in "$API_SERVICE" "$WORKER_SERVICE" "$WEB_SERVICE" "$BACKEND_SERVICE" "$TUTOR_SERVICE"; do
   if service_exists "$svc"; then
-    railway service source connect --repo NibrasPlatform/Nibras --branch phase-5/competitive-programming --service "$svc" || true
+    railway service source connect --repo NibrasPlatform/Nibras --branch main --service "$svc" || true
   fi
 done
 

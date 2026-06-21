@@ -79,6 +79,45 @@ export async function targetExists(
   }
 }
 
+export async function getTargetAuthorId(
+  prisma: PrismaClient,
+  targetType: CommunityReportTargetType,
+  targetId: string,
+): Promise<string | null> {
+  switch (targetType) {
+    case CommunityReportTargetType.question: {
+      const row = await prisma.communityQuestion.findUnique({
+        where: { id: targetId },
+        select: { authorId: true },
+      });
+      return row?.authorId ?? null;
+    }
+    case CommunityReportTargetType.answer: {
+      const row = await prisma.communityAnswer.findUnique({
+        where: { id: targetId },
+        select: { authorId: true },
+      });
+      return row?.authorId ?? null;
+    }
+    case CommunityReportTargetType.post: {
+      const row = await prisma.communityPost.findUnique({
+        where: { id: targetId },
+        select: { authorId: true },
+      });
+      return row?.authorId ?? null;
+    }
+    case CommunityReportTargetType.thread: {
+      const row = await prisma.communityThread.findUnique({
+        where: { id: targetId },
+        select: { authorId: true },
+      });
+      return row?.authorId ?? null;
+    }
+    default:
+      return null;
+  }
+}
+
 export async function findPendingReport(
   prisma: PrismaClient,
   reporterId: string,

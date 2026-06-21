@@ -28,6 +28,7 @@ import { registerCourseVideoRoutes } from './features/tracking/course-videos';
 import { registerCourseVideoCommentRoutes } from './features/tracking/course-video-comments';
 import { registerCourseAssignmentRoutes } from './features/tracking/course-assignments';
 import { registerCourseProfileRoutes } from './features/tracking/course-profile';
+import { registerCourseAnnouncementRoutes } from './features/tracking/course-announcements';
 import { registerCourseGradesRoutes } from './features/tracking/course-grades';
 import { registerAdminRoutes } from './features/admin/routes';
 import { registerNotificationRoutes } from './features/notifications/routes';
@@ -40,6 +41,7 @@ import { registerReputationRoutes } from './features/reputation/routes';
 import { registerAnalyticsRoutes } from './features/analytics/routes';
 import { registerIdeRoutes } from './features/ide/routes';
 import { registerAiCredentialRoutes } from './features/ai-credentials/routes';
+import { registerPlatformFeatureGateHook } from './lib/platform-config';
 import { registerDailyProblemRoutes } from './features/daily-problem/routes';
 import { registerUserRoutes } from './features/users/routes';
 import { registerProjectAnalyticsRoutes } from './features/tracking/project-analytics';
@@ -430,6 +432,7 @@ export function buildApp(
     registerCourseVideoCommentRoutes(app, store, prisma);
     registerCourseAssignmentRoutes(app, store, prisma);
     registerCourseProfileRoutes(app, store, prisma);
+    registerCourseAnnouncementRoutes(app, store, prisma);
     registerCourseGradesRoutes(app, store, prisma);
   }
   registerProgramRoutes(app, store);
@@ -441,6 +444,7 @@ export function buildApp(
   registerNotificationRoutes(app, store);
   if (process.env.DATABASE_URL) {
     const prisma = getSharedPrisma();
+    registerPlatformFeatureGateHook(app, prisma);
     registerAdminAuthRoutes(app, store, prisma);
     registerCommunityRoutes(app, store, prisma);
     registerInternalTutorRoutes(app, prisma);

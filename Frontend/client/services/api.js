@@ -1322,7 +1322,7 @@
       const actionMap = {
         dismiss: 'dismiss',
         remove: 'remove',
-        ban: 'remove',
+        ban: 'ban',
         hide: 'hide',
       };
       const action = actionMap[String(data?.action || '').toLowerCase()] || 'dismiss';
@@ -3380,6 +3380,52 @@
         },
       );
     },
+
+    async listAnnouncements(courseId) {
+      return apiFetch(
+        `/v1/tracking/courses/${encodeURIComponent(String(courseId))}/announcements`,
+        {
+          service: 'tracking',
+          method: 'GET',
+          auth: true,
+        },
+      );
+    },
+
+    async createAnnouncement(courseId, body) {
+      return apiFetch(
+        `/v1/tracking/courses/${encodeURIComponent(String(courseId))}/announcements`,
+        {
+          service: 'tracking',
+          method: 'POST',
+          auth: true,
+          body,
+        },
+      );
+    },
+
+    async updateAnnouncement(courseId, announcementId, body) {
+      return apiFetch(
+        `/v1/tracking/courses/${encodeURIComponent(String(courseId))}/announcements/${encodeURIComponent(String(announcementId))}`,
+        {
+          service: 'tracking',
+          method: 'PATCH',
+          auth: true,
+          body,
+        },
+      );
+    },
+
+    async deleteAnnouncement(courseId, announcementId) {
+      return apiFetch(
+        `/v1/tracking/courses/${encodeURIComponent(String(courseId))}/announcements/${encodeURIComponent(String(announcementId))}`,
+        {
+          service: 'tracking',
+          method: 'DELETE',
+          auth: true,
+        },
+      );
+    },
   };
 
   // ============================================================
@@ -4180,9 +4226,34 @@
       });
     },
 
+    /**
+     * Update study level (maps to academic year 1–4 on the server)
+     * @param {string} studyLevel - Beginner | Intermediate | Advanced | Expert
+     * @returns {Promise<{studyLevel: string, yearLevel: number}>}
+     */
+    async updateStudyLevel(studyLevel) {
+      return apiFetch('/v1/me/study-level', {
+        service: 'tracking',
+        method: 'PATCH',
+        auth: true,
+        body: { studyLevel: String(studyLevel) },
+      });
+    },
+
     async getPortfolio(userId) {
       return apiFetch(
         `/v1/users/${encodeURIComponent(String(userId))}/portfolio`,
+        {
+          service: 'tracking',
+          method: 'GET',
+          auth: true,
+        },
+      );
+    },
+
+    async getProfile(userId) {
+      return apiFetch(
+        `/v1/users/${encodeURIComponent(String(userId))}`,
         {
           service: 'tracking',
           method: 'GET',
@@ -4262,7 +4333,7 @@
     },
 
     async createBadge(data) {
-      return apiFetch('/gamification/badges', {
+      return apiFetch('/admin/badges', {
         service: 'admin',
         method: 'POST',
         auth: true,
@@ -4271,16 +4342,31 @@
     },
 
     async updateBadge(badgeId, data) {
-      return apiFetch(
-        '/gamification/badges/' + encodeURIComponent(String(badgeId)),
-        { service: 'admin', method: 'PUT', auth: true, body: data },
-      );
+      return apiFetch('/admin/badges/' + encodeURIComponent(String(badgeId)), {
+        service: 'admin',
+        method: 'PATCH',
+        auth: true,
+        body: data,
+      });
     },
 
     async deleteBadge(badgeId) {
+      return apiFetch('/admin/badges/' + encodeURIComponent(String(badgeId)), {
+        service: 'admin',
+        method: 'DELETE',
+        auth: true,
+      });
+    },
+
+    async awardBadge(badgeId, payload) {
       return apiFetch(
-        '/gamification/badges/' + encodeURIComponent(String(badgeId)),
-        { service: 'admin', method: 'DELETE', auth: true },
+        '/admin/badges/' + encodeURIComponent(String(badgeId)) + '/award',
+        {
+          service: 'admin',
+          method: 'POST',
+          auth: true,
+          body: payload,
+        },
       );
     },
 
@@ -5096,6 +5182,36 @@
   };
 
   // ============================================================
+  // AI Credentials Service (BYOK for Hassona / AI Tutor)
+  // ============================================================
+  const aiCredentialsService = {
+    async get() {
+      return apiFetch('/v1/me/ai-credentials', {
+        service: 'tracking',
+        method: 'GET',
+        auth: true,
+      });
+    },
+
+    async upsert(data) {
+      return apiFetch('/v1/me/ai-credentials', {
+        service: 'tracking',
+        method: 'PUT',
+        auth: true,
+        body: data,
+      });
+    },
+
+    async remove() {
+      return apiFetch('/v1/me/ai-credentials', {
+        service: 'tracking',
+        method: 'DELETE',
+        auth: true,
+      });
+    },
+  };
+
+  // ============================================================
   // Expose on window
   // ============================================================
   window.NibrasServices = Object.freeze({
@@ -5125,6 +5241,7 @@
     backendCoursesService,
     backendAnalyticsService,
     usersService,
+    aiCredentialsService,
     gamificationService,
     reputationService,
     aiService,

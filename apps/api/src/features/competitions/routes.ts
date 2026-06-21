@@ -562,6 +562,53 @@ export function registerCompetitionsRoutes(
 
   // ── Linked accounts ─────────────────────────────────────────────────────
 
+  const LINKABLE_PLATFORMS = new Set([
+    'codeforces',
+    'leetcode',
+    'atcoder',
+    'codechef',
+  ]);
+
+  const formatVerificationProblem = (
+    platform: string,
+    verificationProblem: string | null | undefined,
+  ) => {
+    if (!verificationProblem || platform !== 'codeforces') return null;
+    const [contestIdRaw, index] = verificationProblem.split('/');
+    const contestId = Number(contestIdRaw);
+    if (!contestId || !index) return null;
+    return {
+      contestId,
+      index,
+      name: `${contestId}${index}`,
+      url: `https://codeforces.com/problemset/problem/${contestId}/${index}`,
+    };
+  };
+
+  const mapLinkedAccountResponse = (account: {
+    platform: CompPlatform;
+    handle: string;
+    verificationStatus: string;
+    verificationProblem: string | null;
+    platformRating: number | null;
+    platformMaxRating: number | null;
+    lastSyncAt: Date | null;
+    createdAt: Date;
+  }) => ({
+    host: account.platform,
+    handle: account.handle,
+    verified: account.verificationStatus === 'verified',
+    verificationStatus: account.verificationStatus,
+    rating: account.platformRating,
+    maxRating: account.platformMaxRating,
+    lastSyncAt: account.lastSyncAt?.toISOString() ?? null,
+    linkedAt: account.createdAt.toISOString(),
+    verificationProblem: formatVerificationProblem(
+      account.platform,
+      account.verificationProblem,
+    ),
+  });
+
   app.get(
     '/v1/contests/accounts',
     { schema: { tags: ['competitions'], summary: 'Get linked accounts' } },
@@ -574,16 +621,7 @@ export function registerCompetitionsRoutes(
         orderBy: { createdAt: 'asc' },
       });
 
-      return accounts.map((a) => ({
-        host: a.platform,
-        handle: a.handle,
-        verified: a.verificationStatus === 'verified',
-        verificationStatus: a.verificationStatus,
-        rating: a.platformRating,
-        maxRating: a.platformMaxRating,
-        lastSyncAt: a.lastSyncAt?.toISOString() ?? null,
-        linkedAt: a.createdAt.toISOString(),
-      }));
+      return accounts.map(mapLinkedAccountResponse);
     },
   );
 
@@ -601,8 +639,30 @@ export function registerCompetitionsRoutes(
           .send({ error: 'platform and handle are required' });
       }
 
-      const platform = body.platform as CompPlatform;
+      const platform = String(body.platform).toLowerCase() as CompPlatform;
       const handle = body.handle.trim();
+
+      if (!handle) {
+        return reply.status(400).send({ error: 'handle is required' });
+      }
+
+      if (!LINKABLE_PLATFORMS.has(platform)) {
+        return reply.status(400).send({ error: 'Platform not supported for linking' });
+      }
+
+      if (!fetchers[platform]) {
+        return reply.status(400).send({ error: 'Platform not supported for linking' });
+      }
+
+      const handleOwner = await prisma.linkedAccount.findUnique({
+        where: { platform_handle: { platform, handle } },
+        select: { userId: true },
+      });
+      if (handleOwner && handleOwner.userId !== auth.user.id) {
+        return reply.status(409).send({
+          error: 'This handle is already linked to another Nibras account',
+        });
+      }
 
       let verificationProblem: string | null = null;
       let verificationProblemMeta: {
@@ -622,23 +682,34 @@ export function registerCompetitionsRoutes(
           .send({ error: 'uHunt linking is no longer supported' });
       }
 
-      const account = await prisma.linkedAccount.upsert({
-        where: { userId_platform: { userId: auth.user.id, platform } },
-        create: {
-          userId: auth.user.id,
-          platform,
-          handle,
-          verificationProblem,
-          verificationStatus: 'pending',
-          verifiedAt: null,
-        },
-        update: {
-          handle,
-          verificationStatus: 'pending',
-          verifiedAt: null,
-          verificationProblem,
-        },
-      });
+      let account;
+      try {
+        account = await prisma.linkedAccount.upsert({
+          where: { userId_platform: { userId: auth.user.id, platform } },
+          create: {
+            userId: auth.user.id,
+            platform,
+            handle,
+            verificationProblem,
+            verificationStatus: 'pending',
+            verifiedAt: null,
+          },
+          update: {
+            handle,
+            verificationStatus: 'pending',
+            verifiedAt: null,
+            verificationProblem,
+          },
+        });
+      } catch (error) {
+        const code = (error as { code?: string })?.code;
+        if (code === 'P2002') {
+          return reply.status(409).send({
+            error: 'This handle is already linked to another Nibras account',
+          });
+        }
+        throw error;
+      }
 
       return {
         host: account.platform,

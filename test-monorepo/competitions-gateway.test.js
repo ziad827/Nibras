@@ -200,6 +200,75 @@ test('competitions linked accounts route returns array with auth', async (t) => 
   }
 });
 
+test('competitions link account route links codeforces handle', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const app = buildApp(new PrismaStore(prisma));
+  try {
+    const token = await demoLogin(app);
+    if (!token) {
+      t.skip('demo login unavailable');
+      return;
+    }
+    const handle = `nibras-link-test-${Date.now()}`;
+    const linkResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/contests/accounts/link',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { platform: 'codeforces', handle },
+    });
+    assert.equal(linkResponse.statusCode, 200);
+    const linked = linkResponse.json();
+    assert.equal(linked.handle, handle);
+    assert.equal(linked.host, 'codeforces');
+    assert.equal(linked.verified, false);
+
+    const listResponse = await app.inject({
+      method: 'GET',
+      url: '/v1/contests/accounts',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    assert.equal(listResponse.statusCode, 200);
+    const accounts = listResponse.json();
+    const cf = accounts.find((entry) => entry.host === 'codeforces');
+    assert.ok(cf, 'expected linked codeforces account in list');
+    assert.equal(cf.handle, handle);
+    assert.equal(cf.verificationStatus, 'pending');
+  } finally {
+    await app.close();
+  }
+});
+
+test('competitions link account route rejects unsupported platform', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    t.skip('DATABASE_URL not set');
+    return;
+  }
+
+  const prisma = getSharedPrisma();
+  const app = buildApp(new PrismaStore(prisma));
+  try {
+    const token = await demoLogin(app);
+    if (!token) {
+      t.skip('demo login unavailable');
+      return;
+    }
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/contests/accounts/link',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { platform: 'invalid-platform', handle: 'test-user' },
+    });
+    assert.equal(response.statusCode, 400);
+  } finally {
+    await app.close();
+  }
+});
+
 test('competitions bookmark route requires auth', async (t) => {
   if (!process.env.DATABASE_URL) {
     t.skip('DATABASE_URL not set');

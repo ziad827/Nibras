@@ -25,7 +25,6 @@
             <li class="nav-item"><a href="../Ai-tutor/Ai%20Tutor/ai_tutor.html" class="nav-link"><i class="fa-solid fa-robot"></i> AI Tutor</a></li>
             <li class="nav-item"><a href="../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
             <li class="nav-item"><a href="../Settings/settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a></li>
-            <li class="nav-item"><a href="../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
         </ul>
         <div class="user-profile"><div class="avatar-circle">U</div><div class="user-info"><h4>User</h4><span>Student</span></div></div>
         <div class="reputation-box">Reputation <span class="rep-badge">0</span></div>
@@ -54,7 +53,7 @@
                         <p>You need <strong>Node.js ≥ 18</strong>, <strong>npm ≥ 9</strong>, and <strong>git</strong> before installing the CLI. Follow the steps for your OS.</p>
                         <div class="video-embed" style="margin-bottom:1rem;position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;"><iframe style="position:absolute;top:0;left:0;width:100%;height:100%;" src="https://www.youtube.com/embed/EPtpi7PvtII" title="Install Node.js, NPM &amp; Git" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
 
-                        <div class="os-tabs"><button class="os-tab active" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" onclick="switchOs('windows', this)">Windows</button></div>
+                        <div class="os-tabs"><button class="os-tab" data-os="macos" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" data-os="linux" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" data-os="windows" onclick="switchOs('windows', this)">Windows</button></div>
 
                         <!-- macOS -->
                         <div class="os-content macos">
@@ -182,7 +181,7 @@ git --version</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy<
                             <code>npm run build:cli:package && npm link</code> to install the in-repo CLI against the gateway at <code>http://localhost:8080</code>.
                         </div>
 
-                        <div class="os-tabs"><button class="os-tab active" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" onclick="switchOs('windows', this)">Windows</button></div>
+                        <div class="os-tabs"><button class="os-tab" data-os="macos" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" data-os="linux" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" data-os="windows" onclick="switchOs('windows', this)">Windows</button></div>
 
                         <div class="os-content macos">
                             <p style="font-size:0.9rem;margin-bottom:8px;"><strong>Option A — install script (recommended)</strong></p>
@@ -212,31 +211,29 @@ npm install -g @nibras/cli@2.0.0</code></pre><button class="copy-btn" onclick="c
                             <div class="code-block"><pre><code data-cli-install-script="windows">irm "https://github.com/EpitomeZied/nibras/releases/download/v2.0.0/install.ps1" | iex</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
                             <p style="font-size:0.9rem;margin:12px 0 8px;"><strong>Option B — npm (Git Bash)</strong></p>
                             <div class="code-block"><pre><code data-cli-install>npm install -g @nibras/cli@2.0.0</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
-                        </div>
-
-                        <p>Verify: <code>nibras --version</code> should start with <code data-cli-version>v2.0.0</code>.</p>
-                        <p style="margin-top:10px;font-size:0.85rem;color:var(--text-secondary);">To reinstall later: <code>nibras update --version v2.0.0</code>. To remove the CLI: <code>nibras uninstall</code>.<br>Use <code>nibras update --check</code> to compare your installed version against the latest GitHub release before updating.</p>
-
-                        <div class="os-content windows" style="display:none;margin-top:12px;">
-                            <div class="note-box" style="background:rgba(220,38,38,0.1);border-left:4px solid #ef4444;padding:0.75rem 1rem;border-radius:8px;font-size:0.85rem;color:var(--text-secondary);">
+                            <div class="note-box" style="background:rgba(220,38,38,0.1);border-left:4px solid #ef4444;padding:0.75rem 1rem;border-radius:8px;margin-top:12px;font-size:0.85rem;color:var(--text-secondary);">
                                 <strong>If the install fails with <code>EEXIST</code> or <code>ENOTDIR</code></strong>, you have a stale global link. Remove it and reinstall:
-                                <div style="display:flex;gap:8px;margin-top:8px;">
-                                    <button class="os-tab active" onclick="var p=this.parentElement.parentElement;p.querySelectorAll('.cleanup-shell').forEach(function(c){c.style.display='none'});p.querySelector('.cleanup-shell.powershell').style.display='';p.querySelectorAll('.os-tab').forEach(function(t){t.classList.remove('active')});this.classList.add('active')">PowerShell</button>
-                                    <button class="os-tab" onclick="var p=this.parentElement.parentElement;p.querySelectorAll('.cleanup-shell').forEach(function(c){c.style.display='none'});p.querySelector('.cleanup-shell.gitbash').style.display='';p.querySelectorAll('.os-tab').forEach(function(t){t.classList.remove('active')});this.classList.add('active')">Git Bash</button>
+                                <div class="win-tabs" style="display:flex;gap:8px;margin-top:8px;">
+                                    <button class="os-tab active" onclick="switchWinShell('powershell', this)">PowerShell</button>
+                                    <button class="os-tab" onclick="switchWinShell('gitbash', this)">Git Bash</button>
                                 </div>
-                                <div class="code-block cleanup-shell powershell" style="margin-top:8px;"><pre><code>npm uninstall -g nibras @nibras/cli
+                                <div class="code-block cleanup-shell powershell win-shell" style="margin-top:8px;"><pre><code>npm uninstall -g nibras @nibras/cli
 Remove-Item "$((npm config get prefix).Trim())\nibras.cmd" -Force -ErrorAction SilentlyContinue
 Remove-Item "$((npm config get prefix).Trim())\nibras" -Force -ErrorAction SilentlyContinue
 Remove-Item "$((npm root -g).Trim())\nibras" -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item "$((npm root -g).Trim())\@nibras\cli" -Recurse -Force -ErrorAction SilentlyContinue
 npm install -g @nibras/cli@2.0.0</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
-                                <div class="code-block cleanup-shell gitbash" style="display:none;margin-top:8px;"><pre><code>npm uninstall -g nibras @nibras/cli || true
+                                <div class="code-block cleanup-shell gitbash win-shell" style="display:none;margin-top:8px;"><pre><code>npm uninstall -g nibras @nibras/cli || true
 prefix="$(npm config get prefix)"
 rm -f "$prefix/nibras" "$prefix/nibras.cmd"
 rm -rf "$(npm root -g)/nibras" "$(npm root -g)/@nibras/cli"
 npm install -g @nibras/cli@2.0.0</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
                             </div>
                         </div>
+
+                        <p>Verify: <code>nibras --version</code> should start with <code data-cli-version>v2.0.0</code>.</p>
+                        <p style="margin-top:10px;font-size:0.85rem;color:var(--text-secondary);">To reinstall later: <code>nibras update --version v2.0.0</code>. To remove the CLI: <code>nibras uninstall</code>.<br>Use <code>nibras update --check</code> to compare your installed version against the latest GitHub release before updating.</p>
+
                         <button class="btn-mark-done" onclick="markStep(2)">Mark as complete</button>
                     </div>
                 </div>
@@ -247,7 +244,7 @@ npm install -g @nibras/cli@2.0.0</code></pre><button class="copy-btn" onclick="c
                     <div class="step-body" id="body-3">
                         <p>Use an explicit <code>--api-base-url</code> for hosted onboarding so the CLI targets this deployment instead of the local dev default at <code>http://127.0.0.1:4848</code>. The login flow prints a one-time URL and short code, then tries to open the browser automatically unless you pass <code>--no-open</code>.</p>
 
-                        <div class="os-tabs"><button class="os-tab active" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" onclick="switchOs('windows', this)">Windows</button></div>
+                        <div class="os-tabs"><button class="os-tab" data-os="macos" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" data-os="linux" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" data-os="windows" onclick="switchOs('windows', this)">Windows</button></div>
 
                         <div class="os-content windows" style="display:none;">
                             <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:10px;">On Windows, the most common path is: run the login command in <strong>Git Bash</strong>, let the browser open, approve GitHub, then return to the same terminal window and wait for the success box.</p>
@@ -298,7 +295,7 @@ npm install -g @nibras/cli@2.0.0</code></pre><button class="copy-btn" onclick="c
 
                         <div class="code-block"><pre><code>nibras setup --project your-course/project-key</code></pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></div>
 
-                        <div class="os-tabs"><button class="os-tab active" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" onclick="switchOs('windows', this)">Windows</button></div>
+                        <div class="os-tabs"><button class="os-tab" data-os="macos" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" data-os="linux" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" data-os="windows" onclick="switchOs('windows', this)">Windows</button></div>
 
                         <div class="os-content macos">
                             <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;">Specify a target directory: <code>nibras setup --project cs101/a1 --dir ~/projects/a1</code></p>
@@ -416,7 +413,7 @@ nibras whoami  # show signed-in user and linked GitHub account</code></pre><butt
                     <div class="step-body" id="body-9">
                         <p>Students follow the same flow: install the CLI, run <code>nibras login --api-base-url &lt;api-url&gt;</code>, and <code>nibras setup --project &lt;key&gt;</code>. Share the project key with your class.</p>
 
-                        <div class="os-content windows" style="display:block;">
+                        <div class="win-only-note" style="display:none;">
                             <div class="note-box" style="background:rgba(34,197,94,0.1);border-left:4px solid #22c55e;padding:0.75rem 1rem;border-radius:8px;font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">
                                 Windows students can use either <strong>PowerShell</strong> or <strong>Git Bash</strong>. Match any troubleshooting snippets to the shell they actually use.
                             </div>
@@ -469,7 +466,7 @@ Good luck!</pre><button class="copy-btn" onclick="copyCmd(this)">Copy</button></
                     <div class="step-body" id="body-10">
                         <p>Start with <code>nibras ping</code> — it checks API reachability, auth, GitHub linkage, and App install status in one command. Use the OS tab below to filter fixes for your platform.</p>
 
-                        <div class="os-tabs"><button class="os-tab active" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" onclick="switchOs('windows', this)">Windows</button></div>
+                        <div class="os-tabs"><button class="os-tab" data-os="macos" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" data-os="linux" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" data-os="windows" onclick="switchOs('windows', this)">Windows</button></div>
 
                         <!-- macOS Troubleshooting -->
                         <div class="os-content macos">

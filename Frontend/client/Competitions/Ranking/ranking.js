@@ -14,6 +14,14 @@
   const uiStates = shared.uiStates;
   const competitionsService = window.NibrasServices?.competitionsService;
   const accountsHelper = window.RankingAccounts || {};
+  if (!competitionsService) {
+    const rateContainerEarly = document.getElementById('rating-content-container');
+    if (rateContainerEarly) {
+      rateContainerEarly.innerHTML =
+        '<p class="section-sub">Competitions services failed to load. Please refresh the page.</p>';
+    }
+    return;
+  }
   const token = (() => {
     try {
       if (typeof shared.auth?.getToken === 'function')
@@ -45,6 +53,45 @@
     leaderboardHost: 'all',
     leaderboardPage: 1,
     leaderboardLimit: 25,
+  };
+
+  const applyLinkedAccountToState = (platform, account) => {
+    if (!platform || !account) return;
+    state.profile = state.profile || {
+      linkedAccounts: {},
+      verification: {},
+      ratings: {},
+      verificationProblems: {},
+    };
+    state.profile.linkedAccounts[platform] = account.handle || '';
+    state.profile.verification[platform] = {
+      status: account.verificationStatus || (account.verified ? 'verified' : 'pending'),
+    };
+    if (account.rating != null) {
+      state.profile.ratings[platform] = account.rating;
+    }
+    if (account.verificationProblem) {
+      state.profile.verificationProblems[platform] = account.verificationProblem;
+    }
+    updatePlatformCards(
+      state.profile.linkedAccounts,
+      state.profile.verification,
+      state.profile.ratings,
+    );
+  };
+
+  const formatLinkError = (error) => {
+    const status = Number(error?.status || 0);
+    if (status === 409) {
+      return (
+        error?.message ||
+        'This handle is already linked to another Nibras account.'
+      );
+    }
+    if (status === 401 || status === 403) {
+      return 'Your session is not authorized for Competitions. Please sign in again.';
+    }
+    return error?.message || 'Failed to link account.';
   };
 
   const getProgressTotals = () => {
@@ -390,25 +437,12 @@
       renderProgress('No account data provided.');
       return;
     }
-    console.log('[linkAccounts] Payload:', payload);
     try {
-      console.log('[linkAccounts] Calling service...');
       const result = await competitionsService.linkAccounts(payload);
-      console.log('[linkAccounts] Result:', result);
       renderProgress('Accounts linked successfully. Reloading profile...');
       await loadRankingData();
     } catch (error) {
-      console.error('[linkAccounts] Error:', error);
-      if (
-        Number(error?.status || 0) === 401 ||
-        Number(error?.status || 0) === 403
-      ) {
-        renderProgress(
-          'Your current session is not authorized for Competitions. Please sign in with a competitions account.',
-        );
-        return;
-      }
-      renderProgress(error?.message || 'Failed to link accounts.');
+      renderProgress(formatLinkError(error));
     }
   };
 
@@ -788,16 +822,21 @@
       return;
     }
     try {
+      if (accountLinkStatus) {
+        accountLinkStatus.innerHTML =
+          '<span class="status-msg-success">Linking account...</span>';
+      }
       const result = await competitionsService.linkAccount(
         platform,
         username.trim(),
       );
-      if (result?.verificationProblem) {
-        state.profile = state.profile || {};
-        state.profile.verificationProblems =
-          state.profile.verificationProblems || {};
-        state.profile.verificationProblems[platform] = result.verificationProblem;
-      }
+      applyLinkedAccountToState(platform, {
+        handle: result?.handle || username.trim(),
+        verificationStatus: 'pending',
+        verified: false,
+        verificationProblem: result?.verificationProblem,
+        rating: result?.rating,
+      });
       if (accountLinkStatus)
         accountLinkStatus.innerHTML = `<span class="status-msg-success">${platformName} account linked. ${
           result?.verificationProblem?.url
@@ -807,7 +846,7 @@
       await loadRankingData();
     } catch (error) {
       if (accountLinkStatus)
-        accountLinkStatus.innerHTML = `<span class="status-msg-error">Failed to link: ${error?.message || 'Unknown error'}</span>`;
+        accountLinkStatus.innerHTML = `<span class="status-msg-error">${formatLinkError(error)}</span>`;
     }
   };
 

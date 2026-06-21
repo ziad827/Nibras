@@ -39,20 +39,19 @@
             <li class="nav-item"><a href="../Analytics/Overview/overview.html" class="nav-link"><i class="fa-solid fa-chart-simple"></i> Analytics</a></li>
             <!-- Active State -->
             <li class="nav-item"><a href="./settings.html" class="nav-link active"><i class="fa-solid fa-gear"></i> Settings</a></li>
-            <li class="nav-item"><a href="../Integrations/integrations.html" class="nav-link"><i class="fa-solid fa-plug"></i> Integrations</a></li>
         </ul>
 
         <div class="user-profile">
-            <div class="avatar-circle">ZA</div>
+            <div class="avatar-circle" id="sidebar-avatar">U</div>
             <div class="user-info">
-                <h4>Ziad Alaa</h4>
-                <span>student</span>
+                <h4 id="sidebar-name">User</h4>
+                <span id="sidebar-role">student</span>
             </div>
         </div>
         
         <div class="reputation-box">
             <span>Reputation</span>
-            <div class="rep-badge">0</div>
+            <div class="rep-badge" id="sidebar-rep">0</div>
         </div>
 
         <a href="../Login/loginPage/login.html" class="logout-btn">
@@ -78,10 +77,11 @@
                 </div>
                 
                 <div class="avatar-edit-row">
-                    <div class="avatar-large" id="avatar-display">ZA</div>
+                    <div class="avatar-large" id="avatar-display">U</div>
                     <button class="btn-outline-small" id="btn-change-avatar">Change Avatar</button>
                     <input type="file" id="avatar-file-input" accept="image/*" style="display:none">
                 </div>
+                <p class="section-desc" style="margin-top:-0.5rem;margin-bottom:1rem;">Avatar preview is stored on this device only.</p>
 
                 <div class="form-group">
                     <label>Display Name</label>
@@ -142,6 +142,38 @@
                         <span id="github-username" style="font-weight: 500; font-size: 0.9rem;">...</span>
                         <button id="btn-disconnect-github" class="btn-outline-small" style="color: #ef4444; border-color: #ef4444;">Disconnect</button>
                     </div>
+                </div>
+            </section>
+
+            <!-- 2.2 AI Integration (BYOK) -->
+            <section class="card settings-card">
+                <div class="card-header-simple">
+                    <h3>AI Integration</h3>
+                    <p class="section-desc">Bring your own API key for Hassona and the AI Tutor</p>
+                </div>
+
+                <div id="ai-credential-status" class="section-desc" style="margin-bottom:1rem;">Loading AI credential status...</div>
+
+                <div class="form-group">
+                    <label>Provider</label>
+                    <select class="form-control" id="ai-provider">
+                        <option value="openai">OpenAI</option>
+                        <option value="groq">Groq</option>
+                        <option value="openrouter">OpenRouter</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    <input type="text" id="ai-model" class="form-control" value="gpt-4o-mini" placeholder="gpt-4o-mini">
+                </div>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="password" id="ai-api-key" class="form-control" placeholder="Enter your API key" autocomplete="off">
+                    <p id="ai-masked-key" class="section-desc" style="margin-top:0.5rem;display:none;"></p>
+                </div>
+                <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+                    <button class="btn-save" id="btn-save-ai" type="button" style="width:auto;padding:0.65rem 1.25rem;">Save AI Key</button>
+                    <button class="btn-cancel" id="btn-remove-ai" type="button" style="width:auto;padding:0.65rem 1.25rem;display:none;">Remove Key</button>
                 </div>
             </section>
 

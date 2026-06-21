@@ -1,6 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import { SystemRole, type PrismaClient } from '@prisma/client';
 import { sendEmail } from '../../lib/email';
+import { getUserPermissionCodes } from '../rbac/seed';
 
 export type AdminAuthUser = {
   id: string;
@@ -65,8 +66,14 @@ export function resolveFrontendRole(user: AdminAuthUser): string {
   return 'student';
 }
 
-export function toAdminUserPayload(user: AdminAuthUser) {
+export async function toAdminUserPayload(
+  user: AdminAuthUser,
+  prisma?: PrismaClient,
+) {
   const roleName = resolveFrontendRole(user);
+  const permissions = prisma
+    ? await getUserPermissionCodes(prisma, user.id)
+    : [];
   const payload = {
     _id: user.id,
     id: user.id,
@@ -74,7 +81,7 @@ export function toAdminUserPayload(user: AdminAuthUser) {
     username: user.username,
     displayName: user.displayName,
     name: user.displayName || user.username,
-    role: { name: roleName },
+    role: { name: roleName, permissions },
   };
   if (roleName === 'student') {
     return { ...payload, selectedLevel: resolveSelectedLevel(user) };
@@ -94,15 +101,16 @@ export async function createCliSession(prisma: PrismaClient, userId: string) {
   });
 }
 
-export function buildAuthResponse(
+export async function buildAuthResponse(
   session: { accessToken: string; refreshToken: string },
   user: AdminAuthUser,
+  prisma?: PrismaClient,
 ) {
   return {
     token: session.accessToken,
     accessToken: session.accessToken,
     refreshToken: session.refreshToken,
-    user: toAdminUserPayload(user),
+    user: await toAdminUserPayload(user, prisma),
   };
 }
 

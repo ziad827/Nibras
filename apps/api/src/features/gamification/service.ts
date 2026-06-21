@@ -18,6 +18,7 @@ import {
   invalidateLeaderboardCache,
   invalidateUserGamificationCache,
 } from '../../lib/cache';
+import { getPlatformConfig } from '../../lib/platform-config';
 import {
   assignCompetitionRanks,
   buildLeaderboardCacheKey,
@@ -314,6 +315,34 @@ export class GamificationService {
           category: def.category,
           earnedAt: earned.earnedAt.toISOString(),
         });
+
+        const platformConfig = await getPlatformConfig(this.prisma);
+        if (platformConfig.gamification.badgeAwardNotifications) {
+          await (
+            this.prisma as unknown as {
+              notification: {
+                create: (args: {
+                  data: {
+                    userId: string;
+                    type: string;
+                    title: string;
+                    body: string;
+                    link: string | null;
+                  };
+                }) => Promise<unknown>;
+              };
+            }
+          ).notification.create({
+            data: {
+              userId,
+              type: 'badge_earned',
+              title: 'Badge earned',
+              body: `You earned the ${def.name} badge.`,
+              link: '/Achievements/Achievements/achievements.html',
+            },
+          });
+        }
+
         changed = true;
         const earnedCount =
           typeof currentMetrics.earnedBadges === 'number'

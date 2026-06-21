@@ -1,5 +1,113 @@
 window.NibrasReact.run(function () {
   var configCache = null;
+  var fieldMetaCache = {};
+
+  var LOCAL_FIELD_META = {
+    featureFlags: {
+      enableGamification: {
+        label: 'Enable Gamification',
+        description: 'Badges, streaks, and achievement notifications.',
+      },
+      enableCommunity: {
+        label: 'Enable Community',
+        description: 'Discussion forums, Q&A, and community moderation.',
+      },
+      enableCompetitions: {
+        label: 'Enable Competitions',
+        description: 'Contests, practice problems, and rankings.',
+      },
+      maintenanceMode: {
+        label: 'Maintenance Mode',
+        description: 'Show a maintenance overlay to all users.',
+      },
+      betaMode: {
+        label: 'Beta Mode',
+        description: 'Show a beta preview notice to all users.',
+      },
+    },
+    gamification: {
+      dailyStreakBonus: {
+        label: 'Daily Streak Bonus',
+        description: 'Extra points awarded for maintaining a daily streak.',
+      },
+      badgeAwardNotifications: {
+        label: 'Badge Award Notifications',
+        description: 'Notify users when they earn a new badge.',
+      },
+    },
+    reputationThresholds: {
+      beginner: {
+        label: 'Beginner Threshold',
+        description: 'Minimum reputation points for the beginner tier.',
+      },
+      intermediate: {
+        label: 'Intermediate Threshold',
+        description: 'Minimum reputation points for the intermediate tier.',
+      },
+      advanced: {
+        label: 'Advanced Threshold',
+        description: 'Minimum reputation points for the advanced tier.',
+      },
+      expert: {
+        label: 'Expert Threshold',
+        description: 'Minimum reputation points for the expert tier.',
+      },
+    },
+  };
+
+  function getUserPermissions() {
+    try {
+      var u = JSON.parse(localStorage.getItem('user') || '{}');
+      var perms = u.role?.permissions;
+      return Array.isArray(perms) ? perms : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function hasPermission(code) {
+    var perms = getUserPermissions();
+    if (perms.length === 0) return true;
+    if (perms.indexOf('*') !== -1) return true;
+    return perms.indexOf(code) !== -1;
+  }
+
+  var canReadConfig = hasPermission('config:read');
+  var canUpdateConfig = hasPermission('config:update');
+
+  function getFieldMeta(groupName, key) {
+    var group =
+      fieldMetaCache[groupName] ||
+      fieldMetaCache[getCanonicalGroupName(groupName)] ||
+      LOCAL_FIELD_META[groupName] ||
+      LOCAL_FIELD_META[getCanonicalGroupName(groupName)];
+    if (group && group[key]) return group[key];
+    return null;
+  }
+
+  function getCanonicalGroupName(groupName) {
+    var map = {
+      flags: 'featureFlags',
+      gamificationRules: 'gamification',
+      thresholds: 'reputationThresholds',
+      reputation: 'reputationThresholds',
+    };
+    return map[groupName] || groupName;
+  }
+
+  function formatErrorHint(err) {
+    var status = Number(err?.status || 0);
+    if (status === 401) {
+      return 'Your session may have expired. Log in again and retry.';
+    }
+    if (status === 403) {
+      return 'You need the config:read permission to view platform settings.';
+    }
+    if (status === 503) {
+      return 'The configuration service is temporarily unavailable.';
+    }
+    return 'Check your network connection or try again in a moment.';
+  }
 
   function gi(n) {
     if (!n) return 'U';
@@ -154,18 +262,32 @@ window.NibrasReact.run(function () {
 
   async function loadConfig() {
     var cc = document.getElementById('config-container');
+    if (!canReadConfig) {
+      cc.innerHTML =
+        '<div class="error-state"><i class="fa-solid fa-lock"></i><p>You do not have permission to view platform configuration.</p><p style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.5rem;">Ask a super-admin to grant the config:read permission.</p></div>';
+      return;
+    }
     cc.innerHTML =
       '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading configuration...</p></div>';
     try {
       var res = await api('/admin/config');
-      var data = res?.data || res || {};
+      var raw = res?.data || res || {};
+      if (raw.fieldMeta && typeof raw.fieldMeta === 'object') {
+        fieldMetaCache = raw.fieldMeta;
+      }
+      var data =
+        raw.config && typeof raw.config === 'object'
+          ? raw.config
+          : raw;
       configCache = JSON.parse(JSON.stringify(data));
       renderConfig(data);
     } catch (err) {
       cc.innerHTML =
         '<div class="error-state"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load configuration: ' +
         esc(err.message || 'Unknown error') +
-        '</p><p style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.5rem;">Config endpoints may not be implemented on the backend yet.</p><button class="btn-primary" onclick="location.reload()" style="margin-top:1rem;"><i class="fa-solid fa-rotate"></i> Retry</button></div>';
+        '</p><p style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.5rem;">' +
+        esc(formatErrorHint(err)) +
+        '</p><button class="btn-primary" onclick="location.reload()" style="margin-top:1rem;"><i class="fa-solid fa-rotate"></i> Retry</button></div>';
     }
   }
 
@@ -262,13 +384,20 @@ window.NibrasReact.run(function () {
         valDisplay = esc(String(val));
         valClass += ' string';
       }
+      var meta = getFieldMeta(groupName, key);
+      var label = meta?.label || formatLabel(key);
+      var descHtml = meta?.description
+        ? '<div class="config-label-desc">' + esc(meta.description) + '</div>'
+        : '';
       rowsHtml +=
         '<div class="config-row" data-key="' +
         esc(key) +
         '">' +
         '<div><div class="config-label">' +
-        esc(formatLabel(key)) +
-        '</div></div>' +
+        esc(label) +
+        '</div>' +
+        descHtml +
+        '</div>' +
         '<div class="' +
         valClass +
         ' config-view-value">' +
@@ -276,6 +405,11 @@ window.NibrasReact.run(function () {
         '</div>' +
         '</div>';
     });
+    var editBtnHtml = canUpdateConfig
+      ? '<button class="btn-sm btn-sm-edit edit-btn" data-group="' +
+        esc(groupName) +
+        '"><i class="fa-solid fa-pen"></i> Edit</button>'
+      : '<span style="font-size:0.78rem;color:var(--text-tertiary);">Read only</span>';
     return (
       '<div class="config-card" data-group="' +
       esc(groupName) +
@@ -287,9 +421,7 @@ window.NibrasReact.run(function () {
       esc(displayName) +
       '</h3>' +
       '<div class="config-card-actions">' +
-      '<button class="btn-sm btn-sm-edit edit-btn" data-group="' +
-      esc(groupName) +
-      '"><i class="fa-solid fa-pen"></i> Edit</button>' +
+      editBtnHtml +
       '</div>' +
       '</div>' +
       '<div class="config-card-body">' +
@@ -300,6 +432,10 @@ window.NibrasReact.run(function () {
   }
 
   function enterEditMode(groupName) {
+    if (!canUpdateConfig) {
+      toast('You do not have permission to edit configuration', 'error');
+      return;
+    }
     var card = document.querySelector(
       '.config-card[data-group="' + esc(groupName) + '"]',
     );
@@ -414,14 +550,11 @@ window.NibrasReact.run(function () {
     }
 
     try {
-      var body = {};
-      body[groupName] = newData;
-      await api('/admin/config', { method: 'PATCH', body: body });
+      var merged = configCache ? JSON.parse(JSON.stringify(configCache)) : {};
+      merged[groupName] = newData;
+      await api('/admin/config', { method: 'PATCH', body: { config: merged } });
       toast('Configuration updated successfully', 'success');
-      if (configCache) {
-        var target = findConfigGroupRef(configCache, groupName);
-        if (target !== null) Object.assign(target, newData);
-      }
+      configCache = merged;
       exitEditMode(groupName, newData);
     } catch (err) {
       toast('Failed to update config: ' + (err.message || 'Error'), 'error');
@@ -469,12 +602,16 @@ window.NibrasReact.run(function () {
     var actions = card.querySelector('.config-card-actions');
     if (actions) {
       actions.innerHTML =
-        '<button class="btn-sm btn-sm-edit edit-btn" data-group="' +
-        esc(groupName) +
-        '"><i class="fa-solid fa-pen"></i> Edit</button>';
-      actions.querySelector('.edit-btn').addEventListener('click', function () {
-        enterEditMode(groupName);
-      });
+        canUpdateConfig
+          ? '<button class="btn-sm btn-sm-edit edit-btn" data-group="' +
+            esc(groupName) +
+            '"><i class="fa-solid fa-pen"></i> Edit</button>'
+          : '<span style="font-size:0.78rem;color:var(--text-tertiary);">Read only</span>';
+      if (canUpdateConfig) {
+        actions.querySelector('.edit-btn').addEventListener('click', function () {
+          enterEditMode(groupName);
+        });
+      }
     }
   }
 
