@@ -1,0 +1,14 @@
+meta {
+  name: My instructor application
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/instructor-applications/me
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

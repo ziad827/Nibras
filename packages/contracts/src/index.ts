@@ -14,6 +14,9 @@ export * from './daily-problem';
 export * from './cp-roadmap';
 export * from './chatbot';
 export * from './ai';
+export * from './levels';
+export * from './instructor-applications';
+export * from './mentorship';
 
 export const BuildpackSchema = z.object({
   node: z.string().min(1),
@@ -334,6 +337,11 @@ export const GitHubInstallationCompleteResponseSchema = z.object({
   redirectTo: z.string().url().optional(),
 });
 
+export const GitHubInstallationSyncResponseSchema = z.object({
+  githubAppInstalled: z.boolean(),
+  installationId: z.string().min(1).optional(),
+});
+
 export const GitHubRepositoryValidateRequestSchema = z.object({
   repoUrl: z.string().min(1),
 });
@@ -382,6 +390,9 @@ export type GitHubInstallationCompleteRequest = z.infer<
 >;
 export type GitHubInstallationCompleteResponse = z.infer<
   typeof GitHubInstallationCompleteResponseSchema
+>;
+export type GitHubInstallationSyncResponse = z.infer<
+  typeof GitHubInstallationSyncResponseSchema
 >;
 export type GitHubRepositoryValidateRequest = z.infer<
   typeof GitHubRepositoryValidateRequestSchema

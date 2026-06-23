@@ -250,54 +250,18 @@
       } catch (_2) {}
     }
 
-    // 4. Fallback: if backend returned nothing, inject hardcoded courses
+    // 4. Show empty state when backend returned nothing
     if (!allCourses.length) {
-      allCourses = [
-        {
-          _id: '1',
-          name: 'Data Structures & Algorithms',
-          status: 'active',
-          enrolledCount: 89,
-          pendingReviews: 5,
-          code: 'CS 201',
-          recentSubmission: {
-            studentName: 'Alice Johnson',
-            title: 'Binary Tree Implementation',
-            submittedAt: new Date(Date.now() - 7200000).toISOString(),
-          },
-        },
-        {
-          _id: '2',
-          name: 'Database Systems',
-          status: 'active',
-          enrolledCount: 67,
-          pendingReviews: 0,
-          code: 'CS 301',
-          recentSubmission: {
-            studentName: 'Bob Smith',
-            title: 'Database Design Project',
-            submittedAt: new Date(Date.now() - 14400000).toISOString(),
-          },
-        },
-        {
-          _id: '3',
-          name: 'Web Development',
-          status: 'active',
-          enrolledCount: 92,
-          pendingReviews: 3,
-          code: 'CS 350',
-        },
-        {
-          _id: '4',
-          name: 'Competitive Programming',
-          status: 'draft',
-          enrolledCount: 0,
-          code: 'CS 401',
-        },
-      ];
+      applyFilter('active');
+      var grid = document.querySelector('.inst-courses-grid');
+      if (grid) {
+        grid.innerHTML =
+          '<div class="empty-state" style="grid-column:1/-1;padding:2rem;text-align:center;color:var(--text-secondary);">No instructor courses found. Create a course from the admin panel.</div>';
+      }
+      return;
     }
 
-    // 5. Render default view (active courses)
+    // 5. Render default view (active courses) — removed hardcoded demo fallback
     applyFilter('active');
 
     // 6. Setup filter buttons

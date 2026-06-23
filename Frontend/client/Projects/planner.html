@@ -108,6 +108,7 @@
             </div>
             <button class="btn-planner-primary">Save plan</button>
         </div>
+        <div id="planner-validation-notice" style="display:none;margin:12px 0;padding:12px;border-radius:8px;background:rgba(239,68,68,0.1);color:var(--text-primary);font-size:0.9rem;"></div>
 
         <div class="degree-planner-container">
             <!-- Left Side: Course Palette -->
@@ -397,13 +398,13 @@
                         </div>
                         <div class="form-group">
                             <label>JUSTIFICATION</label>
-                            <textarea placeholder="Explain why this exception is needed."></textarea>
+                            <textarea id="petition-justification" placeholder="Explain why this exception is needed."></textarea>
                         </div>
-                        <button class="btn-planner-primary">Submit petition</button>
+                        <button type="button" class="btn-planner-primary" id="btn-submit-petition">Submit petition</button>
                     </div>
                     <div class="petition-list-card">
                         <h3>Submitted petitions</h3>
-                        <p class="empty-msg">No petitions submitted yet.</p>
+                        <div id="petition-list"><p class="empty-msg">No petitions submitted yet.</p></div>
                     </div>
                 </div>
             </div>
@@ -428,7 +429,7 @@
                     </div>
                 </div>
 
-                <div class="sheet-container">
+                <div class="sheet-container" id="sheet-content">
                     <div class="sheet-header">
                         <span>Computer Science Program · 2026-2027</span>
                         <span class="draft-view">Draft view</span>

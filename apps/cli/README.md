@@ -26,6 +26,7 @@ npm install -g @nibras/cli@2.0.0
 
 ```bash
 nibras login --api-base-url https://your-nibras-instance.edu
+nibras ping
 nibras setup --project cs161/lab1
 cd cs161-lab1
 nibras test
@@ -53,7 +54,7 @@ Tokens are stored as JSON with file mode `0o600`. Use `nibras logout` to clear c
 
 | Command      | Description                                                 |
 | ------------ | ----------------------------------------------------------- |
-| `login`      | Device OAuth login                                          |
+| `login`      | GitHub device login and GitHub App install                    |
 | `logout`     | Clear local session                                         |
 | `whoami`     | Signed-in user (`--json`)                                   |
 | `list`       | Courses and projects (`--verbose` for milestones, `--json`) |
@@ -73,6 +74,8 @@ Tokens are stored as JSON with file mode `0o600`. Use `nibras logout` to clear c
 
 - `--plain` — no colours or spinners
 - `--json` — machine-readable output (where supported)
+- `--no-open` — `login`: do not open the browser automatically
+- `--skip-app-install` — `login`: skip the GitHub App installation step
 - `DEBUG=nibras:*` — debug logs on stderr
 
 ## Development

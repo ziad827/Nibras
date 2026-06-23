@@ -91,121 +91,54 @@ function loadPortfolio() {
   var userId = null;
   try {
     var u = JSON.parse(localStorage.getItem('user') || '{}');
-    if (u._id) userId = u._id;
+    userId = u._id || u.id || null;
   } catch (_) {}
 
-  // Try backend API first
-  var fetchPromise;
-  if (svc && svc.projectService && userId) {
-    fetchPromise = svc.projectService
-      .listByInstructor({ userId: userId, limit: 100 })
-      .catch(function () {
-        return fetchLocalPortfolio();
-      });
-  } else {
-    fetchPromise = fetchLocalPortfolio();
+  if (!svc || !svc.usersService || !userId) {
+    setNotice('Sign in to view your portfolio.', 'error');
+    portfolioState.projects = [];
+    applyFilters();
+    return;
   }
 
-  fetchPromise
-    .then(function (projects) {
-      portfolioState.projects = Array.isArray(projects) ? projects : [];
+  svc.usersService
+    .getPortfolio(userId)
+    .then(function (res) {
+      var data = res && (res.data || res);
+      var courses = Array.isArray(data.courses) ? data.courses : [];
+      portfolioState.projects = courses.map(portfolioCourseToCard);
+      setNotice('', '');
       applyFilters();
     })
-    .catch(function () {
-      fetchLocalPortfolio().then(function (projects) {
-        portfolioState.projects = projects;
-        applyFilters();
-      });
+    .catch(function (err) {
+      console.warn('[portfolio] load failed:', err);
+      setNotice(err.message || 'Could not load portfolio.', 'error');
+      portfolioState.projects = [];
+      applyFilters();
     });
 }
 
-function fetchLocalPortfolio() {
-  return new Promise(function (resolve) {
-    // Gather projects from localStorage and demo data
-    var projects = [];
-
-    // From localStorage saved project progress
-    try {
-      var saved = localStorage.getItem('portfolioProjects');
-      if (saved) {
-        var parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) projects = projects.concat(parsed);
-      }
-    } catch (_) {}
-
-    // Generate demo portfolio projects if empty
-    if (!projects.length) {
-      projects = generateDemoPortfolio();
-    }
-
-    resolve(projects);
-  });
-}
-
-function generateDemoPortfolio() {
-  var now = Date.now();
-  return [
-    {
-      id: 'demo-1',
-      title: 'E-Commerce Platform',
-      courseName: 'CS301: Web Development',
-      description:
-        'Built a full-stack e-commerce platform with React, Node.js, and PostgreSQL. Features include user authentication, product catalog, shopping cart, and payment integration with Stripe.',
-      status: 'completed',
-      grade: '92',
-      techStack: ['React', 'Node.js', 'PostgreSQL', 'Stripe', 'Docker'],
-      teamSize: 3,
-      teamMembers: ['Sarah Johnson', 'Michael Chen'],
-      githubUrl: 'https://github.com/nibras/ecommerce-platform',
-      liveUrl: 'https://ecommerce-demo.nibras.app',
-      startDate: new Date(now - 120 * 86400000).toISOString(),
-      completedDate: new Date(now - 10 * 86400000).toISOString(),
-    },
-    {
-      id: 'demo-2',
-      title: 'Data Analysis Dashboard',
-      courseName: 'CS401: Data Science',
-      description:
-        'Created an interactive data visualization dashboard using Python, Pandas, and D3.js. Analyzed 100K+ records to uncover trends in educational outcomes.',
-      status: 'completed',
-      grade: '88',
-      techStack: ['Python', 'Pandas', 'D3.js', 'Flask', 'MongoDB'],
-      teamSize: 2,
-      teamMembers: ['Laila Mostafa'],
-      githubUrl: 'https://github.com/nibras/data-dashboard',
-      startDate: new Date(now - 90 * 86400000).toISOString(),
-      completedDate: new Date(now - 5 * 86400000).toISOString(),
-    },
-    {
-      id: 'demo-3',
-      title: 'Mobile Task Manager',
-      courseName: 'CS350: Mobile Development',
-      description:
-        'Developed a cross-platform mobile task management application with real-time sync, push notifications, and team collaboration features.',
-      status: 'completed',
-      grade: '95',
-      techStack: ['React Native', 'Firebase', 'TypeScript'],
-      teamSize: 1,
-      teamMembers: [],
-      githubUrl: 'https://github.com/nibras/task-manager',
-      startDate: new Date(now - 60 * 86400000).toISOString(),
-      completedDate: new Date(now - 2 * 86400000).toISOString(),
-    },
-    {
-      id: 'demo-4',
-      title: 'AI Chatbot Integration',
-      courseName: 'CS450: Artificial Intelligence',
-      description:
-        'Integrated GPT-based chatbot into an existing web application with context-aware responses, sentiment analysis, and learning analytics tracking.',
-      status: 'in_progress',
-      techStack: ['Python', 'OpenAI API', 'FastAPI', 'React', 'Redis'],
-      teamSize: 2,
-      teamMembers: ['Omar Abdelrahman'],
-      githubUrl: 'https://github.com/nibras/ai-chatbot',
-      startDate: new Date(now - 30 * 86400000).toISOString(),
-      completedDate: null,
-    },
-  ];
+function portfolioCourseToCard(course) {
+  var completion = Number(course.completion) || 0;
+  return {
+    id: course.courseId,
+    title: course.title || 'Course',
+    courseName: course.courseCode || course.termLabel || '',
+    description:
+      (course.projectCount || 0) +
+      ' project(s) · ' +
+      (course.openMilestones || 0) +
+      ' open milestone(s)',
+    status: completion >= 100 ? 'completed' : 'in_progress',
+    grade: completion >= 100 ? String(Math.round(completion)) : null,
+    completion: completion,
+    projectCount: course.projectCount || 0,
+    openMilestones: course.openMilestones || 0,
+    termLabel: course.termLabel || '',
+    nextDueLabel: course.nextDueLabel || null,
+    techStack: [],
+    teamMembers: [],
+  };
 }
 
 function setupPortfolioFilters() {
@@ -235,10 +168,8 @@ function applyFilters() {
         p.description.toLowerCase().includes(portfolioState.searchTerm)) ||
       (p.courseName &&
         p.courseName.toLowerCase().includes(portfolioState.searchTerm)) ||
-      (p.techStack &&
-        p.techStack.some(function (t) {
-          return t.toLowerCase().includes(portfolioState.searchTerm);
-        }));
+      (p.termLabel &&
+        p.termLabel.toLowerCase().includes(portfolioState.searchTerm));
     var matchesStatus =
       portfolioState.statusFilter === 'all' ||
       p.status === portfolioState.statusFilter;
@@ -268,10 +199,10 @@ function renderPortfolioGrid(projects) {
   }).length;
   var grades = portfolioState.projects
     .filter(function (p) {
-      return p.grade;
+      return p.completion != null;
     })
     .map(function (p) {
-      return parseFloat(p.grade);
+      return parseFloat(p.completion);
     });
   var avgGrade = grades.length
     ? Math.round(
@@ -296,15 +227,20 @@ function renderPortfolioGrid(projects) {
       var statusClass =
         p.status === 'completed' ? 'status-completed' : 'status-in_progress';
       var statusLabel = p.status === 'completed' ? 'Completed' : 'In Progress';
-      var gradeDisplay = p.grade
-        ? '<span class="portfolio-card-grade">' +
-          escapeHtml(p.grade) +
-          '%</span>'
-        : '';
-      var dateDisplay = p.completedDate
-        ? formatDate(p.completedDate)
-        : p.startDate
-          ? 'Started ' + formatDate(p.startDate)
+      var gradeDisplay =
+        p.completion != null
+          ? '<span class="portfolio-card-grade">' +
+            escapeHtml(Math.round(p.completion)) +
+            '%</span>'
+          : p.grade
+            ? '<span class="portfolio-card-grade">' +
+              escapeHtml(p.grade) +
+              '%</span>'
+            : '';
+      var dateDisplay = p.nextDueLabel
+        ? 'Next: ' + escapeHtml(p.nextDueLabel)
+        : p.termLabel
+          ? escapeHtml(p.termLabel)
           : '';
 
       return (
@@ -376,25 +312,30 @@ function openPortfolioDetail(projectId) {
       '<div class="detail-value"><i class="fa-solid fa-book-open"></i> ' +
       escapeHtml(project.courseName) +
       '</div>';
-  if (project.grade)
+  if (project.completion != null)
     metaHtml +=
-      '<div class="detail-value"><i class="fa-solid fa-star"></i> Grade: ' +
-      escapeHtml(project.grade) +
+      '<div class="detail-value"><i class="fa-solid fa-chart-line"></i> Completion: ' +
+      Math.round(project.completion) +
       '%</div>';
-  if (project.teamSize)
+  if (project.projectCount != null)
     metaHtml +=
-      '<div class="detail-value"><i class="fa-solid fa-users"></i> Team size: ' +
-      project.teamSize +
+      '<div class="detail-value"><i class="fa-solid fa-diagram-project"></i> Projects: ' +
+      project.projectCount +
       '</div>';
-  if (project.completedDate)
+  if (project.openMilestones != null)
     metaHtml +=
-      '<div class="detail-value"><i class="fa-regular fa-calendar-check"></i> Completed: ' +
-      formatDate(project.completedDate) +
+      '<div class="detail-value"><i class="fa-solid fa-flag"></i> Open milestones: ' +
+      project.openMilestones +
       '</div>';
-  else if (project.startDate)
+  if (project.nextDueLabel)
     metaHtml +=
-      '<div class="detail-value"><i class="fa-regular fa-calendar"></i> Started: ' +
-      formatDate(project.startDate) +
+      '<div class="detail-value"><i class="fa-regular fa-calendar"></i> ' +
+      escapeHtml(project.nextDueLabel) +
+      '</div>';
+  else if (project.termLabel)
+    metaHtml +=
+      '<div class="detail-value"><i class="fa-regular fa-calendar"></i> ' +
+      escapeHtml(project.termLabel) +
       '</div>';
   document.getElementById('portfolio-detail-meta').innerHTML = metaHtml;
 

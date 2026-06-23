@@ -242,7 +242,7 @@ npm install -g @nibras/cli@2.0.0</code></pre><button class="copy-btn" onclick="c
                 <div class="cli-step" data-step="3">
                     <div class="step-head" onclick="toggleStep(3)"><span class="step-num">03</span><div class="step-info"><h3>Authenticate with GitHub</h3><p>Log in with your GitHub account</p></div><span class="step-check" id="check-3"><i class="fa-regular fa-circle"></i></span></div>
                     <div class="step-body" id="body-3">
-                        <p>Use an explicit <code>--api-base-url</code> for hosted onboarding so the CLI targets this deployment instead of the local dev default at <code>http://127.0.0.1:4848</code>. The login flow prints a one-time URL and short code, then tries to open the browser automatically unless you pass <code>--no-open</code>.</p>
+                        <p>Use an explicit <code>--api-base-url</code> for hosted onboarding so the CLI targets this deployment instead of the local dev default at <code>http://127.0.0.1:4848</code>. The login flow prints a one-time URL and short code, then tries to open the browser automatically unless you pass <code>--no-open</code>. After GitHub authorization, the CLI also prompts you to install the Nibras GitHub App so submissions and repo sync work.</p>
 
                         <div class="os-tabs"><button class="os-tab" data-os="macos" onclick="switchOs('macos', this)">macOS</button><button class="os-tab" data-os="linux" onclick="switchOs('linux', this)">Linux</button><button class="os-tab" data-os="windows" onclick="switchOs('windows', this)">Windows</button></div>
 
@@ -263,12 +263,13 @@ npm install -g @nibras/cli@2.0.0</code></pre><button class="copy-btn" onclick="c
   ⠋ Waiting for browser authorization…
 ╭─────────────────────────────────────────╮
 │  ✓  Authenticated as Zied               │
-│  User:    Zied                          │
-│  GitHub:  Zied                          │
-│  API:     https://nibras-api.fly.dev    │
+│  User:         Zied                     │
+│  GitHub:       Zied                     │
+│  GitHub App:   installed                │
+│  API:          https://nibras-api.fly.dev│
 ╰─────────────────────────────────────────╯</pre></div>
 
-                        <p>After login, verify with <code>nibras whoami</code> to confirm the active session and linked GitHub account.</p>
+                        <p>After login, verify with <code>nibras whoami</code> and <code>nibras ping</code> to confirm the session, linked GitHub account, and GitHub App installation.</p>
                         <p style="font-size:0.85rem;color:var(--text-secondary);">Credentials are saved in <code>~/Library/Application Support/nibras/config.json</code> (macOS), <code>~/.config/nibras/config.json</code> (Linux), or <code>%APPDATA%\nibras\config.json</code> (Windows).</p>
                         <button class="btn-mark-done" onclick="markStep(3)">Mark as complete</button>
                     </div>

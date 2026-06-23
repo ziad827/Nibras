@@ -14,12 +14,30 @@ window.NibrasReact.run(() => {
     window.NibrasShared?.resolveServiceUrl ||
     (() => null);
 
+  function resolveGatewayOrigin() {
+    try {
+      const host = window.location.hostname;
+      if (host === 'localhost' || host === '127.0.0.1') {
+        return 'http://localhost:8080';
+      }
+      if (
+        host.includes('vercel.app') ||
+        (host.includes('railway.app') && !host.startsWith('api-'))
+      ) {
+        return window.location.origin;
+      }
+    } catch (_) {
+      // Fall through to production default.
+    }
+    return 'https://web-production-3011ec.up.railway.app';
+  }
+
+  const gatewayOrigin = resolveGatewayOrigin();
   const adminApiBase = String(
-    resolveServiceUrl('admin') || 'https://nibras-backend.up.railway.app/api',
+    resolveServiceUrl('admin') || `${gatewayOrigin}/api`,
   ).replace(/\/+$/, '');
   const trackingApiBase = String(
-    resolveServiceUrl('tracking') ||
-      'https://nibras-backend.up.railway.app/api',
+    resolveServiceUrl('tracking') || gatewayOrigin,
   ).replace(/\/+$/, '');
   const githubServiceCandidates = ['tracking', 'admin'];
 
@@ -206,8 +224,9 @@ window.NibrasReact.run(() => {
   }
 
   async function startGitHubAppInstallFlow() {
+    const settingsReturnTo = `${window.location.origin}${window.location.pathname}`;
     const payload = await githubApiRequestWithFallback(
-      '/v1/github/install-url',
+      `/v1/github/install-url?return_to=${encodeURIComponent(settingsReturnTo)}`,
       {
         method: 'GET',
         auth: true,
@@ -233,6 +252,21 @@ window.NibrasReact.run(() => {
       return;
     }
     statusText.style.color = '';
+  }
+
+  async function syncGitHubInstallationIfNeeded() {
+    try {
+      await githubApiRequestWithFallback(
+        '/v1/github/installations/sync',
+        {
+          method: 'POST',
+          auth: true,
+        },
+        [404, 405, 501, 503],
+      );
+    } catch (_) {
+      // Sync is best-effort; setup/complete remains the primary web path.
+    }
   }
 
   async function handleGitHubSetupCompletionFromUrl() {
@@ -500,7 +534,9 @@ window.NibrasReact.run(() => {
   }
 
   // Load setup completion first (if redirected from install), then profile.
-  void handleGitHubSetupCompletionFromUrl().finally(() => {
+  void handleGitHubSetupCompletionFromUrl()
+    .then(() => syncGitHubInstallationIfNeeded())
+    .finally(() => {
     void loadUserProfile().then(function () {
       void loadPrivacySettings().finally(function () {
         loadedSnapshot = captureSnapshot();

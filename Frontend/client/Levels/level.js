@@ -70,61 +70,28 @@ window.NibrasReact.run(function () {
 
   async function fetchLevelCompletionFromBackend() {
     var services = window.NibrasServices;
-    if (!services || !services.coursesService) return null;
+    if (!services || !services.levelsService) return null;
 
     try {
-      var cs = services.coursesService;
+      var res = await services.levelsService.getProgress();
+      var data = res && (res.data || res);
+      if (!data || !Array.isArray(data.levels)) return null;
+
       var results = {};
-
-      var responses = await Promise.allSettled(
-        levelOrder.map(function (l) {
-          return cs.getByLevel(l);
-        }),
-      );
-
-      for (var i = 0; i < levelOrder.length; i++) {
-        var level = levelOrder[i];
-        var resp = responses[i];
-
-        if (resp.status !== 'fulfilled' || !resp.value) {
-          results[level] = { done: 0, total: 0, completed: true };
-          continue;
-        }
-
-        var courses = resp.value.data;
-        if (!Array.isArray(courses)) courses = [];
-
-        if (courses.length === 0) {
-          results[level] = { done: 0, total: 0, completed: true };
-          continue;
-        }
-
-        var progResults = await Promise.allSettled(
-          courses.map(function (c) {
-            return cs.getProgress(c._id || c.id);
-          }),
-        );
-
-        var done = 0;
-        progResults.forEach(function (r) {
-          if (r.status === 'fulfilled' && r.value) {
-            var p = r.value.data || r.value;
-            if (
-              p &&
-              (p.status === 'completed' || Number(p.percentage) >= 100)
-            ) {
-              done++;
-            }
-          }
-        });
-
-        results[level] = {
-          done: done,
-          total: courses.length,
-          completed: done === courses.length,
+      data.levels.forEach(function (level) {
+        results[level.name] = {
+          done: level.done || 0,
+          total: level.total || 0,
+          completed: !!level.completed,
+          unlocked: !!level.unlocked,
         };
+      });
+      if (data.overallCompletionPercent != null) {
+        overallProgress = Math.max(
+          0,
+          Math.min(100, Math.round(Number(data.overallCompletionPercent))),
+        );
       }
-
       return results;
     } catch (err) {
       console.warn('[LEVEL.JS] Failed to fetch level completion data:', err);
@@ -136,6 +103,11 @@ window.NibrasReact.run(function () {
     if (levelId === 1) return true;
 
     if (completionData) {
+      var levelName = levelOrder[levelId - 1];
+      var current = completionData[levelName];
+      if (current && current.unlocked === false) return false;
+      if (current && current.unlocked === true) return true;
+
       var prevLevelName = levelOrder[levelId - 2];
       var prev = completionData[prevLevelName];
       if (prev && prev.total > 0) return prev.completed;
@@ -296,8 +268,11 @@ window.NibrasReact.run(function () {
     }
 
     var s = window.NibrasServices;
-    if (s && s.coursesService && s.coursesService.updateLevel) {
-      s.coursesService.updateLevel(levelName).then(navigate).catch(navigate);
+    if (s && s.usersService && s.usersService.updateStudyLevel) {
+      s.usersService
+        .updateStudyLevel(levelName)
+        .then(navigate)
+        .catch(navigate);
     } else {
       navigate();
     }
@@ -316,54 +291,17 @@ window.NibrasReact.run(function () {
     }
   };
 
-  var services = window.NibrasServices;
-
-  if (
-    services &&
-    services.coursesService &&
-    services.coursesService.getGlobalProgress
-  ) {
-    services.coursesService
-      .getGlobalProgress()
-      .then(function (res) {
-        var data = res && (res.data || res);
-        var pct =
-          data &&
-          (data.overallPercentage || data.percentage || data.progress || 0);
-        overallProgress = Number.isFinite(Number(pct))
-          ? Math.max(0, Math.min(100, Math.round(Number(pct))))
-          : 0;
-      })
-      .catch(function () {
-        overallProgress = 0;
-      })
-      .finally(function () {
-        fetchLevelCompletionFromBackend()
-          .then(function (completionData) {
-            levelAccessCache = completionData;
-          })
-          .catch(function () {
-            levelAccessCache = null;
-          })
-          .finally(function () {
-            renderLevels();
-            updateOverallProgressBar();
-          });
-      });
-  } else {
-    overallProgress = 0;
-    fetchLevelCompletionFromBackend()
-      .then(function (completionData) {
-        levelAccessCache = completionData;
-      })
-      .catch(function () {
-        levelAccessCache = null;
-      })
-      .finally(function () {
-        renderLevels();
-        updateOverallProgressBar();
-      });
-  }
+  fetchLevelCompletionFromBackend()
+    .then(function (completionData) {
+      levelAccessCache = completionData;
+    })
+    .catch(function () {
+      levelAccessCache = null;
+    })
+    .finally(function () {
+      renderLevels();
+      updateOverallProgressBar();
+    });
 
   var themeBtn = document.getElementById('themeBtn');
   var themeIcon = themeBtn ? themeBtn.querySelector('i') : null;

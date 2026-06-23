@@ -2572,6 +2572,70 @@
         body: payload || {},
       });
     },
+
+    async validatePlan(plannedCourses) {
+      return apiFetch('/v1/programs/student/me/validate', {
+        service: 'tracking',
+        method: 'POST',
+        auth: true,
+        body: {
+          plannedCourses: Array.isArray(plannedCourses) ? plannedCourses : [],
+        },
+      });
+    },
+
+    async getValidatePlan() {
+      return apiFetch('/v1/programs/student/me/validate', {
+        service: 'tracking',
+        method: 'GET',
+        auth: true,
+      });
+    },
+
+    async recommendTrack() {
+      return apiFetch('/v1/programs/student/me/recommend-track', {
+        service: 'tracking',
+        method: 'GET',
+        auth: true,
+      });
+    },
+
+    async getRecommendedPlan() {
+      return apiFetch('/v1/programs/student/me/recommended-plan', {
+        service: 'tracking',
+        method: 'GET',
+        auth: true,
+      });
+    },
+
+    async getPrerequisiteGraph() {
+      return apiFetch('/v1/programs/student/me/prerequisite-graph', {
+        service: 'tracking',
+        method: 'GET',
+        auth: true,
+      });
+    },
+
+    async submitForAdvisor(note) {
+      return apiFetch('/v1/programs/student/me/submit-for-advisor', {
+        service: 'tracking',
+        method: 'POST',
+        auth: true,
+        body: { note: note != null ? String(note) : null },
+      });
+    },
+
+    async getCatalogLink(catalogCourseId) {
+      return apiFetch(
+        '/v1/programs/student/me/catalog-link' +
+          toQueryString({ catalogCourseId: String(catalogCourseId || '') }),
+        {
+          service: 'tracking',
+          method: 'GET',
+          auth: true,
+        },
+      );
+    },
   };
 
   // ============================================================
@@ -5227,6 +5291,83 @@
         },
       );
     },
+    async getMyRequests() {
+      return apiFetch('/mentorship/requests/me', {
+        service: 'admin',
+        method: 'GET',
+        auth: true,
+      });
+    },
+  };
+
+  // ============================================================
+  // Levels Service (tracking backend)
+  // ============================================================
+  const levelsService = {
+    async getProgress() {
+      return apiFetch('/v1/levels/progress', {
+        service: 'tracking',
+        method: 'GET',
+        auth: true,
+      });
+    },
+  };
+
+  // ============================================================
+  // Instructor Application Service (admin backend)
+  // ============================================================
+  const instructorApplicationService = {
+    async submit(department) {
+      return apiFetch('/instructor-applications', {
+        service: 'admin',
+        method: 'POST',
+        auth: true,
+        body: { department: String(department || '') },
+      });
+    },
+    async getMine() {
+      return apiFetch('/instructor-applications/me', {
+        service: 'admin',
+        method: 'GET',
+        auth: true,
+      });
+    },
+    async listAdmin(status) {
+      var params = {};
+      if (status) params.status = status;
+      return apiFetch(
+        '/v1/admin/instructor-applications' + toQueryString(params),
+        {
+          service: 'tracking',
+          method: 'GET',
+          auth: true,
+        },
+      );
+    },
+    async approve(id) {
+      return apiFetch(
+        '/v1/admin/instructor-applications/' +
+          encodeURIComponent(String(id)) +
+          '/approve',
+        {
+          service: 'tracking',
+          method: 'PATCH',
+          auth: true,
+        },
+      );
+    },
+    async reject(id) {
+      return apiFetch(
+        '/v1/admin/instructor-applications/' +
+          encodeURIComponent(String(id)) +
+          '/reject',
+        {
+          service: 'tracking',
+          method: 'PATCH',
+          auth: true,
+        },
+      );
+    },
   };
 
   // ============================================================
@@ -5862,6 +6003,8 @@
     reputationService,
     aiService,
     mentorshipService,
+    levelsService,
+    instructorApplicationService,
     instructorDashboardService,
     instructorCourseManagementService,
     flagService,

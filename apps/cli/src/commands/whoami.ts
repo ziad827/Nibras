@@ -17,9 +17,10 @@ export async function commandWhoami(
   printBox(
     `Signed in as ${response.user.username}`,
     [
-      `User:    ${response.user.username}`,
-      `GitHub:  ${response.user.githubLogin}`,
-      `API:     ${response.apiBaseUrl}`,
+      `User:         ${response.user.username}`,
+      `GitHub:       ${response.user.githubLogin}`,
+      `GitHub App:   ${response.user.githubAppInstalled ? 'installed' : 'not installed'}`,
+      `API:          ${response.apiBaseUrl}`,
     ],
     'info',
     plain,

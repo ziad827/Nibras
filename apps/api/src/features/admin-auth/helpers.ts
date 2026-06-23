@@ -11,6 +11,7 @@ export type AdminAuthUser = {
   systemRole: SystemRole;
   emailVerified?: boolean;
   yearLevel?: number;
+  roleId?: string | null;
 };
 
 export const ADMIN_AUTH_USER_SELECT = {
@@ -21,6 +22,7 @@ export const ADMIN_AUTH_USER_SELECT = {
   systemRole: true,
   emailVerified: true,
   yearLevel: true,
+  roleId: true,
 } as const;
 
 const STUDY_LEVEL_BY_YEAR: Record<number, string> = {
@@ -66,14 +68,56 @@ export function resolveFrontendRole(user: AdminAuthUser): string {
   return 'student';
 }
 
+export async function resolveFrontendRoleWithDb(
+  user: AdminAuthUser,
+  prisma?: PrismaClient,
+): Promise<string> {
+  if (user.systemRole === SystemRole.admin) return 'admin';
+  if (!prisma) return resolveFrontendRole(user);
+
+  if (user.roleId) {
+    const rbacRole = await prisma.role.findUnique({
+      where: { id: user.roleId },
+      select: { name: true },
+    });
+    if (rbacRole?.name === 'instructor') return 'instructor';
+    if (rbacRole?.name === 'admin' || rbacRole?.name === 'super-admin') {
+      return 'admin';
+    }
+  }
+
+  const application = await prisma.instructorApplication.findUnique({
+    where: { userId: user.id },
+    select: { status: true },
+  });
+  if (application?.status === 'approved') return 'instructor';
+
+  return resolveFrontendRole(user);
+}
+
+export async function resolveInstructorStatus(
+  userId: string,
+  prisma?: PrismaClient,
+): Promise<'pending' | 'approved' | 'rejected' | null> {
+  if (!prisma) return null;
+  const application = await prisma.instructorApplication.findUnique({
+    where: { userId },
+    select: { status: true },
+  });
+  return application?.status ?? null;
+}
+
 export async function toAdminUserPayload(
   user: AdminAuthUser,
   prisma?: PrismaClient,
 ) {
-  const roleName = resolveFrontendRole(user);
+  const roleName = await resolveFrontendRoleWithDb(user, prisma);
   const permissions = prisma
     ? await getUserPermissionCodes(prisma, user.id)
     : [];
+  const instructorStatus = prisma
+    ? await resolveInstructorStatus(user.id, prisma)
+    : null;
   const payload = {
     _id: user.id,
     id: user.id,
@@ -82,6 +126,7 @@ export async function toAdminUserPayload(
     displayName: user.displayName,
     name: user.displayName || user.username,
     role: { name: roleName, permissions },
+    instructorStatus,
   };
   if (roleName === 'student') {
     return { ...payload, selectedLevel: resolveSelectedLevel(user) };

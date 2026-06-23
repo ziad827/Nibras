@@ -444,7 +444,7 @@ export async function getGitHubUser(
 export async function getGitHubUserInstallations(
   config: GitHubAppConfig,
   userToken: string,
-): Promise<Array<{ id: number; accountLogin: string }>> {
+): Promise<Array<{ id: number; appId: number; accountLogin: string }>> {
   const payload = await githubRequest<{
     installations: Array<Record<string, unknown>>;
   }>(
@@ -455,6 +455,11 @@ export async function getGitHubUserInstallations(
   );
   return (payload.installations || []).map((installation) => ({
     id: Number(installation.id),
+    appId: Number(
+      (installation.app as Record<string, unknown> | undefined)?.id ||
+        installation.app_id ||
+        0,
+    ),
     accountLogin: String(
       (installation.account as Record<string, unknown> | undefined)?.login ||
         '',

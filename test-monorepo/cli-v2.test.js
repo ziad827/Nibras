@@ -110,6 +110,7 @@ test('CLI v2 help lists config, doctor, and milestones', async () => {
   assert.match(result.stdout, /doctor\s/);
   assert.match(result.stdout, /milestones\s/);
   assert.match(result.stdout, /--json/);
+  assert.match(result.stdout, /--skip-app-install/);
 });
 
 test('CLI v2 config path prints the resolved config file', async () => {
@@ -136,6 +137,23 @@ test('CLI v2 whoami supports --json output', async () => {
     const payload = JSON.parse(result.stdout);
     assert.equal(payload.user.id, session.user.id);
     assert.equal(payload.apiBaseUrl, server.apiBaseUrl);
+  } finally {
+    await server.close();
+  }
+});
+
+test('CLI v2 whoami shows GitHub App status in plain output', async () => {
+  const tmp = makeTempDir();
+  const configRoot = path.join(tmp, 'config');
+  const server = await startApi(path.join(tmp, 'store.json'));
+  try {
+    const session = await createSession(server.apiBaseUrl);
+    writeCliConfig(configRoot, server.apiBaseUrl, session);
+    const result = await runCli(['whoami', '--plain'], {
+      env: { XDG_CONFIG_HOME: configRoot },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /GitHub App:/);
   } finally {
     await server.close();
   }

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authorize CLI Device</title>
+    <script src="/config.js"></script>
+    <style>
+        body {
+            font-family: Inter, system-ui, sans-serif;
+            max-width: 36rem;
+            margin: 4rem auto;
+            padding: 0 1.25rem;
+            line-height: 1.6;
+            color: #111827;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .code {
+            font-family: ui-monospace, monospace;
+            background: #f3f4f6;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+        }
+        .status { margin-top: 1rem; }
+        .success { color: #059669; }
+        .error { color: #dc2626; }
+    </style>
+</head>
+<body>
+    <h1>Authorize CLI Device</h1>
+    <p id="intro">Approve this device so the Nibras CLI can sign in.</p>
+    <div class="code" id="user-code"></div>
+    <p class="status" id="status"></p>
+    <script>
+        function getApiBase() {
+            const cfg = window.NibrasApiConfig;
+            const tracking = cfg && cfg.getServiceUrl ? cfg.getServiceUrl('tracking') : null;
+            if (tracking) return String(tracking).replace(/\/+$/, '');
+            return window.location.origin.replace(/\/+$/, '');
+        }
+
+        function getToken() {
+            const keys = ['token', 'accessToken', 'nibras_session_token'];
+            for (let i = 0; i < keys.length; i += 1) {
+                const value = localStorage.getItem(keys[i]);
+                if (value && value.trim()) {
+                    return value.trim().replace(/^bearer\s+/i, '');
+                }
+            }
+            return null;
+        }
+
+        async function authorizeDevice(userCode) {
+            const token = getToken();
+            if (!token) {
+                const returnTo = encodeURIComponent(window.location.href);
+                window.location.href =
+                    '/Login/loginPage/login.html?return_to=' + returnTo;
+                return;
+            }
+
+            const status = document.getElementById('status');
+            status.textContent = 'Authorizing device...';
+
+            try {
+                const response = await fetch(getApiBase() + '/v1/device/authorize', {
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json',
+                        authorization: 'Bearer ' + token,
+                    },
+                    body: JSON.stringify({ userCode: userCode }),
+                });
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || 'Authorization failed.');
+                }
+                status.textContent = 'Device authorized. You can return to the CLI.';
+                status.className = 'status success';
+            } catch (error) {
+                status.textContent =
+                    (error && error.message) || 'Could not authorize this device.';
+                status.className = 'status error';
+            }
+        }
+
+        (function main() {
+            const params = new URLSearchParams(window.location.search);
+            const userCode = params.get('user_code');
+            const codeNode = document.getElementById('user-code');
+            const intro = document.getElementById('intro');
+
+            if (!userCode) {
+                intro.textContent = 'Missing device code.';
+                codeNode.style.display = 'none';
+                return;
+            }
+
+            codeNode.textContent = userCode;
+            void authorizeDevice(userCode);
+        })();
+    </script>
+</body>
+</html>

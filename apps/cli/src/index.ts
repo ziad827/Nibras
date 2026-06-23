@@ -52,7 +52,8 @@ function printHelp(plain: boolean): void {
     [
       {
         name: 'login',
-        description: 'Start device login against the hosted API',
+        description:
+          'GitHub device login and GitHub App install for the hosted API',
       },
       { name: 'logout', description: 'Clear the local CLI session' },
       {
@@ -120,6 +121,14 @@ function printHelp(plain: boolean): void {
       },
       { name: '--help, -h', description: 'Show this help message' },
       { name: '--version, -v', description: 'Print version' },
+      {
+        name: '--no-open',
+        description: 'login: do not open the browser automatically',
+      },
+      {
+        name: '--skip-app-install',
+        description: 'login: skip the GitHub App installation step',
+      },
     ],
     plain,
   );

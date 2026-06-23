@@ -5,6 +5,7 @@ import {
   GitHubConfigResponseSchema,
   GitHubInstallationCompleteRequestSchema,
   GitHubInstallationCompleteResponseSchema,
+  GitHubInstallationSyncResponseSchema,
   GitHubInstallUrlResponseSchema,
   GitHubRepositoryValidateRequestSchema,
   GitHubRepositoryValidateResponseSchema,
@@ -30,7 +31,46 @@ import { requireUser } from '../../lib/auth';
 import { requestBaseUrl, resolveWebBaseUrl } from '../../lib/request-base-url';
 import { createWebSessionCookie } from '../../lib/web-session';
 import { PrismaStore } from '../../prisma-store';
-import { AppStore } from '../../store';
+import { AppStore, UserRecord } from '../../store';
+
+async function syncGitHubInstallationForUser(
+  store: AppStore,
+  githubConfig: GitHubAppConfig,
+  userId: string,
+  user: UserRecord,
+): Promise<{ githubAppInstalled: boolean; installationId?: string }> {
+  if (user.githubAppInstalled) {
+    const account = await store.getGithubAccountForUser(userId);
+    return {
+      githubAppInstalled: true,
+      installationId: account?.installationId || undefined,
+    };
+  }
+
+  const account = await store.getGithubAccountForUser(userId);
+  if (!account?.userAccessToken) {
+    return { githubAppInstalled: false };
+  }
+
+  const installations = await getGitHubUserInstallations(
+    githubConfig,
+    account.userAccessToken,
+  );
+  const nibrasAppId = Number(githubConfig.appId);
+  const matched = installations.find((entry) => entry.appId === nibrasAppId);
+  if (!matched) {
+    return { githubAppInstalled: false };
+  }
+
+  const linked = await store.linkGitHubInstallation(
+    userId,
+    String(matched.id),
+  );
+  return {
+    githubAppInstalled: linked.githubAppInstalled,
+    installationId: String(matched.id),
+  };
+}
 
 function resolveSafeReturnTo(
   candidate: string | undefined,
@@ -206,11 +246,33 @@ export function registerGitHubRoutes(
           accessTokenExpiresIn: tokenResponse.expiresIn,
           refreshTokenExpiresIn: tokenResponse.refreshTokenExpiresIn,
         });
+        let authorizedUser = user;
+        if (!user.githubAppInstalled) {
+          try {
+            const synced = await syncGitHubInstallationForUser(
+              store,
+              githubConfig,
+              user.id,
+              user,
+            );
+            if (synced.githubAppInstalled) {
+              const refreshed = await store.getUserByToken(
+                requestBaseUrl(request),
+                session.accessToken,
+              );
+              if (refreshed) {
+                authorizedUser = refreshed;
+              }
+            }
+          } catch {
+            // Installation sync is best-effort during device login.
+          }
+        }
         return DevicePollResponseSchema.parse({
           status: 'authorized',
           accessToken: session.accessToken,
           refreshToken: session.refreshToken,
-          user,
+          user: authorizedUser,
         });
       }
 
@@ -389,13 +451,21 @@ export function registerGitHubRoutes(
           .send(Errors.unavailable('GitHub App is not configured.'));
         return;
       }
+      const query = request.query as { return_to?: string };
+      const fallbackReturnTo = `${githubConfig.webBaseUrl || requestBaseUrl(request)}/dashboard`;
+      const returnTo = resolveSafeReturnTo(
+        query.return_to,
+        fallbackReturnTo,
+        requestBaseUrl(request),
+        githubConfig.webBaseUrl,
+      );
       const signedState =
         store instanceof PrismaStore
           ? createSignedState(
               githubConfig.clientSecret,
               {
                 userId: auth.user.id,
-                returnTo: `${githubConfig.webBaseUrl || requestBaseUrl(request)}/dashboard`,
+                returnTo,
               },
               { ttlSeconds: 1800 },
             )
@@ -571,6 +641,47 @@ export function registerGitHubRoutes(
         installationId: payload.installationId,
         redirectTo,
       });
+    },
+  );
+
+  app.post(
+    '/v1/github/installations/sync',
+    {
+      schema: {
+        tags: ['github'],
+        summary: 'Discover and link GitHub App installation',
+      },
+    },
+    async (request, reply) => {
+      const auth = await requireUser(request, reply, store);
+      if (!auth) return;
+      if (!githubConfig) {
+        reply
+          .code(503)
+          .send(Errors.unavailable('GitHub App is not configured.'));
+        return;
+      }
+      try {
+        const synced = await syncGitHubInstallationForUser(
+          store,
+          githubConfig,
+          auth.user.id,
+          auth.user,
+        );
+        return GitHubInstallationSyncResponseSchema.parse(synced);
+      } catch (error) {
+        if (error instanceof GitHubRequestError) {
+          reply
+            .code(503)
+            .send(
+              Errors.unavailable(
+                'GitHub installation sync is temporarily unavailable.',
+              ),
+            );
+          return;
+        }
+        throw error;
+      }
     },
   );
 

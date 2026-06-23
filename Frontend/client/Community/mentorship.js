@@ -56,11 +56,6 @@ window.NibrasReact.run(function () {
   }
 
   function loadSuggestions() {
-    suggestionsContainer.innerHTML =
-      '<div class="empty-state"><i class="fa-solid fa-hourglass-half"></i><p>Mentorship is coming soon. Mentor matching and requests will appear here once the backend launches.</p></div>';
-    if (requestsSection) requestsSection.style.display = 'none';
-    return;
-
     if (!services || !services.mentorshipService) {
       suggestionsContainer.innerHTML =
         '<div class="empty-state"><i class="fa-solid fa-user-group"></i><p>Mentorship service not available.</p></div>';
@@ -174,66 +169,59 @@ window.NibrasReact.run(function () {
       return;
     }
 
-    var user;
-    try {
-      user = JSON.parse(localStorage.getItem('user') || '{}');
-    } catch (_) {
-      user = {};
-    }
-    var userId = user._id || user.id || user.userId;
+    services.mentorshipService
+      .getMyRequests()
+      .then(function (res) {
+        var data = res && (res.data || res);
+        var items = Array.isArray(data.requests)
+          ? data.requests
+          : Array.isArray(data)
+            ? data
+            : [];
 
-    var hasRequests = false;
-    var items = [];
-    try {
-      var cached = JSON.parse(
-        localStorage.getItem('mentorship_requests') || '[]',
-      );
-      if (Array.isArray(cached)) items = cached;
-    } catch (_) {
-      items = [];
-    }
+        if (!items.length) {
+          requestsSection.style.display = 'none';
+          return;
+        }
 
-    if (items.length === 0) {
-      requestsSection.style.display = 'none';
-      return;
-    }
-
-    hasRequests = true;
-    requestsSection.style.display = 'block';
-
-    var html = '';
-    items.forEach(function (req) {
-      var mentorName = req.mentorName || req.mentor?.name || 'Mentor';
-      var status = req.status || 'pending';
-      var createdAt = req.createdAt || req.created || '';
-      var message = req.message || '';
-      html += '<div class="request-item">';
-      html += '<div class="request-info">';
-      html += '<strong>' + esc(mentorName) + '</strong>';
-      if (message)
-        html +=
-          '<span>' +
-          esc(
-            message.length > 80 ? message.substring(0, 80) + '...' : message,
-          ) +
-          '</span>';
-      html += '</div>';
-      html += '<div style="display:flex;align-items:center;gap:12px;">';
-      if (createdAt)
-        html +=
-          '<span style="font-size:0.8rem;color:var(--text-secondary);">' +
-          formatDate(createdAt) +
-          '</span>';
-      html +=
-        '<span class="status-badge ' +
-        esc(status) +
-        '">' +
-        esc(status.charAt(0).toUpperCase() + status.slice(1)) +
-        '</span>';
-      html += '</div>';
-      html += '</div>';
-    });
-    requestsContainer.innerHTML = html;
+        requestsSection.style.display = 'block';
+        var html = '';
+        items.forEach(function (req) {
+          var mentorName = req.mentorName || req.mentor?.name || 'Mentor';
+          var status = req.status || 'pending';
+          var createdAt = req.createdAt || req.created || '';
+          var message = req.message || '';
+          html += '<div class="request-item">';
+          html += '<div class="request-info">';
+          html += '<strong>' + esc(mentorName) + '</strong>';
+          if (message)
+            html +=
+              '<span>' +
+              esc(
+                message.length > 80 ? message.substring(0, 80) + '...' : message,
+              ) +
+              '</span>';
+          html += '</div>';
+          html += '<div style="display:flex;align-items:center;gap:12px;">';
+          if (createdAt)
+            html +=
+              '<span style="font-size:0.8rem;color:var(--text-secondary);">' +
+              formatDate(createdAt) +
+              '</span>';
+          html +=
+            '<span class="status-badge ' +
+            esc(status) +
+            '">' +
+            esc(status.charAt(0).toUpperCase() + status.slice(1)) +
+            '</span>';
+          html += '</div>';
+          html += '</div>';
+        });
+        requestsContainer.innerHTML = html;
+      })
+      .catch(function () {
+        requestsSection.style.display = 'none';
+      });
   }
 
   suggestionsContainer.addEventListener('click', function (e) {
@@ -300,25 +288,9 @@ window.NibrasReact.run(function () {
             '<i class="fa-regular fa-circle-check"></i> Requested';
         }
 
-        try {
-          var existing = JSON.parse(
-            localStorage.getItem('mentorship_requests') || '[]',
-          );
-          existing.unshift({
-            mentorId: currentMentorId,
-            mentorName: mentorNameDisplay.textContent.replace(
-              'Send a message to ',
-              '',
-            ),
-            status: 'pending',
-            message: message,
-            createdAt: new Date().toISOString(),
-          });
-          localStorage.setItem('mentorship_requests', JSON.stringify(existing));
-        } catch (_) {}
-
         loadMyRequests();
         currentMentorId = null;
+        submitBtn.disabled = false;
         submitBtn.textContent = 'Send Request';
       })
       .catch(function (err) {
@@ -388,19 +360,6 @@ window.NibrasReact.run(function () {
     if (roleEl) roleEl.textContent = user.role?.name || user.role || 'student';
     var repEl = document.querySelector('.rep-badge');
     if (repEl) repEl.textContent = user.reputation || user.rep || 0;
-  } catch (_) {}
-
-  try {
-    var cached = JSON.parse(
-      localStorage.getItem('mentorship_requests') || '[]',
-    );
-    if (Array.isArray(cached)) {
-      cached.forEach(function (req) {
-        if (req.mentorId && requestedIds.indexOf(req.mentorId) === -1) {
-          requestedIds.push(req.mentorId);
-        }
-      });
-    }
   } catch (_) {}
 
   loadSuggestions();

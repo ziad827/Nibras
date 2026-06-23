@@ -1,0 +1,14 @@
+meta {
+  name: Mentor suggestions
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/mentorship/suggestions/me?limit=10
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

@@ -369,9 +369,21 @@ window.NibrasReact.run(() => {
   };
 
   const redirectToDashboard = () => {
+    const path = String(window.location.pathname || '').toLowerCase();
+    const isInstructorSignup = path.includes('signupinstructor');
+    if (isInstructorSignup) {
+      window.location.href = './signupInstructor/department/department.html';
+      return;
+    }
     try {
       var u = JSON.parse(localStorage.getItem('user'));
       var role = String(u?.role?.name || u?.role || '').toLowerCase();
+      var instructorStatus = String(u?.instructorStatus || '').toLowerCase();
+      if (instructorStatus === 'pending') {
+        window.location.href =
+          './signupInstructor/Pending%20Instructor/pending.html';
+        return;
+      }
       window.location.href =
         role === 'instructor'
           ? '../../Dashboard/instructor-dashboard.html'

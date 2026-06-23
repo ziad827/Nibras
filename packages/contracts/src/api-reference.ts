@@ -52,6 +52,7 @@ export type {
   GitHubInstallUrlResponse,
   GitHubInstallationCompleteRequest,
   GitHubInstallationCompleteResponse,
+  GitHubInstallationSyncResponse,
   GitHubRepositoryValidateRequest,
   GitHubRepositoryValidateResponse,
   // Projects
@@ -399,6 +400,17 @@ export namespace GitHub {
     githubAppInstalled: boolean;
     installationId: string;
     redirectTo: string;
+  }
+
+  /**
+   * POST /v1/github/installations/sync
+   * Discover and link an existing GitHub App installation for the signed-in user.
+   * @auth Required
+   * @response 200
+   */
+  export interface InstallationSyncResponse {
+    githubAppInstalled: boolean;
+    installationId?: string;
   }
 
   /**
@@ -2383,6 +2395,12 @@ export const API_ENDPOINTS = [
   {
     method: 'POST',
     path: '/v1/github/setup/complete',
+    auth: true,
+    tag: 'github',
+  },
+  {
+    method: 'POST',
+    path: '/v1/github/installations/sync',
     auth: true,
     tag: 'github',
   },

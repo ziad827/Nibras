@@ -291,6 +291,11 @@ model User {
   cpRoadmapSuggestionsReviewed CpRoadmapProblemSuggestion[] @relation("CpRoadmapSuggestionReviewer")
   socialLinks              UserSocialLink[]
   courseAnnouncements      CourseAnnouncement[]
+  instructorApplication    InstructorApplication?
+  mentorProfile            MentorProfile?
+  mentorshipRequestsSent   MentorshipRequest[] @relation("MentorshipMentee")
+  mentorshipRequestsReceived MentorshipRequest[] @relation("MentorshipMentor")
+  reviewedInstructorApplications InstructorApplication[] @relation("InstructorApplicationReviewer")
 
   @@index([systemRole])
   @@index([yearLevel])
@@ -2150,4 +2155,68 @@ model UserAiCredential {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum InstructorApplicationStatus {
+  pending
+  approved
+  rejected
+}
+
+model InstructorApplication {
+  id         String                      @id @default(cuid())
+  userId     String                      @unique
+  user       User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department String
+  status     InstructorApplicationStatus @default(pending)
+  reviewedBy String?
+  reviewer   User?                       @relation("InstructorApplicationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  reviewedAt DateTime?
+  createdAt  DateTime                    @default(now())
+  updatedAt  DateTime                    @updatedAt
+
+  @@index([status])
+}
+
+enum MentorProfileStatus {
+  pending
+  approved
+  rejected
+}
+
+model MentorProfile {
+  id           String              @id @default(cuid())
+  userId       String              @unique
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio          String?
+  expertise    String[]
+  availability String?
+  status       MentorProfileStatus @default(pending)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([status])
+}
+
+enum MentorshipRequestStatus {
+  pending
+  accepted
+  declined
+  cancelled
+}
+
+model MentorshipRequest {
+  id        String                  @id @default(cuid())
+  menteeId  String
+  mentorId  String
+  message   String
+  status    MentorshipRequestStatus   @default(pending)
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  mentee    User                    @relation("MentorshipMentee", fields: [menteeId], references: [id], onDelete: Cascade)
+  mentor    User                    @relation("MentorshipMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+
+  @@unique([menteeId, mentorId])
+  @@index([menteeId])
+  @@index([mentorId])
 }

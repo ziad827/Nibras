@@ -33,6 +33,7 @@ import { registerCourseGradesRoutes } from './features/tracking/course-grades';
 import { registerAdminRoutes } from './features/admin/routes';
 import { registerNotificationRoutes } from './features/notifications/routes';
 import { registerProgramRoutes } from './features/programs/routes';
+import { registerLevelRoutes } from './features/levels/routes';
 import { registerCommunityRoutes } from './features/community/routes';
 import { registerInternalTutorRoutes } from './features/internal/tutor-routes';
 import { registerGamificationRoutes } from './features/gamification/routes';
@@ -47,6 +48,8 @@ import { registerUserRoutes } from './features/users/routes';
 import { registerProjectAnalyticsRoutes } from './features/tracking/project-analytics';
 import { registerAiRoutes } from './features/ai/routes';
 import { registerAdminAuthRoutes } from './features/admin-auth/routes';
+import { registerInstructorApplicationRoutes } from './features/instructor-applications/routes';
+import { registerMentorshipRoutes } from './features/mentorship/routes';
 
 function normalizeOrigin(value: string | undefined): string | null {
   if (!value) {
@@ -436,6 +439,7 @@ export function buildApp(
     registerCourseGradesRoutes(app, store, prisma);
   }
   registerProgramRoutes(app, store);
+  registerLevelRoutes(app, store);
   registerAdminRoutes(
     app,
     store,
@@ -446,6 +450,8 @@ export function buildApp(
     const prisma = getSharedPrisma();
     registerPlatformFeatureGateHook(app, prisma);
     registerAdminAuthRoutes(app, store, prisma);
+    registerInstructorApplicationRoutes(app, store, prisma);
+    registerMentorshipRoutes(app, store, prisma);
     registerCommunityRoutes(app, store, prisma);
     registerInternalTutorRoutes(app, prisma);
     registerAiCredentialRoutes(app, store, prisma);

@@ -137,6 +137,20 @@ export function registerAdminAuthRoutes(
     await storeOtp(prisma, 'signup', email, otp);
     await deliverOtpEmail(email, otp, 'signup');
 
+    if (body.role === 'instructor') {
+      await prisma.instructorApplication.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          department: 'Pending',
+          status: 'pending',
+        },
+        update: {
+          status: 'pending',
+        },
+      });
+    }
+
     return reply.code(201).send({
       message:
         'Registration successful. Enter the OTP sent to your email. If you do not see it, check Spam/Promotions.',

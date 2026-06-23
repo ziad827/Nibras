@@ -6,6 +6,7 @@ import { apiRequest, readCliConfig, writeCliConfig } from '@nibras/core';
 import { createSpinner } from '../ui/spinner';
 import { printBox } from '../ui/box';
 import { tryOpenBrowser } from './login-browser';
+import { ensureGitHubAppInstalled } from './login-github-app';
 import { parseOption, hasFlag } from '../util/args';
 
 function sleep(ms: number): Promise<void> {
@@ -66,14 +67,26 @@ export async function commandLogin(
       });
 
       spinner.succeed('Authorized');
+
+      let githubAppInstalled = polled.user.githubAppInstalled;
+      if (!hasFlag(args, '--skip-app-install') && !githubAppInstalled) {
+        const installResult = await ensureGitHubAppInstalled(
+          apiBaseUrl,
+          plain,
+          hasFlag(args, '--no-open'),
+        );
+        githubAppInstalled = installResult.githubAppInstalled;
+      }
+
       printBox(
         `Authenticated as ${polled.user.username}`,
         [
-          `User:    ${polled.user.username}`,
-          `GitHub:  ${polled.user.githubLogin}`,
-          `API:     ${apiBaseUrl}`,
+          `User:         ${polled.user.username}`,
+          `GitHub:       ${polled.user.githubLogin}`,
+          `GitHub App:   ${githubAppInstalled ? 'installed' : 'not installed'}`,
+          `API:          ${apiBaseUrl}`,
         ],
-        'success',
+        githubAppInstalled ? 'success' : 'warning',
         plain,
       );
       return;
