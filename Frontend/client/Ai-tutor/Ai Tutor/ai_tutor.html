@@ -113,6 +113,7 @@
                         <!-- Initial State -->
                         <div class="input-actions" id="initial-actions">
                             <button class="btn-ask" id="ask-ai-btn" type="button"><i class="fa-solid fa-paper-plane"></i> Ask AI Tutor</button>
+                            <button class="btn-hint" id="new-chat-btn" type="button" style="display: none;"><i class="fa-solid fa-plus"></i> New Chat</button>
                         </div>
 
                         <!-- Dynamic AI Interaction Area -->
@@ -152,6 +153,9 @@
                             <!-- Where full answer is displayed -->
                             <div id="full-answer-container" dir="auto" style="display: none; background-color: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.2); padding: 20px; border-radius: 8px; line-height: 1.6;">
                             </div>
+
+                            <div id="citations-container" style="display: none; margin-top: 12px;"></div>
+                            <div id="follow-ups-container" style="display: none; margin-top: 12px;"></div>
                             
                             <!-- Community Match Banner (inside full answer) -->
                             <div id="community-match-banner-full" class="community-match-banner community-match-banner-inline" dir="auto" style="display: none; margin-top: 16px;">

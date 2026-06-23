@@ -1339,7 +1339,7 @@ export function registerCommunityRoutes(
 
   // ── Chatbot ─────────────────────────────────────────────────────────────
 
-  const CHATBOT_V1_URL = process.env.CHATBOT_V1_URL || 'https://web-production-b343c.up.railway.app/api/ask';
+  const CHATBOT_V1_URL = process.env.CHATBOT_V1_URL || '';
 
   let tutorHealthCache: { at: number; byokOnly: boolean } | null = null;
 

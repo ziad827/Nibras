@@ -1457,12 +1457,33 @@
     return `${normalized}\n\n${AI_TUTOR_MARKER}`;
   };
 
+  const normalizeAskResponse = (payload) => {
+    const raw = unwrapApiData(payload) || payload || {};
+    const answer = String(raw.answer ?? raw.finalAnswer ?? '').trim();
+    const refused = Boolean(raw.refused);
+    return {
+      answer,
+      finalAnswer: answer,
+      hints: Array.isArray(raw.hints) ? raw.hints : [],
+      tags: Array.isArray(raw.tags) ? raw.tags : [],
+      followUps: Array.isArray(raw.followUps) ? raw.followUps : [],
+      communityQuestionId: raw.communityQuestionId ?? null,
+      communityQuestion: raw.communityQuestion ?? null,
+      matchScore: raw.matchScore ?? null,
+      citations: Array.isArray(raw.citations) ? raw.citations : [],
+      xai: raw.xai ?? null,
+      refused,
+      persistenceWarning: raw.persistenceWarning ?? null,
+    };
+  };
+
   const normalizePublishPayload = (data = {}) => {
     const title = String(data?.title || '').trim();
     const question = String(data?.question || '').trim();
-    const finalAnswer = withAiTutorMarker(
-      String(data?.finalAnswer || '').trim(),
-    );
+    const answerText = String(
+      data?.finalAnswer != null ? data.finalAnswer : data?.answer || '',
+    ).trim();
+    const answer = withAiTutorMarker(answerText);
     const tags = Array.from(
       new Set(
         (Array.isArray(data?.tags) ? data.tags : [])
@@ -1471,28 +1492,210 @@
       ),
     );
 
-    return { title, question, finalAnswer, tags };
+    return { title, question, answer, tags };
   };
 
   const chatbotService = {
+    normalizeAskResponse,
+
+    async getConfig() {
+      return apiFetch('/v1/community/chatbot/config', {
+        service: 'legacyCommunity',
+        method: 'GET',
+        auth: false,
+      });
+    },
+
     /**
      * Ask the AI chatbot a question
-     * @param {string} question - The question text (10-500 chars)
-     * @returns {Promise<{question: string, hints: Array, tags: Array, finalAnswer: string}>}
+     * @param {string} question
+     * @param {object} [options] - { history?, conversationId?, context? }
      */
-    async ask(question) {
-      return apiFetch('/v1/community/chatbot/ask', {
+    async ask(question, options = {}) {
+      const body = { question };
+      if (Array.isArray(options.history) && options.history.length) {
+        body.history = options.history;
+      }
+      if (options.conversationId) body.conversationId = options.conversationId;
+      if (options.context) body.context = options.context;
+      const payload = await apiFetch('/v1/community/chatbot/ask', {
         service: 'legacyCommunity',
         method: 'POST',
         auth: true,
-        body: { question },
+        body,
       });
+      return normalizeAskResponse(payload);
+    },
+
+    /**
+     * Stream an AI tutor answer (SSE). Falls back to non-streaming ask on failure.
+     * @param {string} question
+     * @param {object} options - { history?, conversationId?, context?, onToken?, onDone?, onError? }
+     */
+    async askStream(question, options = {}) {
+      const baseUrl = resolveServiceUrl('legacyCommunity');
+      const url = joinUrl(baseUrl, '/v1/community/chatbot/ask/stream');
+      const body = { question };
+      if (Array.isArray(options.history) && options.history.length) {
+        body.history = options.history;
+      }
+      if (options.conversationId) body.conversationId = options.conversationId;
+      if (options.context) body.context = options.context;
+
+      const headers = buildAuthHeaders({ 'Content-Type': 'application/json' });
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok || !response.body) {
+        return chatbotService.ask(question, options);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullAnswer = '';
+      let citations = [];
+
+      const parseEvent = (line) => {
+        if (!line.startsWith('data: ')) return null;
+        try {
+          return JSON.parse(line.slice(6));
+        } catch (_) {
+          return null;
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (let i = 0; i < lines.length; i += 1) {
+          const evt = parseEvent(lines[i].trim());
+          if (!evt) continue;
+          if (evt.type === 'token' && evt.content) {
+            fullAnswer += evt.content;
+            if (typeof options.onToken === 'function') {
+              options.onToken(evt.content, fullAnswer);
+            }
+          } else if (evt.type === 'done') {
+            fullAnswer = String(evt.answer || fullAnswer).trim();
+            citations = Array.isArray(evt.citations) ? evt.citations : [];
+            if (typeof options.onDone === 'function') {
+              options.onDone({ answer: fullAnswer, citations });
+            }
+          } else if (evt.type === 'error') {
+            if (typeof options.onError === 'function') {
+              options.onError(new Error(evt.message || 'Stream failed'));
+            }
+            return chatbotService.ask(question, options);
+          }
+        }
+      }
+
+      return normalizeAskResponse({
+        answer: fullAnswer,
+        hints: [],
+        tags: [],
+        followUps: [],
+        citations,
+        refused: false,
+      });
+    },
+
+    async explainTerm({ term, context = '', conversationId = null } = {}) {
+      const body = { term, context };
+      if (conversationId) body.conversationId = conversationId;
+      return apiFetch('/v1/community/chatbot/explain', {
+        service: 'legacyCommunity',
+        method: 'POST',
+        auth: true,
+        body,
+      });
+    },
+
+    async getInsights() {
+      return apiFetch('/v1/community/chatbot/insights', {
+        service: 'legacyCommunity',
+        method: 'GET',
+        auth: true,
+      });
+    },
+
+    async getRouting(goal) {
+      return apiFetch('/v1/community/chatbot/routing', {
+        service: 'legacyCommunity',
+        method: 'POST',
+        auth: true,
+        body: { goal },
+      });
+    },
+
+    async listConversations({ page = 1, limit = 30 } = {}) {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      });
+      return apiFetch(`/v1/tutor/conversations?${params}`, {
+        service: 'legacyCommunity',
+        method: 'GET',
+        auth: true,
+      });
+    },
+
+    async createConversation(title = 'New conversation') {
+      return apiFetch('/v1/tutor/conversations', {
+        service: 'legacyCommunity',
+        method: 'POST',
+        auth: true,
+        body: { title },
+      });
+    },
+
+    async getConversation(id) {
+      return apiFetch(`/v1/tutor/conversations/${encodeURIComponent(id)}`, {
+        service: 'legacyCommunity',
+        method: 'GET',
+        auth: true,
+      });
+    },
+
+    async deleteConversation(id) {
+      return apiFetch(`/v1/tutor/conversations/${encodeURIComponent(id)}`, {
+        service: 'legacyCommunity',
+        method: 'DELETE',
+        auth: true,
+      });
+    },
+
+    async renameConversation(id, title) {
+      return apiFetch(`/v1/tutor/conversations/${encodeURIComponent(id)}`, {
+        service: 'legacyCommunity',
+        method: 'PATCH',
+        auth: true,
+        body: { title },
+      });
+    },
+
+    async rateMessage(messageId, { rating, comment } = {}) {
+      return apiFetch(
+        `/v1/tutor/messages/${encodeURIComponent(messageId)}/feedback`,
+        {
+          service: 'legacyCommunity',
+          method: 'POST',
+          auth: true,
+          body: { rating, comment },
+        },
+      );
     },
 
     /**
      * Publish a chatbot answer as a community question
      * @param {object} data - { title, question, finalAnswer, tags? }
-     * @returns {Promise<object>}
      */
     async publish(data) {
       const payload = normalizePublishPayload(data);
@@ -1515,7 +1718,7 @@
         if (!questionId) throw error;
 
         const answerPayload = await answerService.create(questionId, {
-          body: payload.finalAnswer,
+          body: payload.answer,
           isFromAI: true,
         });
 

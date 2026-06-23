@@ -1,162 +1,164 @@
 window.NibrasReact.run(() => {
-  // --- 1. SIDEBAR LOGIC ---
-  const navLinks = document.querySelectorAll('.nav-link');
-  navLinks.forEach((link) => {
-    link.addEventListener('click', (e) => {
-      navLinks.forEach((n) => n.classList.remove('active'));
+  const escapeHtml = (value) =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const statsContainer = document.getElementById('stats-container');
+  const strContainer = document.getElementById('strength-container');
+  const weakContainer = document.getElementById('weakness-container');
+  const actionsContainer = document.getElementById('actions-container');
+  const assessContainer = document.getElementById('assessment-container');
+
+  const pctClass = (pct) => {
+    if (pct >= 70) return { cls: 'pct-green', color: '#4ade80' };
+    if (pct >= 40) return { cls: 'pct-yellow', color: '#facc15' };
+    return { cls: 'pct-red', color: '#f87171' };
+  };
+
+  const tagToPct = (count, maxCount) => {
+    if (!maxCount) return 0;
+    return Math.round((count / maxCount) * 100);
+  };
+
+  const renderBarRows = (container, titleText, items) => {
+    if (!container) return;
+    const title = container.querySelector('.insights-card-title');
+    container.innerHTML = '';
+    if (title) container.appendChild(title);
+    if (!items.length) {
+      container.innerHTML += `<p style="color:var(--text-secondary);font-size:0.9rem;padding:8px 0;">No data yet.</p>`;
+      return;
+    }
+    items.forEach((item) => {
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML = `
+        <div class="bar-top">
+          <span class="bar-name">${escapeHtml(item.label)}</span>
+          <span class="bar-pct ${item.cls}">${item.pct}%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${item.pct}%;background:${item.color}"></div>
+        </div>`;
+      container.appendChild(row);
+    });
+  };
+
+  const renderInsights = (payload) => {
+    const metrics = payload?.hardMetrics || {};
+    const summary = payload?.aiSummary || {};
+    const topTags = Array.isArray(metrics.topTags) ? metrics.topTags : [];
+    const maxCount = topTags.reduce((m, t) => Math.max(m, t.count || 0), 0);
+
+    if (statsContainer) {
+      const total = Number(metrics.totalQuestions) || 0;
+      const streak = Number(metrics.streakDays) || 0;
+      const topics = topTags.length;
+      statsContainer.innerHTML = '';
+      [
+        { label: 'Total questions', val: String(total), sub: 'across all topics' },
+        { label: 'Streak', val: `${streak} days`, sub: streak > 0 ? 'keep it up' : 'ask to start' },
+        { label: 'Topics covered', val: String(topics), sub: 'from tutor tags' },
+      ].forEach((stat) => {
+        statsContainer.innerHTML += `
+          <div class="stat-card">
+            <div class="stat-label">${escapeHtml(stat.label)}</div>
+            <div class="stat-val">${escapeHtml(stat.val)}</div>
+            <div class="stat-sub">${escapeHtml(stat.sub)}</div>
+          </div>`;
+      });
+    }
+
+    const strengthLabels = Array.isArray(summary.strengths)
+      ? summary.strengths
+      : topTags.slice(0, 5).map((t) => t.tag);
+    const weaknessLabels = Array.isArray(summary.weaknesses) ? summary.weaknesses : [];
+
+    const strengths = strengthLabels.map((label, i) => {
+      const tag = topTags.find((t) => t.tag === label);
+      const count = tag?.count || topTags[i]?.count || 1;
+      const pct = tagToPct(count, maxCount) || 80 - i * 10;
+      const style = pctClass(pct);
+      return { label, pct, ...style };
+    });
+
+    const weaknesses = weaknessLabels.map((label, i) => {
+      const pct = Math.max(15, 45 - i * 8);
+      const style = pctClass(pct);
+      return { label, pct, ...style };
+    });
+
+    renderBarRows(strContainer, 'Strengths', strengths);
+    renderBarRows(weakContainer, 'Weaknesses — gaps', weaknesses);
+
+    if (actionsContainer) {
+      const actionsTitle = actionsContainer.querySelector('.insights-card-title');
+      actionsContainer.innerHTML = '';
+      if (actionsTitle) actionsContainer.appendChild(actionsTitle);
+      const actions = Array.isArray(summary.nextActions) ? summary.nextActions : [];
+      if (!actions.length) {
+        actionsContainer.innerHTML +=
+          '<p style="color:var(--text-secondary);font-size:0.9rem;">Ask the AI Tutor to build your learning profile.</p>';
+      } else {
+        actions.forEach((text, idx) => {
+          actionsContainer.innerHTML += `
+            <div class="action-row">
+              <div class="action-num">${idx + 1}</div>
+              <div class="action-text">${escapeHtml(text)}</div>
+            </div>`;
+        });
+      }
+    }
+
+    if (assessContainer) {
+      const assessTitle = assessContainer.querySelector('.insights-card-title');
+      assessContainer.innerHTML = '';
+      if (assessTitle) assessContainer.appendChild(assessTitle);
+      assessContainer.innerHTML += `
+        <div class="assessment-text">${escapeHtml(
+          summary.overallAssessment ||
+            'Not enough data yet. Keep asking questions in the AI Tutor!',
+        )}</div>`;
+    }
+  };
+
+  const renderError = (message) => {
+    if (statsContainer) {
+      statsContainer.innerHTML = `<p style="color:#ef4444;padding:12px;">${escapeHtml(message)}</p>`;
+    }
+  };
+
+  const loadInsights = async () => {
+    const svc = window.NibrasServices?.chatbotService;
+    if (!svc?.getInsights) {
+      renderError('Insights service unavailable.');
+      return;
+    }
+    try {
+      const payload = await svc.getInsights();
+      renderInsights(payload);
+    } catch (err) {
+      renderError(err?.message || 'Failed to load insights.');
+    }
+  };
+
+  document.querySelectorAll('.nav-link').forEach((link) => {
+    link.addEventListener('click', () => {
+      document.querySelectorAll('.nav-link').forEach((n) => n.classList.remove('active'));
       link.classList.add('active');
     });
   });
 
-  // --- 2. INSIGHTS DATA ---
-  const insightsData = {
-    stats: [
-      { label: 'Total questions', val: '25', sub: 'across all topics' },
-      { label: 'Streak', val: '7 days', sub: 'keep it up' },
-      { label: 'Topics covered', val: '5', sub: 'out of 24 tracks' },
-    ],
-    strengths: [
-      { label: 'Algorithms', pct: 90, color: '#4ade80', cls: 'pct-green' },
-      { label: 'Data Structures', pct: 80, color: '#4ade80', cls: 'pct-green' },
-      {
-        label: 'Operating Systems',
-        pct: 70,
-        color: '#4ade80',
-        cls: 'pct-green',
-      },
-      { label: 'Security', pct: 60, color: '#facc15', cls: 'pct-yellow' },
-      {
-        label: 'Machine Learning',
-        pct: 50,
-        color: '#facc15',
-        cls: 'pct-yellow',
-      },
-    ],
-    weaknesses: [
-      { label: 'Networking', pct: 20, color: '#f87171', cls: 'pct-red' },
-      { label: 'Databases', pct: 20, color: '#f87171', cls: 'pct-red' },
-      {
-        label: 'Software Engineering',
-        pct: 30,
-        color: '#f87171',
-        cls: 'pct-red',
-      },
-      { label: 'Web Development', pct: 30, color: '#f87171', cls: 'pct-red' },
-      {
-        label: 'Theory of Computation',
-        pct: 40,
-        color: '#facc15',
-        cls: 'pct-yellow',
-      },
-    ],
-    actions: [
-      {
-        num: 1,
-        text: 'Explore foundational concepts in networking to strengthen understanding of system communications.',
-      },
-      {
-        num: 2,
-        text: 'Engage with database management topics to enhance data handling skills.',
-      },
-      {
-        num: 3,
-        text: 'Practice software engineering principles through project-based learning.',
-      },
-    ],
-    assessment:
-      'The student shows strong engagement in algorithms and data structures, indicating a solid foundation in core computer science concepts. However, there are notable gaps in networking and databases that should be addressed to ensure a well-rounded skill set.',
-  };
-
-  // --- 3. RENDER UI ---
-
-  // Stats cards
-  const statsContainer = document.getElementById('stats-container');
-  statsContainer.innerHTML = '';
-  insightsData.stats.forEach((stat) => {
-    statsContainer.innerHTML += `
-            <div class="stat-card">
-                <div class="stat-label">${stat.label}</div>
-                <div class="stat-val">${stat.val}</div>
-                <div class="stat-sub">${stat.sub}</div>
-            </div>
-        `;
-  });
-
-  // Strengths
-  const strContainer = document.getElementById('strength-container');
-  const strTitle = strContainer.querySelector('.insights-card-title');
-  strContainer.innerHTML = '';
-  strContainer.appendChild(strTitle);
-  insightsData.strengths.forEach((item) => {
-    const row = document.createElement('div');
-    row.className = 'bar-row';
-    row.innerHTML = `
-            <div class="bar-top">
-                <span class="bar-name">${item.label}</span>
-                <span class="bar-pct ${item.cls}">${item.pct}%</span>
-            </div>
-            <div class="bar-track">
-                <div class="bar-fill" style="width:${item.pct}%;background:${item.color}"></div>
-            </div>
-        `;
-    strContainer.appendChild(row);
-  });
-
-  // Weaknesses
-  const weakContainer = document.getElementById('weakness-container');
-  const weakTitle = weakContainer.querySelector('.insights-card-title');
-  weakContainer.innerHTML = '';
-  weakContainer.appendChild(weakTitle);
-  insightsData.weaknesses.forEach((item) => {
-    const row = document.createElement('div');
-    row.className = 'bar-row';
-    row.innerHTML = `
-            <div class="bar-top">
-                <span class="bar-name">${item.label}</span>
-                <span class="bar-pct ${item.cls}">${item.pct}%</span>
-            </div>
-            <div class="bar-track">
-                <div class="bar-fill" style="width:${item.pct}%;background:${item.color}"></div>
-            </div>
-        `;
-    weakContainer.appendChild(row);
-  });
-
-  // Next actions
-  const actionsContainer = document.getElementById('actions-container');
-  const actionsTitle = actionsContainer.querySelector('.insights-card-title');
-  actionsContainer.innerHTML = '';
-  actionsContainer.appendChild(actionsTitle);
-  insightsData.actions.forEach((item) => {
-    actionsContainer.innerHTML += `
-            <div class="action-row">
-                <div class="action-num">${item.num}</div>
-                <div class="action-text">${item.text}</div>
-            </div>
-        `;
-  });
-
-  // Overall assessment
-  const assessContainer = document.getElementById('assessment-container');
-  const assessTitle = assessContainer.querySelector('.insights-card-title');
-  assessContainer.innerHTML = '';
-  assessContainer.appendChild(assessTitle);
-  assessContainer.innerHTML += `
-        <div class="assessment-text">${insightsData.assessment}</div>
-    `;
-
-  // --- 4. THEME TOGGLE & LOGO SWAP ---
   const themeBtn = document.getElementById('themeBtn');
-  const themeIcon = themeBtn ? themeBtn.querySelector('i') : null;
+  const themeIcon = themeBtn?.querySelector('i');
   const appLogo = document.getElementById('app-logo');
-
   const savedTheme = localStorage.getItem('theme');
-  if (savedTheme) {
-    document.documentElement.setAttribute('data-theme', savedTheme);
-  }
-
-  const currentTheme =
-    document.documentElement.getAttribute('data-theme') || 'light';
+  if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
   if (currentTheme === 'dark') {
     if (themeIcon) themeIcon.className = 'fa-solid fa-sun';
     if (appLogo) appLogo.src = '/Assets/images/logo-dark.png';
@@ -164,39 +166,28 @@ window.NibrasReact.run(() => {
     if (themeIcon) themeIcon.className = 'fa-solid fa-moon';
     if (appLogo) appLogo.src = '/Assets/images/logo-light.png';
   }
+  themeBtn?.addEventListener('click', () => {
+    const html = document.documentElement;
+    const next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    if (themeIcon) {
+      themeIcon.className = next === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+    }
+    if (appLogo) {
+      appLogo.src =
+        next === 'dark'
+          ? '/Assets/images/logo-dark.png'
+          : '/Assets/images/logo-light.png';
+    }
+  });
 
-  if (themeBtn) {
-    themeBtn.addEventListener('click', () => {
-      themeBtn.classList.remove('rotating');
-      void themeBtn.offsetWidth;
-      themeBtn.classList.add('rotating');
-      setTimeout(() => themeBtn.classList.remove('rotating'), 400);
-      const html = document.documentElement;
-      const current = html.getAttribute('data-theme');
-      const newTheme = current === 'light' ? 'dark' : 'light';
-
-      html.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
-
-      if (themeIcon) {
-        themeIcon.className =
-          newTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-      }
-      if (appLogo) {
-        appLogo.src =
-          newTheme === 'dark'
-            ? '/Assets/images/logo-dark.png'
-            : '/Assets/images/logo-light.png';
-      }
-    });
-  }
-
-  // --- 5. TAB LOGIC ---
-  const aiTabs = document.querySelectorAll('.ai-tab');
-  aiTabs.forEach((tab) => {
+  document.querySelectorAll('.ai-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
-      aiTabs.forEach((t) => t.classList.remove('active'));
+      document.querySelectorAll('.ai-tab').forEach((t) => t.classList.remove('active'));
       tab.classList.add('active');
     });
   });
+
+  loadInsights();
 });
