@@ -1,5 +1,34 @@
 var plannerState = { placements: {} };
 
+function plannerStorageKey() {
+  try {
+    var u = JSON.parse(localStorage.getItem('user') || '{}');
+    return 'nibras_planner_' + (u._id || u.id || 'guest');
+  } catch (_) {
+    return 'nibras_planner_guest';
+  }
+}
+
+function savePlannerState() {
+  try {
+    localStorage.setItem(
+      plannerStorageKey(),
+      JSON.stringify(plannerState.placements || {}),
+    );
+  } catch (_) {}
+}
+
+function loadPlannerState() {
+  try {
+    var raw = localStorage.getItem(plannerStorageKey());
+    if (!raw) return;
+    var parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      plannerState.placements = parsed;
+    }
+  } catch (_) {}
+}
+
 function updateSidebarUser() {
   try {
     var u = JSON.parse(localStorage.getItem('user'));
@@ -68,6 +97,9 @@ window.NibrasReact.run(function () {
   initPaletteDrag();
   initCellDrop();
   initEnrollButton();
+  loadPlannerState();
+  renderCellContents();
+  updateUnitCounts();
 });
 
 function initPaletteDrag() {
@@ -109,6 +141,7 @@ function initCellDrop() {
       removeFromPalette(courseName);
       renderCellContents();
       updateUnitCounts();
+      savePlannerState();
     });
   });
 }
@@ -206,6 +239,7 @@ function renderCellContents() {
       }
       renderCellContents();
       updateUnitCounts();
+      savePlannerState();
     });
   });
 }
@@ -218,6 +252,7 @@ function removeFromCell(key, course) {
     restoreToPalette(course);
     renderCellContents();
     updateUnitCounts();
+    savePlannerState();
   }
 }
 

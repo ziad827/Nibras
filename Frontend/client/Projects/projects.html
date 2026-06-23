@@ -13,6 +13,7 @@
     })();
     </script>
     <link rel="stylesheet" href="projects.css">
+    <link rel="stylesheet" href="../Courses/Projects/Projects.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -94,6 +95,11 @@
                         <div class="stat-item"><strong id="stat-completed">0</strong><span>COMPLETED</span></div>
                         <div class="stat-item accent"><strong id="stat-complete">0%</strong><span>COMPLETE</span></div>
                     </div>
+                    <div class="header-counters" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+                        <span class="status-badge badge-graded" data-counter="approved">Approved: 0</span>
+                        <span class="status-badge badge-submitted" data-counter="in_review">In Review: 0</span>
+                        <span class="status-badge badge-default" data-counter="complete">Complete: 0</span>
+                    </div>
                 </div>
             </section>
 
@@ -112,69 +118,30 @@
                 </div>
             </div>
 
+            <div id="projects-api-notice" role="status" aria-live="polite" hidden style="margin: 12px 0 18px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-secondary); color: var(--text-secondary); font-size: 13px;"></div>
+
+            <div class="context-tabs" id="projects-context-tabs" style="display:none">
+                <button class="context-tab active" type="button" aria-pressed="true" onclick="switchView('my-projects-view', event)">My Projects</button>
+                <button class="context-tab" type="button" aria-pressed="false" onclick="switchView('group-view', event)">Group Workspace</button>
+            </div>
+
             <!-- MAIN GRID LAYOUT -->
             <div class="project-grid" id="project-grid" style="display:none">
                 <!-- LEFT COLUMN -->
                 <div class="grid-left">
-                    <!-- Intro Card -->
-                    <div class="project-card" id="intro-card">
-                        <span class="badge-published" id="project-badge">—</span>
-                        <p class="project-desc" id="project-desc">Choose a course to view project details and milestones.</p>
-                        <div class="project-meta" id="project-meta">
-                            <span class="meta-pill">WEIGHT <strong id="meta-weight">—</strong></span>
-                            <span class="meta-pill">TYPE <strong id="meta-type">—</strong></span>
-                        </div>
-                    </div>
-
-                    <!-- Milestones -->
-                    <div class="milestones-section">
-                        <div class="section-title">
-                            <h3>Milestones</h3>
-                            <span class="count-text" id="milestone-count">0 / 0 complete</span>
-                        </div>
-                        <div class="milestone-list" id="milestone-list">
-                            <div class="skeleton-milestone">
-                                <div class="skeleton skeleton-circle"></div>
-                                <div class="skeleton-lines">
-                                    <div class="skeleton" style="width: 60%; height: 16px;"></div>
-                                    <div class="skeleton" style="width: 40%; height: 12px;"></div>
-                                </div>
+                    <section class="view-section active" id="my-projects-view">
+                        <div class="project-tabs-list" id="projectListTabs"></div>
+                        <div id="projectDetailsHost"></div>
+                    </section>
+                    <section class="view-section" id="group-view">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Group Workspace</div>
                             </div>
-                            <div class="skeleton-milestone">
-                                <div class="skeleton skeleton-circle"></div>
-                                <div class="skeleton-lines">
-                                    <div class="skeleton" style="width: 55%; height: 16px;"></div>
-                                    <div class="skeleton" style="width: 35%; height: 12px;"></div>
-                                </div>
-                            </div>
-                            <div class="skeleton-milestone">
-                                <div class="skeleton skeleton-circle"></div>
-                                <div class="skeleton-lines">
-                                    <div class="skeleton" style="width: 65%; height: 16px;"></div>
-                                    <div class="skeleton" style="width: 45%; height: 12px;"></div>
-                                </div>
-                            </div>
-                            <div class="skeleton-milestone">
-                                <div class="skeleton skeleton-circle"></div>
-                                <div class="skeleton-lines">
-                                    <div class="skeleton" style="width: 50%; height: 16px;"></div>
-                                    <div class="skeleton" style="width: 30%; height: 12px;"></div>
-                                </div>
-                            </div>
+                            <p id="group-readonly-notice" class="section-desc" style="margin: 0 0 14px; font-size: 13px; color: var(--text-secondary);">View your team roster and collaboration status.</p>
+                            <div id="group-workspace-body"></div>
                         </div>
-                    </div>
-
-                    <!-- Final Submission -->
-                    <div class="project-card final-submission">
-                        <div class="card-header-row">
-                            <h3>Final Submission</h3>
-                            <span class="status-open" id="final-status">Open</span>
-                        </div>
-                        <p id="final-desc">Submit your final project for grading. Provide your GitHub repository link below.</p>
-                        <button class="btn-submit-gradient" onclick="openSubmissionModal()">
-                            <i class="fas fa-upload"></i> Submit Final Project
-                        </button>
-                    </div>
+                    </section>
                 </div>
 
                 <!-- RIGHT COLUMN -->
@@ -382,14 +349,19 @@
         </div>
     </div>
 
-    <!-- Submission Modal -->
-    <div class="modal-overlay" id="submissionModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <!-- Submit Milestone Modal (1.4) -->
+    <div class="modal-overlay" id="submissionModal" role="dialog" aria-modal="true" aria-labelledby="submission-modal-title" aria-hidden="true">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Submit Final Project</h2>
-                <button class="close-btn" onclick="closeSubmissionModal()" type="button">&times;</button>
+                <h2 id="submission-modal-title">Submit Milestone</h2>
+                <button class="close-btn" onclick="closeModal('submissionModal')" type="button" aria-label="Close submit milestone modal">&times;</button>
             </div>
-            <form id="finalSubmitForm">
+            
+            <form id="milestoneSubmitForm">
+                <input type="hidden" name="project_id" id="modal_project_id" value="">
+                <input type="hidden" name="milestone_id" id="modal_milestone_id" value="">
+                <input type="hidden" name="project_key" id="modal_project_key" value="">
+
                 <div id="milestone-form-content">
                     <div class="form-group">
                         <label for="submission_type">Submission Type</label>
@@ -399,23 +371,480 @@
                             <option value="text">Text</option>
                         </select>
                     </div>
+
                     <div class="form-group">
-                        <label for="resource_link">URL / Repo / Text</label>
+                        <label for="resource_link">Submission Value (URL / Repo / Text)</label>
                         <input type="text" name="resource_link" id="resource_link" placeholder="https://github.com/..." required>
                     </div>
+
                     <div class="form-group">
                         <label for="notes">Notes to Reviewer (Optional)</label>
                         <textarea name="notes" id="notes" rows="4" placeholder="Any specific areas you want feedback on?"></textarea>
                     </div>
+
+                    <div class="form-group">
+                        <label for="submission_branch">Branch (Optional, for hosted preflight)</label>
+                        <input type="text" name="submission_branch" id="submission_branch" value="main" placeholder="main">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="submission_commit_sha">Commit SHA (Optional, for hosted preflight)</label>
+                        <input type="text" name="submission_commit_sha" id="submission_commit_sha" placeholder="e.g. 8f3c7d2">
+                    </div>
                 </div>
+
+                <!-- Pulse Tracker inside Modal -->
+                <div id="modal-pulse-tracker" style="display: none; padding: 1rem 0;">
+                    <div class="pulse-steps">
+                        <div class="pulse-step" id="step-init">
+                            <div class="step-icon"><i class="fa-solid fa-terminal"></i></div>
+                            <div class="step-text">
+                                <span class="step-title">Initializing Pipeline</span>
+                                <span class="step-desc">Preparing environment...</span>
+                            </div>
+                        </div>
+                        <div class="pulse-step" id="step-clone">
+                            <div class="step-icon"><i class="fa-solid fa-code-branch"></i></div>
+                            <div class="step-text">
+                                <span class="step-title">Cloning Repository</span>
+                                <span class="step-desc">Fetching code...</span>
+                            </div>
+                        </div>
+                        <div class="pulse-step" id="step-verify">
+                            <div class="step-icon"><i class="fa-solid fa-circle-check"></i></div>
+                            <div class="step-text">
+                                <span class="step-title">Verifying Commit</span>
+                                <span class="step-desc">Checking commit signature...</span>
+                            </div>
+                        </div>
+                        <div class="pulse-step" id="step-test">
+                            <div class="step-icon"><i class="fa-solid fa-flask"></i></div>
+                            <div class="step-text">
+                                <span class="step-title">Running Tests</span>
+                                <span class="step-desc">Executing automated checks...</span>
+                            </div>
+                        </div>
+                        <div class="pulse-step" id="step-grade">
+                            <div class="step-icon"><i class="fa-solid fa-brain"></i></div>
+                            <div class="step-text">
+                                <span class="step-title">AI Analysis</span>
+                                <span class="step-desc">Reviewing logic & reasoning...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Result details shown after completion -->
+                    <div class="pulse-result-details" id="pulse-result-details">
+                        <div class="pulse-result-row">
+                            <span class="pulse-result-label">Status</span>
+                            <span class="pulse-result-value" id="pulse-result-status">Completed</span>
+                        </div>
+                        <div class="pulse-result-row">
+                            <span class="pulse-result-label">Grade</span>
+                            <span class="pulse-result-value" id="pulse-result-grade">—</span>
+                        </div>
+                        <div class="pulse-result-row">
+                            <span class="pulse-result-label">Time Elapsed</span>
+                            <span class="pulse-result-value" id="pulse-result-time">—</span>
+                        </div>
+                        <div class="pulse-result-tests" id="pulse-result-tests"></div>
+                    </div>
+
+                    <button type="button" id="btn-retry-submission" class="btn btn-outline pulse-retry-btn" onclick="retrySubmission()">
+                        <i class="fa-solid fa-rotate"></i> Retry Submission
+                    </button>
+                </div>
+
                 <div class="modal-footer">
-                    <div id="submission-status-message" role="status" aria-live="polite" style="flex:1;font-size:12px;color:var(--text-secondary);"></div>
-                    <button type="submit" id="submit-final-btn" class="btn btn-primary">Submit Project</button>
-                    <button type="button" class="btn btn-outline" onclick="closeSubmissionModal()">Close</button>
+                    <div id="submission-status-message" role="status" aria-live="polite" style="flex:1; font-size: 12px; color: var(--text-secondary);"></div>
+                    <button type="submit" id="submit-milestone-btn" class="btn btn-primary">Submit Milestone</button>
+                    <button type="button" id="btn-close-pulse" class="btn btn-outline" style="display: none;" onclick="closeModal('submissionModal')">Close</button>
                 </div>
             </form>
         </div>
     </div>
+
+    <!-- Feedback & History Modal (1.5 & 1.6) -->
+    <!-- [BACKEND: Populate dynamically based on Milestone ID requested via AJAX, or render server-side] -->
+    <div class="modal-overlay" id="feedbackModal" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title" aria-hidden="true">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <h2 id="feedback-modal-title">Milestone Feedback & History</h2>
+                <button class="close-btn" onclick="closeModal('feedbackModal')" type="button" aria-label="Close feedback modal">&times;</button>
+            </div>
+            
+            <div class="modal-body scrollable-content">
+                
+                <!-- Section 1.6: Feedback / Review View -->
+                <div class="feedback-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="font-size: 1rem; font-weight: 600;">Latest Feedback</h3>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button id="btn-toggle-project-ai" class="btn btn-outline btn-sm">
+                                <i class="fa-solid fa-brain"></i> AI Analysis
+                            </button>
+                            <span class="status-badge badge-late" id="feedback-status-badge">Needs Changes</span>
+                        </div>
+                    </div>
+
+                    <div class="feedback-box">
+                        <div style="display: grid; gap: 1rem; margin-bottom: 1rem;">
+                            <div>
+                                <strong>Rubric Score:</strong>
+                                <span style="color: var(--text-secondary);"><span style="color: var(--text-primary); font-weight: 600;" id="feedback-rubric-score">65</span> / 100</span>
+                            </div>
+                            <div id="feedback-test-results" style="display: none;">
+                                <strong>Test Results:</strong><pre id="feedback-test-results-content" style="background: var(--bg-secondary); padding: 0.5rem; border-radius: 4px; overflow-x: auto;"></pre>
+                            </div>
+                            <div id="feedback-instructor-comment">
+                                <p class="instructor-comment" id="feedback-comment">"Good start on the UI components and routing. However, accessibility needs major work, and the mobile view is currently breaking on the product catalog page. Please address the checklist below and resubmit."</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Deep Analysis for Projects -->
+                    <div id="project-ai-analysis" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h4 style="font-size: 0.9rem; font-weight: 600;"><i class="fa-solid fa-microchip"></i> Semantic Reasoning</h4>
+                            <span id="project-ai-confidence" class="status-badge badge-default" style="font-size: 11px;">Confidence: --%</span>
+                        </div>
+                        <div class="feedback-box" style="background: var(--bg-secondary); border-left: 3px solid var(--accent-blue);">
+                            <p id="project-ai-reasoning" style="font-size: 0.85rem; line-height: 1.5;">...</p>
+                        </div>
+                        <h4 style="font-size: 0.9rem; font-weight: 600; margin: 16px 0 8px;"><i class="fa-solid fa-code"></i> AI Evidence</h4>
+                        <div style="background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; overflow-x: auto; white-space: pre;"><code id="project-ai-evidence">...</code></div>
+                    </div>
+
+                    <h4 style="font-size: 0.9rem; font-weight: 600; margin: 20px 0 12px;">Required Changes Checklist</h4>
+                    <ul class="needs-changes-list" id="feedback-checklist">
+                        <!-- [BACKEND: Loop through changes requested] -->
+                        <li><i class="fa-regular fa-square"></i> Fix color contrast on primary buttons</li>
+                        <li><i class="fa-regular fa-square"></i> Add responsive flex-wrap to product grid</li>
+                        <li><i class="fa-regular fa-square"></i> Include ARIA labels on navigation menu</li>
+                    </ul>
+
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button type="button" class="btn btn-primary" id="feedback-resubmit-btn" onclick="closeModal('feedbackModal'); openSubmissionModal(1, 2)">
+                            <i class="fa-solid fa-arrow-up-from-bracket" style="margin-right: 6px;"></i> Resubmit Milestone
+                        </button>
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 32px 0;">
+
+                <!-- Section 1.5: Submission History -->
+                <div class="history-section">
+                    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 16px;">Submission History</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Attempt</th>
+                                <th>Timestamp</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-body">
+                            <!-- [BACKEND: Loop through historical submissions] -->
+                            <tr>
+                                <td>Attempt 2</td>
+                                <td>Dec 16, 2024 - 10:45 AM</td>
+                                <td><span class="status-badge badge-late">Needs Changes</span></td>
+                                <td>
+                                    <a href="#" class="history-link">View File</a> • 
+                                    <a href="#" class="history-link">Compare</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Attempt 1</td>
+                                <td>Dec 12, 2024 - 04:20 PM</td>
+                                <td><span class="status-badge badge-late">Needs Changes</span></td>
+                                <td>
+                                    <a href="#" class="history-link">View File</a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- GitHub Connect Modal -->
+    <div class="modal-overlay" id="githubConnectModal" role="dialog" aria-modal="true" aria-labelledby="github-modal-title" aria-hidden="true">
+        <div class="modal-content" style="max-width: 560px;">
+            <div class="modal-header">
+                <h2 id="github-modal-title"><i class="fa-brands fa-github"></i> Connect GitHub Repository</h2>
+                <button class="close-btn" onclick="closeGithubConnectModal()" type="button" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Step indicator -->
+                <div class="gh-steps">
+                    <div class="gh-step active" id="gh-step-1">
+                        <span class="gh-step-num">1</span>
+                        <span class="gh-step-label">Authenticate</span>
+                    </div>
+                    <div class="gh-step-connector"></div>
+                    <div class="gh-step" id="gh-step-2">
+                        <span class="gh-step-num">2</span>
+                        <span class="gh-step-label">Repository</span>
+                    </div>
+                    <div class="gh-step-connector"></div>
+                    <div class="gh-step" id="gh-step-3">
+                        <span class="gh-step-num">3</span>
+                        <span class="gh-step-label">Connect</span>
+                    </div>
+                </div>
+
+                <!-- Step 1: Authentication -->
+                <div id="gh-auth-step" class="gh-panel">
+                    <p class="gh-panel-desc">Authenticate with GitHub to link your repository. Nibras needs read access to your repositories to track commits and contributions.</p>
+                    <div id="gh-auth-status" class="gh-status-info">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i> Checking GitHub connection...
+                    </div>
+                    <div id="gh-auth-actions" style="display:none;">
+                        <button class="btn btn-primary" onclick="startGithubOAuth()" style="width:100%;padding:12px;justify-content:center;">
+                            <i class="fa-brands fa-github"></i> Sign in with GitHub
+                        </button>
+                        <p class="gh-hint">You'll be redirected to GitHub to authorize the Nibras app.</p>
+                    </div>
+                    <div id="gh-authenticated-info" style="display:none;">
+                        <div class="gh-authenticated-badge">
+                            <i class="fa-solid fa-circle-check"></i> Connected as <span id="gh-authenticated-user">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Repository Details -->
+                <div id="gh-repo-step" class="gh-panel" style="display:none;">
+                    <div class="form-group">
+                        <label for="gh-repo-url">Repository URL</label>
+                        <input type="text" id="gh-repo-url" placeholder="https://github.com/owner/repo" />
+                        <p class="gh-field-hint">Enter the full URL of your GitHub repository.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="gh-repo-branch">Branch</label>
+                        <select id="gh-repo-branch">
+                            <option value="main">main</option>
+                            <option value="master">master</option>
+                            <option value="develop">develop</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Step 3: Confirm & Connect -->
+                <div id="gh-connect-step" class="gh-panel" style="display:none;">
+                    <div class="gh-connect-summary">
+                        <div class="gh-connect-row">
+                            <span class="gh-connect-label">Repository</span>
+                            <span class="gh-connect-value" id="gh-connect-repo-display">—</span>
+                        </div>
+                        <div class="gh-connect-row">
+                            <span class="gh-connect-label">Branch</span>
+                            <span class="gh-connect-value" id="gh-connect-branch-display">main</span>
+                        </div>
+                    </div>
+                    <div id="gh-validate-status"></div>
+                    <button class="btn btn-primary" id="gh-connect-btn" onclick="confirmGithubConnect()" style="width:100%;padding:12px;justify-content:center;">
+                        <i class="fa-solid fa-link"></i> Connect Repository
+                    </button>
+                </div>
+
+                <!-- Success state -->
+                <div id="gh-success-state" class="gh-panel" style="display:none;">
+                    <div class="gh-success-icon"><i class="fa-solid fa-circle-check"></i></div>
+                    <h3 class="gh-success-title">Repository Connected!</h3>
+                    <p class="gh-success-desc">Your repository <span id="gh-connected-repo-name" class="gh-repo-name">—</span> is now linked. Nibras will track commits and contributions from this repository.</p>
+                    <button class="btn btn-primary" onclick="closeGithubConnectModal()" style="width:100%;padding:12px;justify-content:center;">Done</button>
+                </div>
+
+                <div id="gh-connect-error" class="gh-error" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Commit History Modal -->
+    <div class="modal-overlay" id="commitHistoryModal" role="dialog" aria-modal="true" aria-labelledby="commit-modal-title" aria-hidden="true">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <div>
+                    <h2 id="commit-modal-title"><i class="fa-solid fa-code-commit"></i> Commit History</h2>
+                    <p id="commit-modal-subtitle" style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;">Repository: <span id="commit-repo-name">—</span></p>
+                </div>
+                <button class="close-btn" onclick="closeCommitHistoryModal()" type="button" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="commit-loading" style="text-align:center;padding:40px;color:var(--text-secondary);">
+                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:1.5rem;display:block;margin-bottom:12px;"></i>
+                    Loading commit history...
+                </div>
+                <div id="commit-empty" style="display:none;text-align:center;padding:40px;color:var(--text-secondary);">
+                    <i class="fa-regular fa-folder-open" style="font-size:2rem;display:block;margin-bottom:12px;"></i>
+                    <p>No commits found yet.</p>
+                </div>
+                <div id="commit-content" style="display:none;">
+                    <div id="commit-summary" class="commit-summary-bar"></div>
+                    <div class="commit-contrib-breakdown" id="commit-contrib-breakdown"></div>
+                    <div class="commit-list-scroll" id="commit-list-container" style="max-height:400px;overflow-y:auto;"></div>
+                </div>
+                <div id="commit-error" class="gh-error" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contribution Analytics Modal -->
+    <div class="modal-overlay" id="contributionAnalyticsModal" role="dialog" aria-modal="true" aria-labelledby="analytics-modal-title" aria-hidden="true">
+        <div class="modal-content" style="max-width: 750px;">
+            <div class="modal-header">
+                <div>
+                    <h2 id="analytics-modal-title"><i class="fa-solid fa-chart-pie"></i> Contribution Analytics</h2>
+                    <p style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;">Per-member contribution breakdown for <span id="analytics-project-name">—</span></p>
+                </div>
+                <button class="close-btn" onclick="closeContributionAnalyticsModal()" type="button" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="analytics-loading" style="text-align:center;padding:40px;color:var(--text-secondary);">
+                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:1.5rem;display:block;margin-bottom:12px;"></i>
+                    Loading analytics...
+                </div>
+                <div id="analytics-empty" style="display:none;text-align:center;padding:40px;color:var(--text-secondary);">
+                    <i class="fa-regular fa-chart-bar" style="font-size:2rem;display:block;margin-bottom:12px;"></i>
+                    <p>No contribution data available yet.</p>
+                </div>
+                <div id="analytics-content" style="display:none;">
+                    <!-- Summary Cards -->
+                    <div class="analytics-summary" id="analytics-summary"></div>
+
+                    <!-- Tabs -->
+                    <div class="analytics-tabs">
+                        <button class="analytics-tab active" data-analytics-tab="commits">Commits</button>
+                        <button class="analytics-tab" data-analytics-tab="lines">Lines Changed</button>
+                        <button class="analytics-tab" data-analytics-tab="frequency">Frequency</button>
+                    </div>
+
+                    <!-- Tab: Commits -->
+                    <div class="analytics-tab-panel active" id="analytics-panel-commits">
+                        <div class="analytics-chart-container" id="analytics-commits-chart"></div>
+                        <div class="analytics-table-container" id="analytics-commits-table"></div>
+                    </div>
+
+                    <!-- Tab: Lines Changed -->
+                    <div class="analytics-tab-panel" id="analytics-panel-lines">
+                        <div class="analytics-chart-container" id="analytics-lines-chart"></div>
+                        <div class="analytics-table-container" id="analytics-lines-table"></div>
+                    </div>
+
+                    <!-- Tab: Frequency -->
+                    <div class="analytics-tab-panel" id="analytics-panel-frequency">
+                        <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:12px;">Commit activity timeline showing contribution frequency over time.</p>
+                        <div id="analytics-frequency-timeline"></div>
+                    </div>
+                </div>
+                <div id="analytics-error" class="gh-error" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team Management Modal -->
+    <div class="modal-overlay" id="teamManagementModal" role="dialog" aria-modal="true" aria-labelledby="team-modal-title" aria-hidden="true">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <div>
+                    <h2 id="team-modal-title"><i class="fa-solid fa-users"></i> Team Management</h2>
+                    <p style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;">Manage team members and settings for <span id="team-project-name">—</span></p>
+                </div>
+                <button class="close-btn" onclick="closeTeamManagementModal()" type="button" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="team-loading" style="text-align:center;padding:40px;color:var(--text-secondary);">
+                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:1.5rem;display:block;margin-bottom:12px;"></i>
+                    Loading team data...
+                </div>
+                <div id="team-content" style="display:none;">
+                    <!-- Team Name -->
+                    <div class="form-group">
+                        <label for="team-name-input">Team Name</label>
+                        <input type="text" id="team-name-input" placeholder="Enter team name" />
+                    </div>
+
+                    <!-- Team Repo URL -->
+                    <div class="form-group">
+                        <label for="team-repo-input">Repository URL</label>
+                        <input type="url" id="team-repo-input" placeholder="https://github.com/org/team-repo" />
+                    </div>
+
+                    <!-- Current Members -->
+                    <div class="team-section-header">
+                        <span><i class="fa-solid fa-user-group"></i> Members</span>
+                        <span id="team-member-count">0</span>
+                    </div>
+                    <div id="team-member-list" class="team-member-list">
+                        <p style="text-align:center;padding:20px;color:var(--text-secondary);font-size:0.85rem;">No members yet.</p>
+                    </div>
+
+                    <!-- Invite Member -->
+                    <div class="team-section-header" style="margin-top:16px;">
+                        <span><i class="fa-solid fa-user-plus"></i> Invite Member</span>
+                    </div>
+                    <div class="team-invite-row">
+                        <input type="text" id="team-invite-input" placeholder="Enter name or email" style="flex:1;" />
+                        <select id="team-invite-role" style="width:120px;">
+                            <option value="member">Member</option>
+                            <option value="admin">Admin</option>
+                            <option value="reviewer">Reviewer</option>
+                        </select>
+                        <button class="btn btn-primary btn-sm" onclick="inviteTeamMember()" style="white-space:nowrap;">Add</button>
+                    </div>
+
+                    <!-- Invite error -->
+                    <div id="team-invite-error" class="gh-error" style="display:none;"></div>
+                </div>
+                <div id="team-success-msg" class="gh-success-msg" style="display:none;"></div>
+            </div>
+            <div class="modal-footer" id="team-modal-footer" style="display:none;">
+                <button class="btn btn-outline" onclick="closeTeamManagementModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveTeamSettings()"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CLI Help Modal -->
+    <div id="cliHelpModal" class="modal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+        <div class="modal-content" style="background-color: var(--bg-primary); margin: 5% auto; padding: 25px; border-radius: 12px; max-width: 750px; max-height: 85vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; display: flex; align-items: center; gap: 10px; color: var(--text-primary);">
+                    <i class="fa-solid fa-terminal" style="color: var(--accent-blue);"></i>
+                    Nibras CLI Guide
+                </h2>
+                <button onclick="closeCliHelpModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-secondary);">&times;</button>
+            </div>
+
+            <!-- Connection Status -->
+            <div id="cli-status-container" style="margin-bottom: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid var(--accent-blue);">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div id="cli-status-icon" style="width:12px;height:12px;border-radius:50%;background:#6b7280;"></div>
+                    <span id="cli-status-text" style="color:var(--text-secondary);font-size:14px;">Checking connection...</span>
+                </div>
+            </div>
+
+            <!-- Course & Project Selector -->
+            <div style="margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
+                <div style="flex:1;min-width:200px;">
+                    <label style="display:block;margin-bottom:5px;color:var(--text-primary);font-weight:500;font-size:14px;">Course</label>
+                    <select id="cli-course-select" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-primary);font-size:14px;">
+                        <option value="">Loading courses...</option>
+                    </select>
+                </div>
+                <div style="flex:1;min-width:200px;">
+                    <label style="display:block;margin-bottom:5px;color:var(--text-primary);font-weight:500;font-size:14px;">Project</label>
+                    <select id="cli-project-select" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-primary);font-size:14px;">
+                        <option value="">Select a project...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Commands -->
 
     <script src="../react-page-utils.js"></script>
     <script>
@@ -426,10 +855,13 @@
     <script src="../config.js"></script>
     <script src="../services/api.js"></script>
     <script src="../react-bootstrap.js"></script>
-    <script src="../Courses/courseData.js?v=20260622"></script>
-    <script src="../Courses/Projects/projectsApi.js?v=20260622"></script>
-    <script src="../cli-shared.js?v=20260622"></script>
-    <script src="./projects.js?v=20260622"></script>
+    <script src="../Courses/courseData.js?v=20260623"></script>
+    <script src="../Courses/Projects/projectsApi.js?v=20260623"></script>
+    <script src="../cli-shared.js?v=20260623"></script>
+    <script src="./shared/projects-cache.js?v=20260623"></script>
+    <script src="./shared/projects-utils.js?v=20260623"></script>
+    <script src="./shared/projects-core.js?v=20260623"></script>
+    <script src="./projects.js?v=20260623"></script>
     <script src="../services/gamification-ui.js"></script>
     <script>
     (function() {

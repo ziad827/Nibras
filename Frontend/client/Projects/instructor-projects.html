@@ -350,6 +350,28 @@
         </div>
     </div>
 
+    <!-- Course Templates Modal -->
+    <div class="modal-overlay" id="templates-modal" style="display:none;">
+        <div class="modal-container modal-lg">
+            <div class="modal-header">
+                <h2>Course Templates</h2>
+                <button class="modal-close" id="close-templates-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="templates-loading" class="inst-proj-loading">Loading templates...</div>
+                <div id="templates-error" class="form-error" style="display:none;"></div>
+                <div id="templates-empty" class="inst-proj-empty" style="display:none;">
+                    <i class="fa-solid fa-file"></i>
+                    <p>No templates for this course yet.</p>
+                </div>
+                <div id="templates-list" class="inst-proj-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="inst-action-btn inst-view-btn" id="close-templates-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Review Submission Modal -->
     <div class="modal-overlay" id="review-modal" style="display:none;">
         <div class="modal-container">
@@ -499,6 +521,7 @@
     </script>
     <script src="../../react-bootstrap.js"></script>
     <script src="../config.js"></script>
+    <script src="../Courses/courseData.js"></script>
     <script src="../services/api.js"></script>
     <script src="../services/gamification-ui.js"></script>
     <script src="./instructor-projects.js"></script>

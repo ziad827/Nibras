@@ -6,6 +6,7 @@
       courseContent: './courseContent.html',
       videos: '../Videos/videos.html',
       assignments: '../Assignments/Assignments.html',
+      projects: '../../Projects/projects.html',
       assignmentsInstructor:
         '../../Admin/AssignmentBuilder/assignment-builder.html',
       grading: '../../Admin/Grading/grading.html',
@@ -19,6 +20,7 @@
       courseContent: '../Course Description/courseContent.html',
       videos: './videos.html',
       assignments: '../Assignments/Assignments.html',
+      projects: '../../Projects/projects.html',
       assignmentsInstructor:
         '../../Admin/AssignmentBuilder/assignment-builder.html',
       grading: '../../Admin/Grading/grading.html',
@@ -30,6 +32,7 @@
       courseContent: '../Course Description/courseContent.html',
       videos: '../Videos/videos.html',
       assignments: './Assignments.html',
+      projects: '../../Projects/projects.html',
       assignmentsInstructor:
         '../../Admin/AssignmentBuilder/assignment-builder.html',
       grading: '../../Admin/Grading/grading.html',
@@ -41,6 +44,7 @@
       courseContent: '../../Course Description/courseContent.html',
       videos: '../../Videos/videos.html',
       assignments: '../Assignments.html',
+      projects: '../../../Projects/projects.html',
       assignmentsInstructor:
         '../../../Admin/AssignmentBuilder/assignment-builder.html',
       grading: '../../../Admin/Grading/grading.html',
@@ -54,6 +58,8 @@
       courseContent: '../Course Description/courseContent.html',
       videos: '../Videos/videos.html',
       assignments: '../Assignments/Assignments.html',
+      projects: '../../Projects/projects.html',
+      projects: '../../Projects/projects.html',
       assignmentsInstructor:
         '../../Admin/AssignmentBuilder/assignment-builder.html',
       grading: '../../Admin/Grading/grading.html',
@@ -145,6 +151,10 @@
       {
         key: 'assignments',
         path: instructor ? roots.assignmentsInstructor : roots.assignments,
+      },
+      {
+        key: 'projects',
+        path: instructor ? '' : roots.projects,
       },
       {
         key: 'grading',

@@ -5,10 +5,10 @@
   var allCourses = [];
   var activeCourseId = null;
   var activeCourseData = null;
+  var trackingCourseId = null;
   var projects = [];
   var submissions = [];
-  var demoProjects = [];
-  var demoProjectIdCounter = 0;
+  var projectMilestoneCounts = {};
   var editingProjectId = null;
 
   /* ── Helpers ─────────────────────────────────────── */
@@ -111,42 +111,128 @@
       .replace(/"/g, '&quot;');
   }
 
-  /* ── API helper ──────────────────────────────────── */
+  /* ── Tracking helpers ───────────────────────────── */
 
-  function apiFetch(path, options) {
-    options = options || {};
-    var service = options.service || 'admin';
-    var method = options.method || 'GET';
-    var auth = options.auth !== false;
-    var baseUrl =
-      window.NibrasApiConfig && window.NibrasApiConfig.getServiceUrl
-        ? window.NibrasApiConfig.getServiceUrl(service)
-        : window.NIBRAS_API_URL || 'https://nibras-backend.up.railway.app/api';
-    baseUrl = String(baseUrl).replace(/\/+$/, '');
-    var url = baseUrl + path;
-    var headers = { 'Content-Type': 'application/json' };
-    if (auth) {
-      var token = window.localStorage.getItem('token');
-      if (token) headers['Authorization'] = 'Bearer ' + token;
+  function normalizeList(resp) {
+    if (Array.isArray(resp)) return resp;
+    var raw = resp && (resp.data !== undefined ? resp.data : resp);
+    if (Array.isArray(raw)) return raw;
+    if (raw && Array.isArray(raw.items)) return raw.items;
+    if (raw && Array.isArray(raw.submissions)) return raw.submissions;
+    if (raw && Array.isArray(raw.projects)) return raw.projects;
+    return [];
+  }
+
+  function extractId(obj) {
+    if (!obj) return '';
+    if (typeof obj === 'string') return obj;
+    return obj.id || obj._id || (obj.data && (obj.data.id || obj.data._id)) || '';
+  }
+
+  function slugifyTitle(title) {
+    return (
+      String(title || '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '') || 'project'
+    );
+  }
+
+  function mapFormStatusToTracking(status) {
+    var s = (status || '').toLowerCase();
+    if (s === 'active') return 'published';
+    if (s === 'archived') return 'archived';
+    return 'draft';
+  }
+
+  function mapTrackingStatusToForm(status) {
+    var s = (status || '').toLowerCase();
+    if (s === 'published') return 'active';
+    if (s === 'archived') return 'archived';
+    return 'draft';
+  }
+
+  function mapFormReviewStatus(status) {
+    var s = (status || '').toLowerCase();
+    if (s === 'needs_changes') return 'changes_requested';
+    if (s === 'approved') return 'approved';
+    if (s === 'graded') return 'graded';
+    return 'pending';
+  }
+
+  function mapReviewStatusToForm(status) {
+    var s = (status || '').toLowerCase();
+    if (s === 'changes_requested') return 'needs_changes';
+    if (s === 'graded') return 'approved';
+    return s || 'pending';
+  }
+
+  function toIsoDateTime(dateStr) {
+    if (!dateStr) return null;
+    try {
+      return new Date(dateStr + 'T23:59:59').toISOString();
+    } catch (_) {
+      return null;
     }
-    var fetchOptions = { method: method, headers: headers };
-    if (options.body) fetchOptions.body = JSON.stringify(options.body);
-    return fetch(url, fetchOptions).then(async function (response) {
-      if (!response.ok) {
-        var body = null;
-        try {
-          body = await response.json();
-        } catch (_) {}
-        var err = new Error(
-          (body && (body.message || body.error)) ||
-            'Request failed (' + response.status + ')',
-        );
-        err.status = response.status;
-        err.payload = body;
-        throw err;
-      }
-      return response.json();
-    });
+  }
+
+  function deliveryModeFromTeamSize(teamSize) {
+    return teamSize > 0 ? 'team' : 'individual';
+  }
+
+  async function resolveTrackingCourseId(courseId) {
+    if (!courseId) return '';
+    if (typeof window.NibrasCourses?.resolveCourseIdentifiersAsync === 'function') {
+      var ids = await window.NibrasCourses.resolveCourseIdentifiersAsync(
+        courseId,
+        { loadRemote: true },
+      );
+      if (ids && ids.trackingCourseIdForApi) return ids.trackingCourseIdForApi;
+    }
+    return courseId;
+  }
+
+  function findProject(projectId) {
+    for (var i = 0; i < projects.length; i++) {
+      if ((projects[i].id || projects[i]._id) === projectId) return projects[i];
+    }
+    return null;
+  }
+
+  function getProjectTitle(projectId) {
+    var p = findProject(projectId);
+    return p ? p.title || p.name || p.projectKey || 'Project' : 'Project';
+  }
+
+  function getSubmissionStudentName(s) {
+    return (
+      s.teamName ||
+      s.studentName ||
+      s.name ||
+      s.student?.name ||
+      'Student'
+    );
+  }
+
+  function getSubmissionProjectTitle(s) {
+    return (
+      s.projectTitle ||
+      getProjectTitle(s.projectId) ||
+      s.projectKey ||
+      s.assignmentTitle ||
+      s.title ||
+      'Project'
+    );
+  }
+
+  function getSubmissionGrade(s) {
+    if (s.score != null) return s.score;
+    if (s.grade != null) return s.grade;
+    if (s.reviewScore != null) return s.reviewScore;
+    return null;
   }
 
   /* ── Course Loading ─────────────────────────────── */
@@ -243,6 +329,7 @@
 
   async function loadCourseData(courseId) {
     if (!courseId) {
+      trackingCourseId = null;
       showEmpty();
       return;
     }
@@ -256,6 +343,12 @@
       activeCourseData = await S.backendCoursesService.getById(courseId);
     } catch (_) {
       activeCourseData = null;
+    }
+
+    try {
+      trackingCourseId = await resolveTrackingCourseId(courseId);
+    } catch (_) {
+      trackingCourseId = courseId;
     }
 
     await Promise.all([loadProjects(courseId), loadSubmissions(courseId)]);
@@ -291,53 +384,67 @@
 
   async function loadProjects(courseId) {
     var listEl = document.getElementById('project-list');
-    // Load from backend (existing assignments)
+    if (!S || !S.trackingProjectService) {
+      projects = [];
+      projectMilestoneCounts = {};
+      listEl.innerHTML =
+        '<div class="inst-proj-empty"><i class="fa-solid fa-diagram-project"></i><p>Projects service unavailable.</p></div>';
+      return;
+    }
+
+    var courseKey = trackingCourseId || (await resolveTrackingCourseId(courseId));
+    if (!courseKey) {
+      projects = [];
+      projectMilestoneCounts = {};
+      renderProjects();
+      return;
+    }
+
     try {
-      var resp = await S.backendCoursesService.getAssignments(courseId);
-      var raw = resp && (resp.data || resp);
-      projects = Array.isArray(raw)
-        ? raw
-        : raw && Array.isArray(raw.items)
-          ? raw.items
-          : [];
+      var resp = await S.trackingProjectService.listByCourse(courseKey);
+      projects = normalizeList(resp);
+      projectMilestoneCounts = {};
+      await Promise.all(
+        projects.map(async function (p) {
+          var pid = extractId(p);
+          if (!pid) return;
+          try {
+            var msResp = await S.trackingProjectService.getMilestones(pid);
+            var ms = normalizeList(msResp);
+            projectMilestoneCounts[pid] = ms.length;
+          } catch (_) {
+            projectMilestoneCounts[pid] = 0;
+          }
+        }),
+      );
     } catch (err) {
       projects = [];
-    }
-    // Merge with locally-stored Phase 7 demo projects
-    var courseDemo = demoProjects.filter(function (p) {
-      return p.courseId === courseId;
-    });
-    if (courseDemo.length) {
-      // Prepend demo projects (newest first)
-      courseDemo.reverse();
-      courseDemo.forEach(function (dp) {
-        // Avoid duplicates by id
-        var dup = false;
-        for (var i = 0; i < projects.length; i++) {
-          if ((projects[i]._id || projects[i].id) === (dp._id || dp.id)) {
-            dup = true;
-            break;
-          }
-        }
-        if (!dup) projects.unshift(dp);
-      });
+      projectMilestoneCounts = {};
+      listEl.innerHTML =
+        '<div class="inst-proj-empty"><i class="fa-solid fa-diagram-project"></i><p>' +
+        escapeHtml(err.message || 'Failed to load projects.') +
+        '</p></div>';
+      return;
     }
     renderProjects();
   }
 
   async function loadSubmissions(courseId) {
-    var listEl = document.getElementById('review-list');
+    if (!S || !S.trackingProjectService) {
+      submissions = [];
+      renderReviewQueue();
+      renderSubmissionsTable();
+      return;
+    }
+
+    var courseKey = trackingCourseId || (await resolveTrackingCourseId(courseId));
     try {
-      var resp = await S.instructorDashboardService.getRecentSubmissions({
-        courseId: courseId,
+      var resp = await S.trackingProjectService.getReviewQueue({
+        courseId: courseKey,
         limit: 50,
       });
-      var raw = resp && (resp.data || resp);
-      submissions = Array.isArray(raw)
-        ? raw
-        : raw && Array.isArray(raw.items)
-          ? raw.items
-          : [];
+      var raw = resp && (resp.submissions !== undefined ? resp : resp.data || resp);
+      submissions = normalizeList(raw);
     } catch (_) {
       submissions = [];
     }
@@ -362,16 +469,23 @@
 
     listEl.innerHTML = projects
       .map(function (p) {
-        var pid = p._id || p.id || '';
-        var ptitle = p.title || 'Untitled';
+        var pid = extractId(p);
+        var ptitle = p.title || p.name || 'Untitled';
         var pstatus = (p.status || 'draft').toLowerCase();
-        var dueDate = p.dueDate
-          ? formatDate(p.dueDate)
-          : p.endDate
-            ? formatDate(p.endDate)
+        var dueDate = p.endDate
+          ? formatDate(p.endDate)
+          : p.teamLockAt
+            ? formatDate(p.teamLockAt)
             : 'No due date';
-        var maxScore = p.maxScore || p.points || 100;
+        var rubricTotal = Array.isArray(p.rubric)
+          ? p.rubric.reduce(function (sum, item) {
+              return sum + (Number(item.maxScore) || 0);
+            }, 0)
+          : 0;
+        var maxScore = rubricTotal || Number(p.gradeWeight) || 100;
         var teamSize = p.teamSize || 0;
+        var deliveryMode = p.deliveryMode || deliveryModeFromTeamSize(teamSize);
+        var milestoneCount = projectMilestoneCounts[pid];
         var statusClass = getStatusClass(pstatus);
 
         return (
@@ -385,7 +499,7 @@
           '</span>' +
           '<div class="inst-proj-info">' +
           '<strong>' +
-          ptitle +
+          escapeHtml(ptitle) +
           '</strong>' +
           '<div class="inst-proj-meta">' +
           '<span><i class="fa-regular fa-calendar"></i> ' +
@@ -394,17 +508,27 @@
           '<span><i class="fa-solid fa-star"></i> ' +
           maxScore +
           ' pts</span>' +
+          '<span><i class="fa-solid fa-list-check"></i> ' +
+          (milestoneCount != null ? milestoneCount : '—') +
+          ' milestones</span>' +
           '<span><i class="fa-solid fa-user"></i> ' +
-          (teamSize > 0 ? 'Team: ' + teamSize : 'Individual') +
+          (deliveryMode === 'team' && teamSize > 0
+            ? 'Team: ' + teamSize
+            : 'Individual') +
           '</span>' +
           '</div></div>' +
           '<div class="inst-proj-actions">' +
+          (deliveryMode === 'team'
+            ? '<button class="inst-proj-action-btn" data-action="teams" data-id="' +
+              pid +
+              '" title="Form teams"><i class="fa-solid fa-users"></i></button>'
+            : '') +
           '<button class="inst-proj-action-btn" data-action="edit" data-id="' +
           pid +
           '" title="Edit"><i class="fa-solid fa-pen"></i></button>' +
           '<button class="inst-proj-action-btn danger" data-action="delete" data-id="' +
           pid +
-          '" title="Delete"><i class="fa-solid fa-trash-can"></i></button>' +
+          '" title="Unpublish"><i class="fa-solid fa-trash-can"></i></button>' +
           '</div></div>'
         );
       })
@@ -415,7 +539,13 @@
     var listEl = document.getElementById('review-list');
     var pending = submissions.filter(function (s) {
       var st = (s.status || '').toLowerCase();
-      return st === 'pending' || st === 'submitted' || st === 'needs_review';
+      return (
+        st === 'needs_review' ||
+        st === 'queued' ||
+        st === 'running' ||
+        st === 'submitted' ||
+        st === 'pending'
+      );
     });
 
     if (!pending.length) {
@@ -427,10 +557,9 @@
     listEl.innerHTML = pending
       .slice(0, 10)
       .map(function (s) {
-        var sid = s._id || s.id || '';
-        var sname = s.studentName || s.name || s.student?.name || 'Student';
-        var ptitle =
-          s.projectTitle || s.assignmentTitle || s.title || 'Project';
+        var sid = extractId(s);
+        var sname = getSubmissionStudentName(s);
+        var ptitle = getSubmissionProjectTitle(s);
         var stime = formatTimeAgo(
           s.submittedAt || s.createdAt || s.submissionDate,
         );
@@ -440,10 +569,10 @@
           '">' +
           '<div class="review-item-info">' +
           '<strong>' +
-          sname +
+          escapeHtml(sname) +
           '</strong>' +
           '<div class="review-item-meta"><span>' +
-          ptitle +
+          escapeHtml(ptitle) +
           '</span><span>' +
           stime +
           '</span></div>' +
@@ -466,12 +595,12 @@
     }
     tbody.innerHTML = submissions
       .map(function (s) {
-        var sid = s._id || s.id || '';
-        var sname = s.studentName || s.name || s.student?.name || 'Student';
-        var ptitle =
-          s.projectTitle || s.assignmentTitle || s.title || 'Project';
+        var sid = extractId(s);
+        var sname = getSubmissionStudentName(s);
+        var ptitle = getSubmissionProjectTitle(s);
         var sstatus = (s.status || 'pending').toLowerCase();
-        var grade = s.grade != null ? s.grade + '/100' : '—';
+        var gradeVal = getSubmissionGrade(s);
+        var grade = gradeVal != null ? gradeVal + '/100' : '—';
         var stime = formatTimeAgo(
           s.submittedAt || s.createdAt || s.submissionDate,
         );
@@ -481,15 +610,15 @@
           sid +
           '">' +
           '<td class="sub-student">' +
-          sname +
+          escapeHtml(sname) +
           '</td>' +
           '<td>' +
-          ptitle +
+          escapeHtml(ptitle) +
           '</td>' +
           '<td><span class="inst-proj-status-badge ' +
           statusClass +
           '">' +
-          sstatus.replace('_', ' ') +
+          sstatus.replace(/_/g, ' ') +
           '</span></td>' +
           '<td>' +
           grade +
@@ -510,16 +639,32 @@
     var total = projects.length;
     var pending = submissions.filter(function (s) {
       var st = (s.status || '').toLowerCase();
-      return st === 'pending' || st === 'submitted' || st === 'needs_review';
+      return (
+        st === 'needs_review' ||
+        st === 'queued' ||
+        st === 'running' ||
+        st === 'submitted' ||
+        st === 'pending'
+      );
     }).length;
     var approved = submissions.filter(function (s) {
       var st = (s.status || '').toLowerCase();
-      return st === 'approved' || st === 'graded';
+      return st === 'approved' || st === 'graded' || st === 'passed';
     }).length;
     var studentSet = {};
     submissions.forEach(function (s) {
-      var uid = s.userId || s.studentId || s.student?._id || s.student?.id;
+      var uid =
+        s.userId ||
+        s.submittedByUserId ||
+        s.studentId ||
+        s.student?._id ||
+        s.student?.id;
       if (uid) studentSet[uid] = true;
+      if (s.teamMemberUserIds && s.teamMemberUserIds.length) {
+        s.teamMemberUserIds.forEach(function (tid) {
+          if (tid) studentSet[tid] = true;
+        });
+      }
     });
     var studentCount = Object.keys(studentSet).length || '—';
 
@@ -536,7 +681,33 @@
       var s = findSubmission(sid);
       if (!s) continue;
       var st = (s.status || '').toLowerCase();
-      rows[i].style.display = filter === 'all' || st === filter ? '' : 'none';
+      var reviewSt = (s.reviewStatus || '').toLowerCase();
+      var matches = false;
+      if (filter === 'all') {
+        matches = true;
+      } else if (filter === 'pending') {
+        matches =
+          st === 'needs_review' ||
+          st === 'queued' ||
+          st === 'running' ||
+          st === 'submitted' ||
+          st === 'pending';
+      } else if (filter === 'approved') {
+        matches =
+          st === 'approved' ||
+          st === 'graded' ||
+          st === 'passed' ||
+          reviewSt === 'approved' ||
+          reviewSt === 'graded';
+      } else if (filter === 'needs_changes') {
+        matches =
+          st === 'failed' ||
+          reviewSt === 'changes_requested' ||
+          st === 'needs_changes';
+      } else {
+        matches = st === filter || reviewSt === filter;
+      }
+      rows[i].style.display = matches ? '' : 'none';
     }
   }
 
@@ -552,15 +723,29 @@
     document.getElementById('create-project-error').style.display = 'none';
   }
 
-  function openEditModal(projectId) {
-    var p =
-      findDemoProject(projectId) ||
-      projects.find(function (x) {
-        return (x._id || x.id) === projectId;
-      });
+  async function openEditModal(projectId) {
+    var p = findProject(projectId);
+    if (!p && S && S.trackingProjectService) {
+      try {
+        var detail = await S.trackingProjectService.getById(projectId);
+        p = detail && (detail.data || detail);
+      } catch (_) {
+        p = null;
+      }
+    }
     if (!p) {
       alert('Project not found.');
       return;
+    }
+
+    var milestones = p.milestones || [];
+    if (!milestones.length && S && S.trackingProjectService) {
+      try {
+        var msResp = await S.trackingProjectService.getMilestones(projectId);
+        milestones = normalizeList(msResp);
+      } catch (_) {
+        milestones = [];
+      }
     }
 
     editingProjectId = projectId;
@@ -577,21 +762,51 @@
     document.getElementById('project-end').value = p.endDate
       ? p.endDate.slice(0, 10)
       : '';
-    document.getElementById('project-status').value = p.status || 'active';
+    document.getElementById('project-status').value = mapTrackingStatusToForm(
+      p.status,
+    );
+    var rubricTotal = Array.isArray(p.rubric)
+      ? p.rubric.reduce(function (sum, item) {
+          return sum + (Number(item.maxScore) || 0);
+        }, 0)
+      : 0;
     document.getElementById('project-max-score').value =
-      p.maxScore || p.points || 100;
+      rubricTotal || Number(p.gradeWeight) || 100;
     document.getElementById('project-team-size').value = p.teamSize || 0;
     document.getElementById('project-repo-url').value = p.repoUrl || '';
 
     var milestoneContainer = document.getElementById('milestones-container');
     milestoneContainer.innerHTML = '';
-    var ms = p.milestones || [];
-    if (ms.length) {
-      ms.forEach(function (m) {
-        addMilestoneRow(m);
+    if (milestones.length) {
+      milestones.forEach(function (m) {
+        addMilestoneRow({
+          title: m.title || m.name,
+          description: m.description || '',
+          weight: m.weight || 0,
+          dueDate: m.dueAt || m.dueDate || null,
+          isFinal: m.isFinal || false,
+        });
       });
     } else {
       addMilestoneRow();
+    }
+
+    var rubricContainer = document.getElementById('rubric-container');
+    rubricContainer.innerHTML = '';
+    var rubricItems = Array.isArray(p.rubric) ? p.rubric : [];
+    if (rubricItems.length) {
+      rubricItems.forEach(function (item) {
+        addRubricRow(item);
+      });
+    }
+
+    var resourcesContainer = document.getElementById('resources-container');
+    resourcesContainer.innerHTML = '';
+    var resourceItems = Array.isArray(p.resources) ? p.resources : [];
+    if (resourceItems.length) {
+      resourceItems.forEach(function (item) {
+        addResourceRow(item);
+      });
     }
 
     document.getElementById('create-project-modal').style.display = 'flex';
@@ -639,37 +854,37 @@
     container.appendChild(div);
   }
 
-  function addRubricRow() {
+  function addRubricRow(data) {
     var container = document.getElementById('rubric-container');
     if (!container) return;
     var div = document.createElement('div');
     div.className = 'dynamic-row';
     div.innerHTML =
-      '<input type="text" class="rubric-criterion" placeholder="Criterion" style="flex:2;">' +
-      '<input type="number" class="rubric-score" placeholder="Score" value="10" min="0" style="flex:0 0 100px;">' +
+      '<input type="text" class="rubric-criterion" placeholder="Criterion" value="' +
+      escapeHtml(data?.criterion || '') +
+      '" style="flex:2;">' +
+      '<input type="number" class="rubric-score" placeholder="Score" value="' +
+      (data?.maxScore != null ? data.maxScore : 10) +
+      '" min="0" style="flex:0 0 100px;">' +
       '<span class="dynamic-row-unit">pts</span>' +
       '<button type="button" class="btn-remove-row" title="Remove">&times;</button>';
     container.appendChild(div);
   }
 
-  function addResourceRow() {
+  function addResourceRow(data) {
     var container = document.getElementById('resources-container');
     if (!container) return;
     var div = document.createElement('div');
     div.className = 'dynamic-row';
     div.innerHTML =
-      '<input type="text" class="resource-label" placeholder="Label" style="flex:1;">' +
-      '<input type="url" class="resource-url" placeholder="https://..." style="flex:2;">' +
+      '<input type="text" class="resource-label" placeholder="Label" value="' +
+      escapeHtml(data?.label || '') +
+      '" style="flex:1;">' +
+      '<input type="url" class="resource-url" placeholder="https://..." value="' +
+      escapeHtml(data?.url || '') +
+      '" style="flex:2;">' +
       '<button type="button" class="btn-remove-row" title="Remove">&times;</button>';
     container.appendChild(div);
-  }
-
-  function findDemoProject(id) {
-    for (var i = 0; i < demoProjects.length; i++) {
-      if ((demoProjects[i]._id || demoProjects[i].id) === id)
-        return demoProjects[i];
-    }
-    return null;
   }
 
   async function handleCreateProject() {
@@ -694,6 +909,11 @@
     }
     if (!activeCourseId) {
       errorEl.textContent = 'No course selected.';
+      errorEl.style.display = '';
+      return;
+    }
+    if (!S || !S.trackingProjectService) {
+      errorEl.textContent = 'Projects service unavailable.';
       errorEl.style.display = '';
       return;
     }
@@ -744,96 +964,120 @@
     errorEl.style.display = 'none';
 
     var isEditing = editingProjectId !== null;
-
-    // Store locally as demo Phase 7 data
-    var now = new Date().toISOString();
-    if (isEditing) {
-      var existing = findDemoProject(editingProjectId);
-      if (existing) {
-        existing.title = title;
-        existing.description = description;
-        existing.startDate = startDate || null;
-        existing.endDate = endDate || null;
-        existing.status = status;
-        existing.maxScore = maxScore;
-        existing.teamSize = teamSize;
-        existing.repoUrl = repoUrl || '';
-        existing.milestones = milestones;
-        existing.updatedAt = now;
-      }
-    } else {
-      var newProject = {
-        _id: 'demo-pj-' + ++demoProjectIdCounter,
-        id: 'demo-pj-' + demoProjectIdCounter,
-        courseId: activeCourseId,
-        title: title,
-        description: description,
-        startDate: startDate || null,
-        endDate: endDate || null,
-        status: status,
-        maxScore: maxScore,
-        teamSize: teamSize,
-        repoUrl: repoUrl || '',
-        milestones: milestones,
-        createdBy: getUser()._id || getUser().id || 'unknown',
-        createdAt: now,
-        updatedAt: now,
-      };
-      demoProjects.push(newProject);
-    }
-
     submitBtn.textContent = isEditing ? 'Updating...' : 'Creating...';
 
-    // Try existing backend (old /assignments endpoint) for backward compatibility
+    var courseKey =
+      trackingCourseId || (await resolveTrackingCourseId(activeCourseId));
+    var mappedStatus = mapFormStatusToTracking(status);
+    var deliveryMode = deliveryModeFromTeamSize(teamSize);
+    var projectBody = {
+      courseId: courseKey,
+      slug: slugifyTitle(title),
+      title: title,
+      description: description,
+      status: mappedStatus,
+      deliveryMode: deliveryMode,
+      teamSize: teamSize > 0 ? teamSize : null,
+      rubric: rubric,
+      resources: resources,
+    };
+
     try {
-      await apiFetch('/assignments', {
-        service: 'admin',
-        method: 'POST',
-        auth: true,
-        body: {
-          title: title,
-          courseId: activeCourseId,
-          description: description || undefined,
-          dueDate: endDate || undefined,
-          maxScore: maxScore,
-        },
-      });
-    } catch (_) {
-      // Old backend may not be running — not an error
+      if (isEditing) {
+        await S.trackingProjectService.updateProject(editingProjectId, {
+          slug: projectBody.slug,
+          title: projectBody.title,
+          description: projectBody.description,
+          status: projectBody.status,
+          deliveryMode: projectBody.deliveryMode,
+          teamSize: projectBody.teamSize,
+          rubric: projectBody.rubric,
+          resources: projectBody.resources,
+        });
+      } else {
+        var created = await S.trackingProjectService.createProject(projectBody);
+        var projectId = extractId(created);
+        if (!projectId) {
+          throw new Error('Project was created but no project id was returned.');
+        }
+        for (var m = 0; m < milestones.length; m++) {
+          await S.trackingProjectService.createMilestone(projectId, {
+            title: milestones[m].title,
+            description: milestones[m].description,
+            order: m,
+            dueAt: toIsoDateTime(milestones[m].dueDate),
+            isFinal: milestones[m].isFinal,
+          });
+        }
+      }
+
+      closeCreateModal();
+      await loadProjects(activeCourseId);
+      updateStats();
+    } catch (err) {
+      errorEl.textContent =
+        err.message || (isEditing ? 'Failed to update project.' : 'Failed to create project.');
+      errorEl.style.display = '';
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = isEditing ? 'Update Project' : 'Create Project';
     }
+  }
 
-    closeCreateModal();
-    await loadProjects(activeCourseId);
-    updateStats();
-
-    submitBtn.disabled = false;
-    submitBtn.textContent = isEditing ? 'Update Project' : 'Create Project';
+  async function handleTeamFormation(projectId) {
+    if (!S || !S.trackingProjectService) {
+      alert('Projects service unavailable.');
+      return;
+    }
+    if (
+      !confirm(
+        'Generate team assignments for this project? Existing draft teams may be replaced.',
+      )
+    ) {
+      return;
+    }
+    try {
+      await S.trackingProjectService.generateTeamFormation(projectId, {
+        algorithmVersion: 'v1',
+      });
+      if (
+        confirm('Teams generated. Lock assignments so students can see their teams?')
+      ) {
+        await S.trackingProjectService.lockTeams(projectId, {});
+      }
+      alert('Team formation complete.');
+    } catch (err) {
+      alert(err.message || 'Team formation failed.');
+    }
   }
 
   async function handleDeleteProject(projectId) {
-    if (!confirm('Delete this project? This cannot be undone.')) return;
+    var p = findProject(projectId);
+    var status = (p && p.status ? p.status : 'draft').toLowerCase();
+    var actionLabel =
+      status === 'published'
+        ? 'Unpublish this project? Students will no longer see it.'
+        : 'Archive this project?';
+    if (!confirm(actionLabel)) return;
 
-    // Remove from demo data
-    var idx = -1;
-    for (var i = 0; i < demoProjects.length; i++) {
-      if ((demoProjects[i]._id || demoProjects[i].id) === projectId) {
-        idx = i;
-        break;
-      }
+    if (!S || !S.trackingProjectService) {
+      alert('Projects service unavailable.');
+      return;
     }
-    if (idx !== -1) demoProjects.splice(idx, 1);
 
-    // Try existing backend
     try {
-      await apiFetch('/assignments/' + encodeURIComponent(projectId), {
-        service: 'admin',
-        method: 'DELETE',
-        auth: true,
-      });
-    } catch (_) {}
-
-    await loadProjects(activeCourseId);
-    updateStats();
+      if (status === 'published') {
+        await S.trackingProjectService.unpublishProject(projectId);
+      } else {
+        await S.trackingProjectService.updateProject(projectId, {
+          status: 'archived',
+        });
+      }
+      await loadProjects(activeCourseId);
+      updateStats();
+    } catch (err) {
+      alert(err.message || 'Failed to remove project.');
+    }
   }
 
   /* ── Review Modal ───────────────────────────────── */
@@ -842,26 +1086,25 @@
 
   function findSubmission(id) {
     for (var i = 0; i < submissions.length; i++) {
-      if ((submissions[i]._id || submissions[i].id) === id)
-        return submissions[i];
+      if (extractId(submissions[i]) === id) return submissions[i];
     }
     return null;
   }
 
-  function openReviewModal(submissionId) {
+  async function openReviewModal(submissionId) {
     var s = findSubmission(submissionId);
     if (!s) return;
     activeReviewSubmission = s;
 
     document.getElementById('review-student-name').textContent =
-      s.studentName || s.name || s.student?.name || 'Student';
+      getSubmissionStudentName(s);
     document.getElementById('review-project-name').textContent =
-      s.projectTitle || s.assignmentTitle || s.title || 'Project';
+      getSubmissionProjectTitle(s);
     document.getElementById('review-submitted-at').textContent = formatDate(
       s.submittedAt || s.createdAt || s.submissionDate,
     );
 
-    var githubLink = s.githubLink || s.repoUrl || s.githubUrl || '';
+    var githubLink = s.repoUrl || s.githubLink || s.githubUrl || '';
     var githubEl = document.getElementById('review-github-link');
     if (githubLink) {
       githubEl.href = githubLink;
@@ -872,16 +1115,34 @@
       githubEl.href = '#';
     }
 
-    document.getElementById('review-grade').value = s.grade || '';
+    var reviewData = null;
+    if (S && S.trackingProjectService) {
+      try {
+        reviewData = await S.trackingProjectService.getReview(submissionId);
+        reviewData = reviewData && (reviewData.data || reviewData);
+      } catch (_) {
+        reviewData = null;
+      }
+    }
+
+    var gradeVal = getSubmissionGrade(s);
+    if (reviewData && reviewData.score != null) gradeVal = reviewData.score;
+    document.getElementById('review-grade').value =
+      gradeVal != null ? gradeVal : '';
+
     var statusRadios = document.querySelectorAll('input[name="review-status"]');
-    var currentStatus = (s.status || 'pending').toLowerCase();
+    var currentStatus = mapReviewStatusToForm(
+      (reviewData && reviewData.status) || s.reviewStatus || s.status || 'pending',
+    );
     for (var i = 0; i < statusRadios.length; i++) {
-      if (statusRadios[i].value === currentStatus)
-        statusRadios[i].checked = true;
+      statusRadios[i].checked = statusRadios[i].value === currentStatus;
     }
 
     document.getElementById('review-feedback').value =
-      s.feedback || s.instructorNotes || '';
+      (reviewData && reviewData.feedback) ||
+      s.feedback ||
+      s.instructorNotes ||
+      '';
     document.getElementById('review-error').style.display = 'none';
     document.getElementById('review-modal').style.display = 'flex';
   }
@@ -893,14 +1154,20 @@
 
   async function handleReviewSubmit() {
     if (!activeReviewSubmission) return;
-    var sid = activeReviewSubmission._id || activeReviewSubmission.id;
-    var grade = parseInt(document.getElementById('review-grade').value);
+    var sid = extractId(activeReviewSubmission);
+    var grade = parseInt(document.getElementById('review-grade').value, 10);
     var statusEl = document.querySelector(
       'input[name="review-status"]:checked',
     );
-    var status = statusEl ? statusEl.value : 'approved';
+    var status = mapFormReviewStatus(statusEl ? statusEl.value : 'approved');
     var feedback = document.getElementById('review-feedback').value.trim();
     var errorEl = document.getElementById('review-error');
+
+    if (!S || !S.trackingProjectService) {
+      errorEl.textContent = 'Projects service unavailable.';
+      errorEl.style.display = '';
+      return;
+    }
 
     var submitBtn = document.getElementById('submit-review-btn');
     submitBtn.disabled = true;
@@ -908,15 +1175,10 @@
     errorEl.style.display = 'none';
 
     try {
-      await apiFetch('/submissions/' + encodeURIComponent(sid) + '/status', {
-        service: 'admin',
-        method: 'PATCH',
-        auth: true,
-        body: {
-          status: status,
-          grade: isNaN(grade) ? undefined : grade,
-          feedback: feedback || undefined,
-        },
+      await S.trackingProjectService.submitReview(sid, {
+        status: status,
+        score: isNaN(grade) ? null : grade,
+        feedback: feedback,
       });
       closeReviewModal();
       await loadSubmissions(activeCourseId);
@@ -927,6 +1189,103 @@
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Submit Review';
+    }
+  }
+
+  /* ── Templates ───────────────────────────────────── */
+
+  function closeTemplatesModal() {
+    document.getElementById('templates-modal').style.display = 'none';
+  }
+
+  function renderTemplatesList(templates) {
+    var listEl = document.getElementById('templates-list');
+    var emptyEl = document.getElementById('templates-empty');
+    if (!templates.length) {
+      listEl.innerHTML = '';
+      emptyEl.style.display = '';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    listEl.innerHTML = templates
+      .map(function (t) {
+        var tid = extractId(t);
+        var title = t.title || 'Untitled template';
+        var desc = t.description || '';
+        var status = (t.status || 'active').toLowerCase();
+        var difficulty = t.difficulty || '';
+        var teamSize = t.teamSize || 0;
+        var deliveryMode = t.deliveryMode || deliveryModeFromTeamSize(teamSize);
+        return (
+          '<div class="inst-proj-row" data-template-id="' +
+          tid +
+          '">' +
+          '<span class="inst-proj-status-badge ' +
+          getStatusClass(status) +
+          '">' +
+          escapeHtml(status) +
+          '</span>' +
+          '<div class="inst-proj-info">' +
+          '<strong>' +
+          escapeHtml(title) +
+          '</strong>' +
+          '<div class="inst-proj-meta">' +
+          (difficulty
+            ? '<span><i class="fa-solid fa-signal"></i> ' +
+              escapeHtml(difficulty) +
+              '</span>'
+            : '') +
+          '<span><i class="fa-solid fa-user"></i> ' +
+          (deliveryMode === 'team' && teamSize > 0
+            ? 'Team: ' + teamSize
+            : 'Individual') +
+          '</span>' +
+          (desc
+            ? '<span><i class="fa-regular fa-file-lines"></i> ' +
+              escapeHtml(desc.slice(0, 80)) +
+              (desc.length > 80 ? '…' : '') +
+              '</span>'
+            : '') +
+          '</div></div></div>'
+        );
+      })
+      .join('');
+  }
+
+  async function showTemplatesPanel() {
+    if (!activeCourseId) {
+      alert('Select a course first.');
+      return;
+    }
+    if (!S || !S.trackingProjectService) {
+      alert('Projects service unavailable.');
+      return;
+    }
+
+    var modal = document.getElementById('templates-modal');
+    var loadingEl = document.getElementById('templates-loading');
+    var errorEl = document.getElementById('templates-error');
+    var emptyEl = document.getElementById('templates-empty');
+    var listEl = document.getElementById('templates-list');
+
+    modal.style.display = 'flex';
+    loadingEl.style.display = '';
+    errorEl.style.display = 'none';
+    emptyEl.style.display = 'none';
+    listEl.innerHTML = '';
+
+    var courseKey =
+      trackingCourseId || (await resolveTrackingCourseId(activeCourseId));
+
+    try {
+      var resp = await S.trackingProjectService.listCourseTemplates(courseKey);
+      var templates = normalizeList(resp);
+      loadingEl.style.display = 'none';
+      renderTemplatesList(templates);
+    } catch (err) {
+      loadingEl.style.display = 'none';
+      errorEl.textContent = err.message || 'Failed to load templates.';
+      errorEl.style.display = '';
     }
   }
 
@@ -973,9 +1332,17 @@
         closeReviewModal();
         return;
       }
+      if (
+        e.target.closest('#close-templates-modal') ||
+        e.target.closest('#close-templates-btn')
+      ) {
+        closeTemplatesModal();
+        return;
+      }
       if (e.target.classList.contains('modal-overlay')) {
         if (e.target.id === 'create-project-modal') closeCreateModal();
         if (e.target.id === 'review-modal') closeReviewModal();
+        if (e.target.id === 'templates-modal') closeTemplatesModal();
         return;
       }
 
@@ -998,6 +1365,10 @@
         }
         if (action === 'review' && id) {
           openReviewModal(id);
+          return;
+        }
+        if (action === 'teams' && id) {
+          void handleTeamFormation(id);
           return;
         }
       }
@@ -1055,7 +1426,7 @@
 
       /* Templates */
       if (e.target.closest('#btn-manage-templates')) {
-        alert('Templates page coming soon.');
+        showTemplatesPanel();
         return;
       }
 
@@ -1096,10 +1467,11 @@
   var gradeInitialized = false;
 
   function initGradingTab() {
-    if (gradeInitialized) return;
-    gradeInitialized = true;
-    loadGradeProjects();
-    setupGradeUI();
+    if (!gradeInitialized) {
+      gradeInitialized = true;
+      setupGradeUI();
+    }
+    void loadGradeProjects();
   }
 
   function setupGradeUI() {
@@ -1152,7 +1524,198 @@
       });
   }
 
-  function loadGradeProjects() {
+  function mapTrackingSubmissionGradeStatus(submission, review) {
+    var reviewStatus = (review && review.status) || '';
+    if (reviewStatus === 'graded' || reviewStatus === 'approved') return 'graded';
+    if (reviewStatus === 'changes_requested') return 'evaluated';
+    var subStatus = (submission && submission.status) || '';
+    if (subStatus === 'passed') return 'graded';
+    if (subStatus === 'failed') return 'evaluated';
+    if (subStatus === 'needs_review') return 'pending';
+    return 'pending';
+  }
+
+  function buildGradeSubmissionsFromTracking(
+    project,
+    teams,
+    queueItems,
+    contributions,
+  ) {
+    var milestones = project.milestones || [];
+    var maxScore =
+      project.points ||
+      project.gradeWeight ||
+      (Array.isArray(project.rubric)
+        ? project.rubric.reduce(function (sum, item) {
+            return sum + (Number(item.maxScore) || 0);
+          }, 0)
+        : 0) ||
+      100;
+    var contribMembers = (contributions && contributions.members) || [];
+    var weightFallback =
+      milestones.length > 0 ? Math.round(100 / milestones.length) : 100;
+
+    var groups = [];
+    if (teams.length) {
+      groups = teams.map(function (team) {
+        var tid = extractId(team);
+        return {
+          id: tid,
+          teamName: team.name || 'Team',
+          members: (team.members || []).map(function (member) {
+            return member.username || member.roleLabel || member.userId || 'Member';
+          }),
+          repoUrl: team.repoUrl || '',
+        };
+      });
+    } else {
+      var byUser = {};
+      queueItems.forEach(function (submission) {
+        var uid = submission.userId || submission.submittedByUserId || 'unknown';
+        if (!byUser[uid]) {
+          byUser[uid] = {
+            id: uid,
+            teamName: uid,
+            members: [uid],
+            repoUrl: submission.repoUrl || '',
+          };
+        }
+      });
+      groups = Object.keys(byUser).map(function (key) {
+        return byUser[key];
+      });
+    }
+
+    return groups.map(function (group) {
+      var teamSubs = queueItems.filter(function (submission) {
+        if (teams.length) return submission.teamId === group.id;
+        return (
+          (submission.userId || submission.submittedByUserId || 'unknown') ===
+          group.id
+        );
+      });
+
+      var msStatuses = milestones.map(function (ms) {
+        var mid = ms.id || ms._id;
+        var sub = teamSubs.find(function (entry) {
+          return entry.milestoneId === mid;
+        });
+        return {
+          name: ms.name || ms.title || 'Milestone',
+          weight: ms.weight || weightFallback,
+          completed: !!sub,
+          score: null,
+          maxScore: 100,
+          submissionId: sub ? extractId(sub) : null,
+          reviewStatus: null,
+        };
+      });
+
+      var gradedCount = msStatuses.filter(function (ms) {
+        return ms.completed;
+      }).length;
+      var status =
+        gradedCount === 0
+          ? 'pending'
+          : gradedCount === msStatuses.length
+            ? 'graded'
+            : 'evaluated';
+
+      var contribution = (group.members || []).map(function (name) {
+        var match = contribMembers.find(function (member) {
+          return (
+            member.username === name ||
+            member.userId === name ||
+            member.name === name
+          );
+        });
+        return {
+          name: name,
+          commits: match ? match.commitCount || 0 : 0,
+          linesAdded: 0,
+          linesRemoved: 0,
+          percentage: match ? match.sharePercent || 0 : 0,
+        };
+      });
+
+      var latestSub = teamSubs
+        .slice()
+        .sort(function (a, b) {
+          return (
+            new Date(b.submittedAt || b.updatedAt || 0).getTime() -
+            new Date(a.submittedAt || a.updatedAt || 0).getTime()
+          );
+        })[0];
+
+      return {
+        id: group.id,
+        teamName: group.teamName,
+        members: group.members,
+        status: status,
+        score: null,
+        maxScore: maxScore,
+        milestoneStatuses: msStatuses,
+        contribution: contribution,
+        githubRepo: group.repoUrl || (latestSub && latestSub.repoUrl) || '',
+        commits: [],
+        submittedAt: latestSub
+          ? latestSub.submittedAt || latestSub.createdAt
+          : null,
+        feedbackText: '',
+      };
+    });
+  }
+
+  async function enrichGradeSubmissionReviews(submission) {
+    if (!S || !S.trackingProjectService || !submission) return submission;
+    var statuses = submission.milestoneStatuses || [];
+    await Promise.all(
+      statuses.map(async function (ms) {
+        if (!ms.submissionId) return;
+        try {
+          var reviewResp = await S.trackingProjectService.getReview(
+            ms.submissionId,
+          );
+          var review = reviewResp && (reviewResp.data || reviewResp);
+          if (review && review.score != null) ms.score = review.score;
+          if (review && review.status) ms.reviewStatus = review.status;
+          if (review && review.feedback && !submission.feedbackText) {
+            submission.feedbackText = review.feedback;
+          }
+        } catch (_) {}
+      }),
+    );
+
+    var scored = statuses.filter(function (ms) {
+      return ms.score != null;
+    });
+    if (scored.length) {
+      var weighted = statuses.reduce(function (sum, ms) {
+        return sum + ((ms.score || 0) * (ms.weight || 0)) / 100;
+      }, 0);
+      submission.score = Math.round((weighted * submission.maxScore) / 100);
+    }
+
+    var allGraded = statuses.every(function (ms) {
+      return (
+        !ms.submissionId ||
+        ms.reviewStatus === 'graded' ||
+        ms.reviewStatus === 'approved'
+      );
+    });
+    var anySubmitted = statuses.some(function (ms) {
+      return ms.completed;
+    });
+    submission.status = allGraded && anySubmitted
+      ? 'graded'
+      : anySubmitted
+        ? 'evaluated'
+        : 'pending';
+
+    return submission;
+  }
+
+  async function loadGradeProjects() {
     var select = document.getElementById('grade-project-select');
     var cid = activeCourseId;
     if (!cid) {
@@ -1163,85 +1726,64 @@
     document.getElementById('grade-course-subtitle').textContent =
       'Course loaded';
 
-    if (S && S.projectService) {
-      S.projectService
-        .listByCourse(cid)
-        .then(function (res) {
-          var items = res?.data || [];
-          if (!Array.isArray(items)) items = [];
-          gradeProjects = items;
-          populateGradeSelect(select, items);
-          if (!items.length) {
-            document.getElementById('grade-empty-state').innerHTML =
-              '<i class="fa-solid fa-diagram-project"></i><p>No projects yet. Create one in the Projects tab first.</p>';
-            document.getElementById('grade-empty-state').style.display =
-              'block';
-          }
-        })
-        .catch(function () {
-          gradeProjects = generateDemoGradeProjects();
-          populateGradeSelect(select, gradeProjects);
-        });
-    } else {
-      gradeProjects = generateDemoGradeProjects();
-      populateGradeSelect(select, gradeProjects);
+    if (!S || !S.trackingProjectService) {
+      select.innerHTML =
+        '<option value="">Projects service unavailable.</option>';
+      gradeProjects = [];
+      return;
     }
-  }
 
-  function generateDemoGradeProjects() {
-    return [
-      {
-        _id: 'demo-p1',
-        title: 'Capstone Project',
-        points: 200,
-        teamSize: 3,
-        milestones: [
-          {
-            name: 'Proposal',
-            weight: 10,
-            dueDate: new Date(Date.now() - 14 * 86400000).toISOString(),
-          },
-          {
-            name: 'Design Document',
-            weight: 20,
-            dueDate: new Date(Date.now() - 7 * 86400000).toISOString(),
-          },
-          {
-            name: 'Implementation',
-            weight: 40,
-            dueDate: new Date(Date.now() + 7 * 86400000).toISOString(),
-          },
-          {
-            name: 'Final Report',
-            weight: 30,
-            dueDate: new Date(Date.now() + 21 * 86400000).toISOString(),
-          },
-        ],
-      },
-      {
-        _id: 'demo-p2',
-        title: 'Data Analysis Project',
-        points: 150,
-        teamSize: 2,
-        milestones: [
-          {
-            name: 'Data Collection',
-            weight: 25,
-            dueDate: new Date(Date.now() - 3 * 86400000).toISOString(),
-          },
-          {
-            name: 'Analysis',
-            weight: 50,
-            dueDate: new Date(Date.now() + 14 * 86400000).toISOString(),
-          },
-          {
-            name: 'Presentation',
-            weight: 25,
-            dueDate: new Date(Date.now() + 28 * 86400000).toISOString(),
-          },
-        ],
-      },
-    ];
+    select.innerHTML = '<option value="">Loading projects…</option>';
+    try {
+      var courseKey =
+        trackingCourseId || (await resolveTrackingCourseId(cid));
+      var resp = await S.trackingProjectService.listByCourse(courseKey);
+      var items = normalizeList(resp);
+      await Promise.all(
+        items.map(async function (project) {
+          var pid = extractId(project);
+          if (!pid) return;
+          try {
+            var msResp = await S.trackingProjectService.getMilestones(pid);
+            var msList = normalizeList(msResp);
+            var weightFallback =
+              msList.length > 0 ? Math.round(100 / msList.length) : 100;
+            project.milestones = msList.map(function (ms) {
+              return {
+                id: extractId(ms),
+                name: ms.title || ms.name || 'Milestone',
+                weight: ms.weight || ms.gradeWeight || weightFallback,
+                dueDate: ms.dueDate || ms.deadline || null,
+              };
+            });
+          } catch (_) {
+            project.milestones = [];
+          }
+          var rubricTotal = Array.isArray(project.rubric)
+            ? project.rubric.reduce(function (sum, item) {
+                return sum + (Number(item.maxScore) || 0);
+              }, 0)
+            : 0;
+          project.points = rubricTotal || Number(project.gradeWeight) || 100;
+        }),
+      );
+      gradeProjects = items;
+      populateGradeSelect(select, items);
+      if (!items.length) {
+        document.getElementById('grade-empty-state').innerHTML =
+          '<i class="fa-solid fa-diagram-project"></i><p>No projects yet. Create one in the Projects tab first.</p>';
+        document.getElementById('grade-empty-state').style.display = 'block';
+      }
+    } catch (err) {
+      gradeProjects = [];
+      select.innerHTML =
+        '<option value="">Failed to load projects.</option>';
+      document.getElementById('grade-empty-state').innerHTML =
+        '<i class="fa-solid fa-triangle-exclamation"></i><p>' +
+        escapeHtml(err.message || 'Failed to load projects.') +
+        '</p>';
+      document.getElementById('grade-empty-state').style.display = 'block';
+    }
   }
 
   function populateGradeSelect(select, items) {
@@ -1255,7 +1797,7 @@
     });
   }
 
-  function loadGradeSubmissions(projectId) {
+  async function loadGradeSubmissions(projectId) {
     gradeCurrentProject = gradeProjects.find(function (p) {
       return (p._id || p.id) === projectId;
     });
@@ -1263,125 +1805,63 @@
     tbody.innerHTML =
       '<tr><td colspan="6" style="text-align:center;padding:32px">Loading submissions...</td></tr>';
 
-    if (S && S.projectService) {
-      S.projectService
-        .getSubmissions(projectId)
-        .then(function (res) {
-          var items = res?.data || [];
-          if (!Array.isArray(items)) items = [];
-          gradeSubmissions = items;
-          if (!gradeSubmissions.length) generateDemoGradeSubmissions(projectId);
-          renderGradeSubmissions();
-        })
-        .catch(function () {
-          generateDemoGradeSubmissions(projectId);
-          renderGradeSubmissions();
+    if (!S || !S.trackingProjectService) {
+      gradeSubmissions = [];
+      tbody.innerHTML =
+        '<tr><td colspan="6" style="text-align:center;padding:32px">Projects service unavailable.</td></tr>';
+      renderFinalGradeSummary();
+      return;
+    }
+
+    try {
+      var queueResp = await S.trackingProjectService.getReviewQueue({
+        projectId: projectId,
+        limit: 200,
+      });
+      var teamsResp = await S.trackingProjectService.listTeams(projectId);
+      var contribResp = null;
+      try {
+        contribResp = await S.trackingProjectService.getContributions(
+          projectId,
+        );
+      } catch (_) {}
+
+      var queueItems = normalizeList(queueResp);
+      var teams = normalizeList(teamsResp);
+      gradeSubmissions = buildGradeSubmissionsFromTracking(
+        gradeCurrentProject || { milestones: [], points: 100 },
+        teams,
+        queueItems,
+        contribResp && (contribResp.data || contribResp),
+      );
+
+      gradeSubmissions.forEach(function (submission) {
+        var total = (submission.contribution || []).reduce(function (sum, c) {
+          return sum + c.commits;
+        }, 0);
+        submission.contribution.forEach(function (c) {
+          c.percentage =
+            total > 0 ? Math.round((c.commits / total) * 100) : c.percentage;
         });
-    } else {
-      generateDemoGradeSubmissions(projectId);
-      renderGradeSubmissions();
+      });
+
+      if (!gradeSubmissions.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="6" style="text-align:center;padding:32px">No teams or submissions yet.</td></tr>';
+        document.getElementById('grade-stats').style.display = 'none';
+        document.getElementById('grade-table-wrapper').style.display = 'none';
+        document.getElementById('grade-empty-state').style.display = 'block';
+      } else {
+        renderGradeSubmissions();
+      }
+    } catch (err) {
+      gradeSubmissions = [];
+      tbody.innerHTML =
+        '<tr><td colspan="6" style="text-align:center;padding:32px">' +
+        escapeHtml(err.message || 'Failed to load submissions.') +
+        '</td></tr>';
     }
     renderFinalGradeSummary();
-  }
-
-  function generateDemoGradeSubmissions(projectId) {
-    var demoTeams = [
-      {
-        name: 'Team Alpha',
-        members: ['Ahmed Hassan', 'Mariam Khalid', 'Youssef Ibrahim'],
-      },
-      { name: 'Team Beta', members: ['Laila Mostafa', 'Omar Abdelrahman'] },
-      {
-        name: 'Team Gamma',
-        members: ['Nour El-Din', 'Hana Youssef', 'Karim Samir'],
-      },
-    ];
-    var statuses = ['pending', 'evaluated', 'graded'];
-    var p = gradeCurrentProject || { points: 100, milestones: [] };
-    var milestones = p.milestones || [];
-
-    gradeSubmissions = demoTeams.map(function (team, idx) {
-      var status = statuses[idx % 3];
-      var msStatuses = milestones.map(function (ms) {
-        var done = status !== 'pending';
-        var score = done ? Math.round(Math.random() * 100) : null;
-        return {
-          name: ms.name,
-          weight: ms.weight,
-          completed: done,
-          score: score,
-          maxScore: 100,
-        };
-      });
-      var weightedScore = msStatuses.reduce(function (sum, ms) {
-        return sum + ((ms.score || 0) * (ms.weight || 0)) / 100;
-      }, 0);
-
-      return {
-        teamName: team.name,
-        members: team.members,
-        status: status,
-        score:
-          status === 'graded'
-            ? Math.round((weightedScore * (p.points || 100)) / 100)
-            : status === 'evaluated'
-              ? Math.round((weightedScore * (p.points || 100)) / 100)
-              : null,
-        maxScore: p.points || 100,
-        milestoneStatuses: msStatuses,
-        contribution: team.members.map(function (m) {
-          return {
-            name: m,
-            commits: Math.floor(Math.random() * 30 + 5),
-            linesAdded: Math.floor(Math.random() * 1000 + 100),
-            linesRemoved: Math.floor(Math.random() * 500 + 50),
-            percentage: 0,
-          };
-        }),
-        githubRepo:
-          'https://github.com/nibras/' +
-          team.name.toLowerCase().replace(/\s+/g, '-'),
-        commits: [
-          {
-            message: 'Initial project setup',
-            author: team.members[0],
-            date: new Date(Date.now() - 20 * 86400000).toISOString(),
-          },
-          {
-            message: 'Implement core algorithm',
-            author: team.members[1],
-            date: new Date(Date.now() - 12 * 86400000).toISOString(),
-          },
-          {
-            message: 'Add unit tests',
-            author: team.members[0],
-            date: new Date(Date.now() - 8 * 86400000).toISOString(),
-          },
-          {
-            message: 'Fix edge cases in parser',
-            author: team.members[2] || team.members[1],
-            date: new Date(Date.now() - 5 * 86400000).toISOString(),
-          },
-          {
-            message: 'Update documentation',
-            author: team.members[1],
-            date: new Date(Date.now() - 2 * 86400000).toISOString(),
-          },
-        ],
-        submittedAt: new Date(
-          Date.now() - Math.random() * 10 * 86400000,
-        ).toISOString(),
-      };
-    });
-
-    gradeSubmissions.forEach(function (s) {
-      var total = s.contribution.reduce(function (sum, c) {
-        return sum + c.commits;
-      }, 0);
-      s.contribution.forEach(function (c) {
-        c.percentage = total > 0 ? Math.round((c.commits / total) * 100) : 0;
-      });
-    });
   }
 
   function renderGradeSubmissions() {
@@ -1462,14 +1942,16 @@
     tbody.querySelectorAll('.grade-action-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var idx = parseInt(this.getAttribute('data-g-idx'));
-        openGradeSubmission(idx);
+        void openGradeSubmission(idx);
       });
     });
   }
 
-  function openGradeSubmission(idx) {
+  async function openGradeSubmission(idx) {
     gradeCurrentSubmission = gradeSubmissions[idx];
     if (!gradeCurrentSubmission) return;
+
+    await enrichGradeSubmissionReviews(gradeCurrentSubmission);
 
     document.getElementById('detail-team-name').textContent =
       escapeHtml(gradeCurrentSubmission.teamName || 'Team') + "'s Project";
@@ -1779,84 +2261,69 @@
       '%)';
   }
 
-  function submitGrade() {
+  async function submitGrade() {
     var statusEl = document.getElementById('grade-grade-status');
     statusEl.textContent = '';
     statusEl.className = 'form-status';
 
     if (!gradeCurrentSubmission) return;
 
+    if (!S || !S.trackingProjectService) {
+      statusEl.textContent = 'Projects service unavailable.';
+      statusEl.className = 'form-status form-status-error';
+      return;
+    }
+
     var msInputs = document.querySelectorAll(
       '#grade-weighted-score-breakdown .ms-score-input',
     );
-    var milestoneScores = [];
-    msInputs.forEach(function (input) {
-      milestoneScores.push(parseFloat(input.value) || 0);
-    });
-
+    var milestoneStatuses = gradeCurrentSubmission.milestoneStatuses || [];
     var feedbackText = document
       .getElementById('grade-feedback-text')
       .value.trim();
 
-    var adjustments = {};
-    document
-      .querySelectorAll('#grade-adjustment-inputs .adjust-input')
-      .forEach(function (input) {
-        var idx = parseInt(input.getAttribute('data-g-idx'));
-        var name =
-          gradeCurrentSubmission.contribution &&
-          gradeCurrentSubmission.contribution[idx]
-            ? gradeCurrentSubmission.contribution[idx].name
-            : 'Member ' + idx;
-        adjustments[name] = parseFloat(input.value) || 0;
-      });
-
-    var totalScore = milestoneScores.reduce(function (a, b) {
-      return a + b;
-    }, 0);
-
     statusEl.textContent = 'Saving...';
     statusEl.className = 'form-status form-status-info';
 
-    var submissionId = gradeCurrentSubmission._id || gradeCurrentSubmission.id;
-    var promise;
+    try {
+      await Promise.all(
+        Array.from(msInputs).map(function (input, idx) {
+          var ms = milestoneStatuses[idx];
+          if (!ms || !ms.submissionId) return Promise.resolve();
+          var score = parseFloat(input.value);
+          return S.trackingProjectService.submitReview(ms.submissionId, {
+            status: 'graded',
+            score: isNaN(score) ? null : score,
+            feedback: feedbackText,
+          });
+        }),
+      );
 
-    if (
-      S &&
-      S.projectService &&
-      S.projectService.gradeSubmission &&
-      submissionId
-    ) {
-      promise = S.projectService.gradeSubmission(submissionId, {
-        milestoneScores: milestoneScores,
-        totalScore: totalScore,
-        comment: feedbackText,
-        adjustments: adjustments,
+      var milestoneScores = Array.from(msInputs).map(function (input) {
+        return parseFloat(input.value) || 0;
       });
-    } else {
-      promise = new Promise(function (resolve) {
-        setTimeout(function () {
-          gradeCurrentSubmission.status = 'graded';
-          gradeCurrentSubmission.score = totalScore;
-          gradeCurrentSubmission.feedbackText = feedbackText;
-          resolve({ ok: true });
-        }, 500);
+      var totalScore = milestoneScores.reduce(function (a, b) {
+        return a + b;
+      }, 0);
+
+      gradeCurrentSubmission.status = 'graded';
+      gradeCurrentSubmission.score = totalScore;
+      gradeCurrentSubmission.feedbackText = feedbackText;
+      milestoneStatuses.forEach(function (ms, idx) {
+        ms.score = milestoneScores[idx];
+        ms.reviewStatus = 'graded';
       });
+
+      statusEl.textContent = 'Grade saved successfully!';
+      statusEl.className = 'form-status form-status-success';
+      renderGradeSubmissions();
+      setTimeout(function () {
+        statusEl.textContent = '';
+      }, 3000);
+    } catch (err) {
+      statusEl.textContent = 'Failed to save: ' + (err?.message || 'Error');
+      statusEl.className = 'form-status form-status-error';
     }
-
-    promise
-      .then(function () {
-        statusEl.textContent = 'Grade saved successfully!';
-        statusEl.className = 'form-status form-status-success';
-        renderGradeSubmissions();
-        setTimeout(function () {
-          statusEl.textContent = '';
-        }, 3000);
-      })
-      .catch(function (err) {
-        statusEl.textContent = 'Failed to save: ' + (err?.message || 'Error');
-        statusEl.className = 'form-status form-status-error';
-      });
   }
 
   function closeGradeModal() {
@@ -1953,7 +2420,7 @@
     container.style.display = '';
   }
 
-  function finalizeAllGrades() {
+  async function finalizeAllGrades() {
     if (!gradeSubmissions.length) return;
     if (
       !confirm(
@@ -1961,6 +2428,11 @@
       )
     )
       return;
+
+    if (!S || !S.trackingProjectService) {
+      alert('Projects service unavailable.');
+      return;
+    }
 
     var pending = gradeSubmissions.filter(function (s) {
       return s.status !== 'graded';
@@ -1972,10 +2444,11 @@
 
     var finalizedCount = 0;
     var errors = 0;
-    var total = pending.length;
 
-    pending.forEach(function (s, idx) {
-      var msStatuses = s.milestoneStatuses || [];
+    for (var i = 0; i < pending.length; i += 1) {
+      var submission = pending[i];
+      await enrichGradeSubmissionReviews(submission);
+      var msStatuses = submission.milestoneStatuses || [];
       var totalWeighted = 0;
       var maxWeighted = 0;
       msStatuses.forEach(function (ms) {
@@ -1992,32 +2465,25 @@
             )
           : 0;
 
-      s.status = 'graded';
-      s.score = finalScore;
-      s.gradedAt = new Date().toISOString();
-      finalizedCount++;
-
-      // Try backend
-      var submissionId = s._id || s.id;
-      if (
-        S &&
-        S.projectService &&
-        S.projectService.gradeSubmission &&
-        submissionId
-      ) {
-        S.projectService
-          .gradeSubmission(submissionId, {
-            totalScore: finalScore,
-            milestoneScores: msStatuses.map(function (ms) {
-              return ms.score || 0;
-            }),
-            comment: 'Finalized automatically',
-          })
-          .catch(function () {
-            errors++;
-          });
+      try {
+        await Promise.all(
+          msStatuses.map(function (ms) {
+            if (!ms.submissionId) return Promise.resolve();
+            return S.trackingProjectService.submitReview(ms.submissionId, {
+              status: 'graded',
+              score: ms.score != null ? ms.score : finalScore,
+              feedback: 'Finalized automatically',
+            });
+          }),
+        );
+        submission.status = 'graded';
+        submission.score = finalScore;
+        submission.gradedAt = new Date().toISOString();
+        finalizedCount += 1;
+      } catch (_) {
+        errors += 1;
       }
-    });
+    }
 
     renderGradeSubmissions();
     renderFinalGradeSummary();

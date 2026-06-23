@@ -284,7 +284,7 @@
         detailHref:
           p.projectKey && window.NibrasCourseSidebar?.withCourseId
             ? window.NibrasCourseSidebar.withCourseId(
-                '../Projects/Projects.html',
+                '../../Projects/projects.html',
                 courseId || selectedCourse?.id,
               )
             : null,

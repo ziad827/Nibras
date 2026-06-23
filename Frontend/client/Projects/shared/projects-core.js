@@ -1,70 +1,11 @@
-const projectsPageState = {
-  courseId: '',
-  trackingCourseId: '',
-  activeViewId: 'my-projects-view',
-  activeProjectId: '',
-  ui: {
-    statusCounters: { approved: 0, in_review: 0, complete: 0 },
-    projects: [],
-  },
-  pollingInterval: null,
-  currentSubmissionId: '',
-  submissionStartTime: 0,
-  groupWorkspaceStatusType: 'info',
-};
-
-/* ── Cache Layer ──────────────────────────────────────── */
-var projectsCache = {
-  _store: {},
-  _timestamps: {},
-  DEFAULT_TTL: 5 * 60 * 1000,
-
-  get: function (key) {
-    var now = Date.now();
-    var ts = this._timestamps[key];
-    if (!ts) return null;
-    if (now - ts > this.DEFAULT_TTL) {
-      delete this._store[key];
-      delete this._timestamps[key];
-      return null;
-    }
-    return this._store[key];
-  },
-
-  set: function (key, data) {
-    this._store[key] = data;
-    this._timestamps[key] = Date.now();
-  },
-
-  invalidate: function (key) {
-    delete this._store[key];
-    delete this._timestamps[key];
-  },
-
-  getAge: function (key) {
-    var ts = this._timestamps[key];
-    if (!ts) return -1;
-    return Date.now() - ts;
-  },
-
-  getAgeLabel: function (key) {
-    var age = this.getAge(key);
-    if (age < 0) return '';
-    var sec = Math.floor(age / 1000);
-    if (sec < 60) return 'Cached ' + sec + 's ago';
-    var min = Math.floor(sec / 60);
-    return 'Cached ' + min + 'm ' + (sec % 60) + 's ago';
-  },
-
-  isStale: function (key) {
-    return this.getAge(key) > this.DEFAULT_TTL;
-  },
-
-  clearAll: function () {
-    this._store = {};
-    this._timestamps = {};
-  },
-};
+/* Shared modules: projects-cache.js, projects-utils.js (loaded before this file) */
+var projectsPageState = window.NibrasProjectsUtils.projectsPageState;
+var projectsCache = window.NibrasProjectsCache;
+var milestoneStatusUiMap = window.NibrasProjectsUtils.milestoneStatusUiMap;
+var IDs = window.NibrasProjectsUtils.IDs;
+var escapeHtml = window.NibrasProjectsUtils.escapeHtml;
+var formatDateTime = window.NibrasProjectsUtils.formatDateTime;
+var formatRequestError = window.NibrasProjectsUtils.formatRequestError;
 
 function renderCacheIndicator(key) {
   var age = projectsCache.getAge(key);
@@ -128,59 +69,6 @@ function setApiNoticeWithCache(message, type, cacheKey) {
   }
 }
 
-/* ── End Cache Layer ──────────────────────────────────── */
-
-const milestoneStatusUiMap = Object.freeze({
-  approved: {
-    label: 'Approved',
-    badgeClass: 'badge-graded',
-    iconClass: 'fa-solid fa-check',
-    iconContainerClass: 'm-graded',
-    canFeedback: true,
-    canSubmit: false,
-  },
-  in_review: {
-    label: 'In Review',
-    badgeClass: 'badge-submitted',
-    iconClass: 'fa-solid fa-hourglass-half',
-    iconContainerClass: 'm-submitted',
-    canFeedback: false,
-    canSubmit: false,
-  },
-  needs_changes: {
-    label: 'Needs Changes',
-    badgeClass: 'badge-late',
-    iconClass: 'fa-solid fa-rotate-right',
-    iconContainerClass: 'm-default',
-    canFeedback: true,
-    canSubmit: true,
-  },
-  pending: {
-    label: 'Pending',
-    badgeClass: 'badge-default',
-    iconClass: 'fa-solid fa-clock',
-    iconContainerClass: 'm-default',
-    canFeedback: false,
-    canSubmit: true,
-  },
-  complete: {
-    label: 'Complete',
-    badgeClass: 'badge-submitted',
-    iconClass: 'fa-solid fa-flag-checkered',
-    iconContainerClass: 'm-submitted',
-    canFeedback: true,
-    canSubmit: false,
-  },
-  default: {
-    label: 'Pending',
-    badgeClass: 'badge-default',
-    iconClass: 'fa-solid fa-clock',
-    iconContainerClass: 'm-default',
-    canFeedback: false,
-    canSubmit: true,
-  },
-});
-
 const projectsApiClient =
   window.NibrasProjectsApi?.createClient?.({
     baseUrl:
@@ -192,18 +80,9 @@ const projectsApiClient =
       null,
   }) || null;
 
-const IDs = {
-  toDom: (id) =>
-    String(id || '').startsWith('project-') ? String(id) : `project-${id}`,
-  toApi: (id) => String(id || '').replace(/^project-/i, ''),
-};
-
-window.NibrasReact.run(() => {
-  document.addEventListener('DOMContentLoaded', () => {
-    initCourseProjectsCliHelp();
-    void initProjectsPage();
-  });
-});
+function trackingProjects() {
+  return window.NibrasServices?.trackingProjectService || null;
+}
 
 async function resolveEnrolledTrackingCourseId(course) {
   const trackingService = window.NibrasServices?.trackingCourseService;
@@ -237,88 +116,25 @@ async function resolveEnrolledTrackingCourseId(course) {
   }
 }
 
-async function initProjectsPage() {
-  setupThemeToggle();
+async function initProjectsCore(trackingCourseId, options) {
+  options = options || {};
+  projectsPageState.trackingCourseId = String(trackingCourseId || '');
+  projectsPageState.courseId = String(options.localCourseId || '');
+
+  initCourseProjectsCliHelp();
+
   setGroupWorkspaceStatus(
-    'info',
-    'Student mode: Group Workspace is visible but read-only in this integration.',
+    'ok',
+    'Group Workspace shows your team roster and repository when assigned.',
   );
 
-  const selectedCourse = window.NibrasCourses?.getSelectedCourse?.();
-  if (!selectedCourse) {
-    setApiNotice('Please select a course first.', 'empty');
-    return;
+  var submitForm = document.getElementById('milestoneSubmitForm');
+  if (submitForm && !submitForm._nibrasBound) {
+    submitForm.addEventListener('submit', handleMilestoneSubmit);
+    submitForm._nibrasBound = true;
   }
 
-  let identifiers = null;
-  if (typeof window.NibrasCourses?.resolveCourseIdentifiersAsync === 'function') {
-    identifiers = await window.NibrasCourses.resolveCourseIdentifiersAsync(
-      selectedCourse.id,
-      { loadRemote: true, warnOnMissing: true },
-    );
-  } else if (
-    typeof window.NibrasCourses?.resolveCourseIdentifiers === 'function'
-  ) {
-    identifiers = window.NibrasCourses.resolveCourseIdentifiers(
-      selectedCourse.id,
-      { warnOnMissing: true },
-    );
-  }
-
-  const context = identifiers
-    ? {
-        localCourseId: identifiers.localCourseId || selectedCourse.id,
-        trackingCourseIdForApi: identifiers.trackingCourseIdForApi || '',
-        hasTrackingMapping: identifiers.hasTrackingMapping,
-      }
-    : resolveProjectsCourseContext(selectedCourse);
-
-  projectsPageState.courseId = String(context.localCourseId || '');
-  projectsPageState.trackingCourseId = String(
-    context.trackingCourseIdForApi || '',
-  );
-
-  if (identifiers && !identifiers.hasTrackingMapping) {
-    const enrolledTrackingId = await resolveEnrolledTrackingCourseId(
-      selectedCourse,
-    );
-    if (enrolledTrackingId) {
-      projectsPageState.trackingCourseId = enrolledTrackingId;
-    } else {
-      setApiNotice(
-        'Projects require a backend course mapping. Enroll in this course or contact an admin.',
-        'error',
-      );
-      updateCourseMeta(selectedCourse);
-      setupNavigationLinks(context.localCourseId);
-      return;
-    }
-  } else if (!projectsPageState.trackingCourseId) {
-    const enrolledTrackingId = await resolveEnrolledTrackingCourseId(
-      selectedCourse,
-    );
-    if (enrolledTrackingId) {
-      projectsPageState.trackingCourseId = enrolledTrackingId;
-    }
-  }
-
-  if (!projectsPageState.trackingCourseId) {
-    setApiNotice(
-      'Projects require a backend course mapping. Enroll in this course or contact an admin.',
-      'error',
-    );
-    updateCourseMeta(selectedCourse);
-    setupNavigationLinks(context.localCourseId);
-    return;
-  }
-
-  updateCourseMeta(selectedCourse);
-  setupNavigationLinks(context.localCourseId);
-
-  const submitForm = document.getElementById('milestoneSubmitForm');
-  if (submitForm) submitForm.addEventListener('submit', handleMilestoneSubmit);
-
-  void loadProjectsOverview();
+  return loadProjectsOverview(Boolean(options.forceRefresh));
 }
 
 async function loadProjectsOverview(forceRefresh) {
@@ -336,10 +152,7 @@ async function loadProjectsOverview(forceRefresh) {
       renderProjects();
       updateHeaderStats();
       setApiNoticeWithCache('Projects loaded from cache.', '', cacheKey);
-      setGroupWorkspaceStatus(
-        'ok',
-        'Student mode: Group Workspace is read-only. Showing cached data.',
-      );
+      setGroupWorkspaceStatus('ok', 'Showing cached project data.');
       return;
     }
   }
@@ -359,10 +172,7 @@ async function loadProjectsOverview(forceRefresh) {
       payload.pageError ? 'empty' : '',
       cacheKey,
     );
-    setGroupWorkspaceStatus(
-      'ok',
-      'Student mode: Group Workspace is read-only here. Tracking API connection is active.',
-    );
+    setGroupWorkspaceStatus('ok', 'Tracking API connection is active.');
   } catch (error) {
     var cached = projectsCache.get(cacheKey);
     if (cached) {
@@ -374,18 +184,12 @@ async function loadProjectsOverview(forceRefresh) {
         'empty',
         cacheKey,
       );
-      setGroupWorkspaceStatus(
-        'error',
-        'Student mode: Group Workspace is read-only. Showing stale cached data.',
-      );
+      setGroupWorkspaceStatus('error', 'Showing stale cached data.');
       return;
     }
     const message = formatRequestError(error, 'Unable to load projects.');
     setApiNotice(message, 'error');
-    setGroupWorkspaceStatus(
-      'error',
-      `Student mode: Group Workspace is read-only. API status: ${message}`,
-    );
+    setGroupWorkspaceStatus('error', 'API status: ' + message);
   }
 }
 
@@ -548,42 +352,64 @@ function renderProjectDetails() {
 }
 
 function loadProjectExtraDetails(project) {
-  if (
-    !project ||
-    !window.NibrasServices ||
-    !window.NibrasServices.projectService
-  )
-    return;
+  if (!project) return;
   var apiId = project.apiProjectId || project._id || project.id;
   if (!apiId) return;
   if (project._extraLoaded) return;
 
-  window.NibrasServices.projectService
-    .getById(apiId)
-    .then(function (res) {
-      var data = res?.data || res;
-      if (!data || typeof data !== 'object') return;
+  var svc = trackingProjects();
+  if (!svc) return;
+
+  Promise.all([
+    svc.getById(apiId).catch(function () {
+      return null;
+    }),
+    svc.listTeams(apiId).catch(function () {
+      return [];
+    }),
+    svc.getCommits(apiId).catch(function () {
+      return null;
+    }),
+  ])
+    .then(function (results) {
+      var detail = results[0]?.data || results[0];
+      var teams = Array.isArray(results[1]) ? results[1] : results[1]?.data || [];
+      var commitsPayload = results[2]?.data || results[2];
       project._extraLoaded = true;
-      if (data.teamMembers && Array.isArray(data.teamMembers)) {
-        project.teamMembers = data.teamMembers;
-      } else if (data.members && Array.isArray(data.members)) {
-        project.teamMembers = data.members;
+
+      if (detail && typeof detail === 'object') {
+        if (detail.githubRepo || detail.githubUrl) {
+          project.githubRepo = detail.githubRepo || detail.githubUrl;
+        }
+        if (Array.isArray(detail.milestones)) {
+          detail.milestones.forEach(function (ms, idx) {
+            if (project.milestones[idx]) {
+              if (ms.score != null) project.milestones[idx].score = ms.score;
+              if (ms.weight != null) project.milestones[idx].weight = ms.weight;
+              if (ms.status) project.milestones[idx].status = ms.status;
+            }
+          });
+        }
       }
-      if (data.githubRepo) project.githubRepo = data.githubRepo;
-      if (data.contribution && Array.isArray(data.contribution)) {
-        project.contribution = data.contribution;
-      }
-      if (data.grade != null) project.grade = data.grade;
-      if (data.milestones && Array.isArray(data.milestones)) {
-        data.milestones.forEach(function (ms, idx) {
-          if (project.milestones[idx]) {
-            if (ms.score != null) project.milestones[idx].score = ms.score;
-            if (ms.weight != null) project.milestones[idx].weight = ms.weight;
-            if (ms.status) project.milestones[idx].status = ms.status;
-          }
+
+      if (teams.length) {
+        var team = teams[0];
+        project.teamName = team.name || project.teamName;
+        project.teamMembers = (team.members || []).map(function (m) {
+          return {
+            name: m.displayName || m.userId,
+            role: m.roleLabel || m.roleKey || 'member',
+            userId: m.userId,
+          };
         });
       }
+
+      if (commitsPayload && Array.isArray(commitsPayload.commits)) {
+        project.commits = commitsPayload.commits;
+      }
+
       renderProjectDetails();
+      renderGroupWorkspace();
     })
     .catch(function () {});
 }
@@ -833,7 +659,39 @@ function updateHeaderStats() {
     '.header-stats .stat-line.secondary',
   );
   if (completionLabel)
-    completionLabel.textContent = `${averageCompletion}% Complete`;
+    completionLabel.textContent = averageCompletion + '% Complete';
+
+  var counters = projectsPageState.ui.statusCounters;
+  var totalMilestones = projects.reduce(function (sum, p) {
+    return sum + (p.stats?.total || 0);
+  }, 0);
+  var approved = counters.approved || 0;
+  var pct =
+    totalMilestones > 0 ? Math.round((approved / totalMilestones) * 100) : averageCompletion;
+
+  var heroSections = document.getElementById('stat-sections');
+  var heroCompleted = document.getElementById('stat-completed');
+  var heroComplete = document.getElementById('stat-complete');
+  if (heroSections) heroSections.textContent = String(totalMilestones);
+  if (heroCompleted) heroCompleted.textContent = String(approved);
+  if (heroComplete) heroComplete.textContent = pct + '%';
+
+  var progressPct = document.getElementById('progress-pct');
+  var progressFill = document.getElementById('progress-fill');
+  var progressPctLarge = document.getElementById('progress-pct-large');
+  if (progressPct) progressPct.textContent = pct + '%';
+  if (progressFill) progressFill.style.width = pct + '%';
+  if (progressPctLarge) progressPctLarge.textContent = pct + '%';
+
+  var legendApproved = document.getElementById('legend-approved');
+  var legendReview = document.getElementById('legend-review');
+  var legendOpen = document.getElementById('legend-open');
+  if (legendApproved) legendApproved.textContent = String(approved);
+  if (legendReview) legendReview.textContent = String(counters.in_review || 0);
+  if (legendOpen)
+    legendOpen.textContent = String(
+      Math.max(0, totalMilestones - approved - (counters.in_review || 0)),
+    );
 }
 
 function resolveCliBaseUrl() {
@@ -1134,29 +992,6 @@ function setGroupWorkspaceStatus(type, message) {
   }
 }
 
-function formatRequestError(error, fallbackMessage) {
-  const code = String(error?.code || '').toUpperCase();
-  const status = Number(error?.status || 0);
-  const rawMessage = String(error?.message || '').trim();
-
-  if (
-    code === 'NETWORK_OR_CORS' ||
-    rawMessage.toLowerCase().includes('failed to fetch')
-  ) {
-    return `Could not reach tracking API from ${window.location.origin}. Usually CORS/network. Add this origin to API CORS allowlist (NIBRAS_WEB_CORS_ORIGINS).`;
-  }
-  if (code === 'AUTH_REQUIRED' || status === 401) {
-    return 'Tracking API authentication is required. Please sign in again and retry.';
-  }
-  if (code === 'FORBIDDEN' || status === 403) {
-    return 'Your account does not have access to this course/milestone data yet.';
-  }
-  if (code === 'NOT_FOUND' || status === 404) {
-    return 'Requested project/milestone data was not found.';
-  }
-  return rawMessage || fallbackMessage;
-}
-
 function setSubmissionBusy(busy, message) {
   const button = document.getElementById('submit-milestone-btn');
   if (button) button.disabled = Boolean(busy);
@@ -1274,27 +1109,6 @@ function resolveProjectsCourseContext(course) {
   };
 }
 
-function escapeHtml(value) {
-  return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function formatDateTime(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'N/A';
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 window.switchView = (viewId, event) => {
   projectsPageState.activeViewId = viewId;
 
@@ -1314,7 +1128,47 @@ window.switchView = (viewId, event) => {
 
   document.getElementById(viewId)?.classList.add('active');
   if (viewId === 'my-projects-view') void loadProjectsOverview();
+  if (viewId === 'group-view') renderGroupWorkspace();
 };
+
+function renderGroupWorkspace() {
+  var host = document.getElementById('group-workspace-body');
+  if (!host) return;
+
+  var project = projectsPageState.ui.projects.find(function (e) {
+    return e.domId === projectsPageState.activeProjectId;
+  });
+  if (!project) {
+    host.innerHTML =
+      '<p class="section-desc">Select a project to view your team workspace.</p>';
+    return;
+  }
+
+  var members = project.teamMembers || [];
+  if (!members.length) {
+    host.innerHTML =
+      '<p class="section-desc">No team assigned yet for <strong>' +
+      escapeHtml(project.details.title) +
+      '</strong>. Apply via the catalog or wait for team formation.</p>';
+    return;
+  }
+
+  host.innerHTML =
+    '<table class="data-table"><thead><tr><th>Member</th><th>Role</th><th>Status</th></tr></thead><tbody>' +
+    members
+      .map(function (m) {
+        var name = m.name || m.username || m.email || 'Member';
+        return (
+          '<tr><td>' +
+          escapeHtml(name) +
+          '</td><td>' +
+          escapeHtml(m.role || 'Member') +
+          '</td><td><span class="status-badge badge-graded">Active</span></td></tr>'
+        );
+      })
+      .join('') +
+    '</tbody></table>';
+}
 
 window.selectProject = (domId, event) => {
   projectsPageState.activeProjectId = String(domId || '');
@@ -1782,13 +1636,12 @@ window.confirmGithubConnect = function () {
           '<span style="color:var(--text-secondary);font-size:0.85rem;"><i class="fa-solid fa-info-circle"></i> Repository URL accepted</span>';
       }
 
-      // Connect the repo to the project
       var connectPromise;
-      if (svc && svc.projectService && githubConnectProjectId) {
-        connectPromise = svc.projectService
-          .update(githubConnectProjectId, {
-            repoUrl: repoUrl,
-            repoBranch: branch,
+      var trackingSvc = trackingProjects();
+      if (trackingSvc && githubConnectProjectId) {
+        connectPromise = trackingSvc
+          .updateProject(githubConnectProjectId, {
+            resources: [{ label: 'Repository', url: repoUrl }],
           })
           .catch(function () {
             return null;
@@ -1903,13 +1756,13 @@ function loadCommitHistory(projectId, project) {
     return;
   }
 
-  var svc = window.NibrasServices;
-  if (svc && svc.projectService && apiId) {
-    svc.projectService
-      .getById(apiId)
+  var svc = trackingProjects();
+  if (svc && apiId) {
+    svc
+      .getCommits(apiId)
       .then(function (res) {
-        var data = res?.data || res;
-        var commits = data && Array.isArray(data.commits) ? data.commits : [];
+        var payload = res?.data || res;
+        var commits = payload && Array.isArray(payload.commits) ? payload.commits : [];
         if (project) project.commits = commits;
         renderCommitHistory(commits, project);
       })
@@ -2093,20 +1946,31 @@ function closeContributionAnalyticsModal() {
 function loadContributionAnalytics(projectId, project) {
   var apiId = projectId || (project && project.apiProjectId);
 
-  var svc = window.NibrasServices;
-  if (svc && svc.projectService && apiId) {
-    svc.projectService
-      .getById(apiId)
-      .then(function (res) {
-        var data = res?.data || res;
+  var svc = trackingProjects();
+  if (svc && apiId) {
+    Promise.all([
+      svc.getCommits(apiId).catch(function () {
+        return null;
+      }),
+      svc.getContributions(apiId).catch(function () {
+        return null;
+      }),
+    ])
+      .then(function (results) {
+        var commitsPayload = results[0]?.data || results[0];
+        var contribPayload = results[1]?.data || results[1];
         var commits =
-          data && Array.isArray(data.commits)
-            ? data.commits
+          commitsPayload && Array.isArray(commitsPayload.commits)
+            ? commitsPayload.commits
             : project
               ? project.commits || []
               : [];
         var contribution =
-          data && Array.isArray(data.contribution) ? data.contribution : [];
+          contribPayload && Array.isArray(contribPayload.members)
+            ? contribPayload.members
+            : contribPayload && Array.isArray(contribPayload.contribution)
+              ? contribPayload.contribution
+              : [];
         if (project) {
           project.commits = commits;
           if (contribution.length) project.contribution = contribution;
@@ -2426,16 +2290,53 @@ function closeTeamManagementModal() {
 }
 
 function loadTeamData(projectId, project) {
-  // Start from project's existing team members
   teamMembers =
     project && project.teamMembers ? project.teamMembers.slice() : [];
 
   var teamName = (project && project.teamName) || '';
   var teamRepo = (project && project.githubRepo) || '';
 
+  var svc = trackingProjects();
+  if (svc && projectId) {
+    svc
+      .listTeams(projectId)
+      .then(function (teams) {
+        var list = Array.isArray(teams) ? teams : teams?.data || [];
+        if (list.length) {
+          var team = list[0];
+          teamName = team.name || teamName;
+          teamMembers = (team.members || []).map(function (m) {
+            return {
+              name: m.displayName || m.userId,
+              role: m.roleLabel || m.roleKey || 'member',
+              userId: m.userId,
+            };
+          });
+          if (project) {
+            project.teamMembers = teamMembers.slice();
+            project.teamName = teamName;
+          }
+        }
+        document.getElementById('team-name-input').value = teamName;
+        document.getElementById('team-repo-input').value = teamRepo;
+        document.getElementById('team-loading').style.display = 'none';
+        document.getElementById('team-content').style.display = '';
+        document.getElementById('team-modal-footer').style.display = '';
+        renderTeamMembersList();
+      })
+      .catch(function () {
+        document.getElementById('team-name-input').value = teamName;
+        document.getElementById('team-repo-input').value = teamRepo;
+        document.getElementById('team-loading').style.display = 'none';
+        document.getElementById('team-content').style.display = '';
+        document.getElementById('team-modal-footer').style.display = '';
+        renderTeamMembersList();
+      });
+    return;
+  }
+
   document.getElementById('team-name-input').value = teamName;
   document.getElementById('team-repo-input').value = teamRepo;
-
   document.getElementById('team-loading').style.display = 'none';
   document.getElementById('team-content').style.display = '';
   document.getElementById('team-modal-footer').style.display = '';
@@ -2563,7 +2464,6 @@ function saveTeamSettings() {
   var teamRepo = document.getElementById('team-repo-input').value.trim();
   var msgEl = document.getElementById('team-success-msg');
 
-  // Update local project state
   var project = projectsPageState.ui.projects.find(function (e) {
     return (
       e.apiProjectId === teamManagementProjectId ||
@@ -2577,21 +2477,28 @@ function saveTeamSettings() {
     if (teamRepo) project.githubRepo = teamRepo;
   }
 
-  // Try to persist via API
-  var svc = window.NibrasServices;
-  var savePromise;
-  if (svc && svc.projectService && teamManagementProjectId) {
-    savePromise = svc.projectService
-      .update(teamManagementProjectId, {
-        teamName: teamName,
-        repoUrl: teamRepo || undefined,
-        teamMembers: teamMembers,
+  var svc = trackingProjects();
+  var savePromise = Promise.resolve(null);
+  if (svc && teamManagementProjectId) {
+    savePromise = svc
+      .listTeams(teamManagementProjectId)
+      .then(function (teams) {
+        var list = Array.isArray(teams) ? teams : teams?.data || [];
+        if (!list.length) return null;
+        return svc.updateTeam(teamManagementProjectId, list[0].id, {
+          name: teamName || undefined,
+          members: teamMembers.map(function (m) {
+            return {
+              userId: m.userId || m.email || m.name,
+              roleKey: m.role || 'member',
+              roleLabel: m.role || 'Member',
+            };
+          }),
+        });
       })
       .catch(function () {
         return null;
       });
-  } else {
-    savePromise = Promise.resolve(null);
   }
 
   savePromise
@@ -2603,6 +2510,7 @@ function saveTeamSettings() {
         msgEl.style.display = 'none';
       }, 2500);
       renderProjectDetails();
+      renderGroupWorkspace();
     })
     .catch(function () {
       msgEl.style.display = '';
@@ -2612,6 +2520,7 @@ function saveTeamSettings() {
         msgEl.style.display = 'none';
       }, 2500);
       renderProjectDetails();
+      renderGroupWorkspace();
     });
 }
 
@@ -2652,4 +2561,99 @@ window.addEventListener('beforeunload', () => {
     clearInterval(projectsPageState.pollingInterval);
     projectsPageState.pollingInterval = null;
   }
+});
+
+function renderActivityFeed(projectId) {
+  var feed = document.getElementById('webhook-feed');
+  var badge = document.getElementById('webhook-badge');
+  if (!feed) return;
+
+  var svc = trackingProjects();
+  if (!svc) {
+    feed.innerHTML =
+      '<div class="empty-state"><p>Activity feed unavailable.</p></div>';
+    return;
+  }
+
+  feed.innerHTML =
+    '<div class="empty-state"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Loading activity...</p></div>';
+
+  var promises = [svc.getActivity().catch(function () { return []; })];
+  if (projectId) {
+    promises.push(
+      svc.getCommits(projectId).catch(function () {
+        return null;
+      }),
+    );
+  }
+
+  Promise.all(promises).then(function (results) {
+    var activity = Array.isArray(results[0]) ? results[0] : results[0]?.data || [];
+    var commitsPayload = results[1]?.data || results[1];
+    var commits =
+      commitsPayload && Array.isArray(commitsPayload.commits)
+        ? commitsPayload.commits
+        : [];
+
+    var events = [];
+    activity.forEach(function (evt) {
+      events.push({
+        type: evt.type || 'activity',
+        message: evt.message || evt.title || evt.summary || 'Activity update',
+        at: evt.createdAt || evt.timestamp,
+      });
+    });
+    commits.slice(0, 10).forEach(function (c) {
+      events.push({
+        type: 'commit',
+        message: c.message || c.sha || 'Commit',
+        at: c.committedAt || c.date,
+      });
+    });
+
+    if (!events.length) {
+      if (badge) {
+        badge.innerHTML = '<i class="fa-solid fa-circle"></i> Quiet';
+      }
+      feed.innerHTML =
+        '<div class="empty-state"><i class="fa-solid fa-code-branch"></i><p>No recent activity yet.</p><p class="empty-state-sub">Connect GitHub and submit milestones to see updates here.</p></div>';
+      return;
+    }
+
+    if (badge) {
+      badge.innerHTML = '<i class="fa-solid fa-circle"></i> Live';
+      badge.style.background = 'rgba(34,197,94,0.15)';
+      badge.style.color = '#22c55e';
+    }
+
+    feed.innerHTML =
+      '<div class="webhook-list">' +
+      events
+        .slice(0, 12)
+        .map(function (evt) {
+          var icon =
+            evt.type === 'commit' ? 'fa-code-commit wh-commit' : 'fa-bell wh-pr';
+          return (
+            '<div class="webhook-item ' +
+            (evt.type === 'commit' ? 'wh-commit' : 'wh-pr') +
+            '"><i class="fa-solid ' +
+            icon +
+            ' wh-icon"></i><div><strong>' +
+            escapeHtml(evt.message) +
+            '</strong><div style="font-size:0.75rem;color:var(--text-secondary);">' +
+            escapeHtml(formatDateTime(evt.at)) +
+            '</div></div></div>'
+          );
+        })
+        .join('') +
+      '</div>';
+  });
+}
+
+window.NibrasProjectsCore = Object.freeze({
+  init: initProjectsCore,
+  loadProjectsOverview: loadProjectsOverview,
+  renderActivityFeed: renderActivityFeed,
+  renderGroupWorkspace: renderGroupWorkspace,
+  state: projectsPageState,
 });
