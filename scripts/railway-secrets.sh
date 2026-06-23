@@ -170,8 +170,10 @@ if [[ -n "${TUTOR_ORIGIN}" ]]; then
 fi
 
 if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+  API_VARS+=("OPENAI_API_KEY=${OPENAI_API_KEY}")
   TUTOR_VARS+=("OPENAI_API_KEY=${OPENAI_API_KEY}")
 elif [[ -n "${NIBRAS_AI_API_KEY:-}" ]]; then
+  API_VARS+=("NIBRAS_AI_API_KEY=${NIBRAS_AI_API_KEY}")
   TUTOR_VARS+=("NIBRAS_AI_API_KEY=${NIBRAS_AI_API_KEY}")
 fi
 

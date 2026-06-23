@@ -1,0 +1,22 @@
+# Render Blueprint — AI Tutor (Hassona)
+# Deploy: Render Dashboard → New → Blueprint → connect this repo
+services:
+  - type: web
+    name: nibras-tutor
+    runtime: docker
+    dockerfilePath: ./Dockerfile.tutor
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NIBRAS_API_URL
+        value: https://api-production-bd99.up.railway.app/v1/community
+      - key: NIBRAS_API_ORIGIN
+        value: https://api-production-bd99.up.railway.app
+      - key: NIBRAS_AI_MODEL
+        value: gpt-4o-mini
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: NIBRAS_AI_API_KEY
+        sync: false
+      - key: NIBRAS_INTERNAL_API_TOKEN
+        sync: false
