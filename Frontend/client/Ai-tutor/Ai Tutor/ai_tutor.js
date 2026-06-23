@@ -298,6 +298,22 @@ window.NibrasReact.run(() => {
     });
   };
 
+  const loadTutorAccess = async () => {
+    if (!getAuthToken()) return;
+    const credSvc = window.NibrasServices?.aiCredentialsService;
+    if (!credSvc?.get) return;
+    try {
+      const cred = await credSvc.get();
+      if (cred?.configured || cred?.tutorAvailable) return;
+      setTutorNotice(
+        'info',
+        'Add an API key in Settings → AI Integration to use the AI Tutor. Groq offers a free tier.',
+      );
+    } catch (_) {
+      // ignore credential probe failures
+    }
+  };
+
   const loadSidebarData = async () => {
     const svc = chatbotService();
     if (!svc || !getAuthToken()) {
@@ -800,6 +816,7 @@ window.NibrasReact.run(() => {
   renderQuickTopics();
   renderPopularTopics();
   loadSidebarData();
+  void loadTutorAccess();
 
   topicContainer?.addEventListener('click', (event) => {
     const btn = event.target.closest('.topic-card[data-topic-title]');

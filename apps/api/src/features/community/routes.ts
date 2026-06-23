@@ -1344,7 +1344,7 @@ export function registerCommunityRoutes(
   let tutorHealthCache: { at: number; byokOnly: boolean } | null = null;
 
   async function tutorRequiresByok(): Promise<boolean> {
-    if (!CHATBOT_V1_URL) return true;
+    if (!CHATBOT_V1_URL) return !hasPlatformAiKey();
     const now = Date.now();
     if (tutorHealthCache && now - tutorHealthCache.at < 60_000) {
       return tutorHealthCache.byokOnly;
@@ -1354,16 +1354,18 @@ export function registerCommunityRoutes(
         signal: AbortSignal.timeout(5000),
       });
       if (!resp.ok) {
-        tutorHealthCache = { at: now, byokOnly: true };
-        return true;
+        const byokOnly = !hasPlatformAiKey();
+        tutorHealthCache = { at: now, byokOnly };
+        return byokOnly;
       }
       const data = (await resp.json()) as { byok_only?: boolean };
       const byokOnly = Boolean(data.byok_only);
       tutorHealthCache = { at: now, byokOnly };
       return byokOnly;
     } catch {
-      tutorHealthCache = { at: now, byokOnly: true };
-      return true;
+      const byokOnly = !hasPlatformAiKey();
+      tutorHealthCache = { at: now, byokOnly };
+      return byokOnly;
     }
   }
 

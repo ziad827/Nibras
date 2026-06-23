@@ -376,17 +376,30 @@
   };
 
   const getErrorMessage = (payload, status, statusText, rawText) => {
+    const serverMessage = [
+      payload?.message,
+      payload?.error?.message,
+      typeof payload?.error === 'string' ? payload.error : null,
+    ].find((candidate) => typeof candidate === 'string' && candidate.trim());
+
     if (status === 401) {
-      return 'Authentication required. Please sign in to continue.';
+      return (
+        serverMessage?.trim() ||
+        'Authentication required. Please sign in to continue.'
+      );
     }
     if (status === 403) {
-      return 'You do not have permission to perform this action.';
+      return (
+        serverMessage?.trim() ||
+        'You do not have permission to perform this action.'
+      );
     }
     if (status === 429) {
       return 'Too many attempts. Please wait a moment before trying again.';
     }
 
     const candidates = [
+      serverMessage || null,
       payload?.message,
       payload?.error?.message,
       typeof payload?.error === 'string' ? payload.error : null,

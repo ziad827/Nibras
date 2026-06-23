@@ -70,7 +70,7 @@ export function hasPlatformAiKey(): boolean {
 }
 
 export const HASSONA_CREDENTIAL_REQUIRED_MESSAGE =
-  'Connect an API key in Settings → AI Integration to use Hassona. Use OpenAI, Groq (free tier), or OpenRouter.';
+  'Connect an API key in Settings → AI Integration to use the AI Tutor. Use OpenAI, Groq (free tier), or OpenRouter.';
 
 export const AI_CREDENTIAL_DECRYPT_FAILED_MESSAGE =
   'Your saved API key could not be read. Open Settings → AI Integration, re-enter your key, and save again.';
