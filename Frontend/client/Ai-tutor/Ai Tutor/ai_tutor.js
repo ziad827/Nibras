@@ -648,7 +648,7 @@ window.NibrasReact.run(() => {
         const payload = chatbotService?.ask
           ? await chatbotService.ask(trimmed)
           : await postJson(
-              'https://nibras-backend.up.railway.app/api/community/chatbot/ask',
+              '/api/chatbot/ask',
               { question: trimmed },
             );
         const data = extractPayloadData(payload);
@@ -670,7 +670,7 @@ window.NibrasReact.run(() => {
         if (sessionMatchedQuestionId) {
           try {
             const questionPayload = await getJson(
-              `/community/questions/${sessionMatchedQuestionId}`,
+              `/api/questions/${sessionMatchedQuestionId}`,
             );
             const questionData =
               questionPayload?.data?.question ||
@@ -935,7 +935,7 @@ window.NibrasReact.run(() => {
               finalAnswer: sessionFinalAnswer,
               tags: sessionTags,
             })
-          : await postJson('/community/chatbot/publish', {
+          : await postJson('/api/chatbot/publish', {
               title,
               question: sessionQuestion,
               finalAnswer: sessionFinalAnswer,

@@ -14,6 +14,7 @@ import { CompetitionsModule } from '@modules/competitions/competitions.module';
 import { CoursesModule } from '@modules/courses/courses.module';
 import { AssessmentsModule } from '@modules/assessments/assessments.module';
 import { GamificationModule } from '@modules/gamification/gamification.module';
+import { CommunityModule } from '@modules/community/community.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { GamificationModule } from '@modules/gamification/gamification.module';
     CompetitionsModule,
     CoursesModule,
     AssessmentsModule,
+    CommunityModule,
     HealthModule,
   ],
   providers: [

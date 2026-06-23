@@ -27,7 +27,7 @@ export class ChatbotService {
     @InjectModel(User.name) private userModel: Model<User>,
     private answerService: AnswerService,
   ) {
-    this.aiServiceUrl = process.env.AI_SERVICE_URL || '';
+    this.aiServiceUrl = process.env.AI_SERVICE_URL2 || 'https://web-production-b343c.up.railway.app/api/ask';
     this.aiTimeout = Number(process.env.AI_TIMEOUT) || 300000;
   }
 
